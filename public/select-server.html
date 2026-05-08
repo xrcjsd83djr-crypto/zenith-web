@@ -332,7 +332,13 @@
     <p>Choose a server to manage with Zenith</p>
   </div>
 
-  <div id="guilds-container" class="guilds-grid"></div>
+  <div id="loading-state" class="empty-state">
+    <div class="empty-icon"><i class="fas fa-spinner fa-spin"></i></div>
+    <h2>Fetching Your Servers</h2>
+    <p id="loading-message">Hold tight, we're grabbing your servers...</p>
+  </div>
+
+  <div id="guilds-container" class="guilds-grid" style="display: none;"></div>
 
   <div id="empty-state" class="empty-state" style="display: none;">
     <div class="empty-icon"><i class="fas fa-inbox"></i></div>
@@ -398,16 +404,43 @@
     }
   }
 
+  // Funny loading messages
+  const funnyMessages = [
+    'Hold tight, we are grabbing your servers...',
+    'Summoning your servers from the Discord realm...',
+    'Wrangling your servers like a digital cowboy...',
+    'Loading servers at light speed...',
+    'Your servers are on their way, we promise...',
+    'Consulting the Discord oracle...',
+    'Assembling your server squad...',
+    'Servers incoming in 3... 2... 1...',
+    'Brewing some server magic...',
+    'Servers are fashionably late, but worth the wait...'
+  ];
+
+  let messageIndex = 0;
+  setInterval(() => {
+    const msg = document.getElementById('loading-message');
+    if (msg) {
+      messageIndex = (messageIndex + 1) % funnyMessages.length;
+      msg.textContent = funnyMessages[messageIndex];
+    }
+  }, 3000);
+
   // Render guilds
   function renderGuilds(guilds) {
     const container = document.getElementById('guilds-container');
+    const loadingState = document.getElementById('loading-state');
     const emptyState = document.getElementById('empty-state');
+
+    loadingState.style.display = 'none';
 
     if (!guilds || guilds.length === 0) {
       emptyState.style.display = 'block';
       return;
     }
 
+    container.style.display = 'grid';
     container.innerHTML = guilds.map(guild => `
       <div class="guild-card">
         <div class="guild-icon">

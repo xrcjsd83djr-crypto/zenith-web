@@ -55,6 +55,14 @@ import express from 'express';
   });
 
   app.get('/auth/callback', async (req, res) => {
+    handleAuthCallback(req, res);
+  });
+
+  app.get('/api/auth/discord/callback', async (req, res) => {
+    handleAuthCallback(req, res);
+  });
+
+  async function handleAuthCallback(req, res) {
     const { code } = req.query;
     if (!code) return res.redirect('/?error=no_code');
     try {
@@ -92,7 +100,8 @@ import express from 'express';
       console.error('[auth] Callback error:', err);
       res.redirect('/?error=auth_failed');
     }
-  });
+  }
+
 
   app.post('/auth/logout', (req, res) => {
     req.session.destroy(() => {

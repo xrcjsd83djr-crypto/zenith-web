@@ -4,7 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zenith Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <style>
+        :root {
+            --bg: #08090e;
+            --surface: #0d0f18;
+            --surface2: #12141f;
+            --border: rgba(255, 255, 255, 0.07);
+            --primary: #6366f1;
+            --primary-hover: #818cf8;
+            --text: #e2e8f0;
+            --text-muted: #64748b;
+            --success: #22c55e;
+            --danger: #ef4444;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,10 +26,15 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #0a0e27;
-            color: #e0e0e0;
-            overflow-x: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
         }
 
         .container {
@@ -25,200 +44,151 @@
 
         /* SIDEBAR */
         .sidebar {
-            width: 280px;
-            background: #0f1229;
-            border-right: 1px solid #1a1f3a;
+            width: 260px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
             display: flex;
             flex-direction: column;
             padding: 20px;
             overflow-y: auto;
-            position: relative;
         }
 
         .sidebar-header {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 12px;
             margin-bottom: 30px;
             padding-bottom: 20px;
-            border-bottom: 1px solid #1a1f3a;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 14px;
+            color: white;
+        }
+
+        .user-section {
+            margin-bottom: 30px;
         }
 
         .user-info {
             display: flex;
             align-items: center;
             gap: 12px;
-            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            background: var(--surface2);
         }
 
         .user-avatar {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
-            font-size: 18px;
-            position: relative;
-        }
-
-        .user-avatar::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            right: 0;
-            width: 12px;
-            height: 12px;
-            background: #10b981;
-            border-radius: 50%;
-            border: 2px solid #0f1229;
-        }
-
-        .user-details h3 {
+            font-weight: 700;
             font-size: 14px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        .user-details h4 {
+            font-size: 13px;
             font-weight: 600;
             margin-bottom: 2px;
         }
 
         .user-details p {
             font-size: 12px;
-            color: #888;
+            color: var(--text-muted);
         }
 
-        .online-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid #10b981;
-            border-radius: 20px;
-            font-size: 12px;
-            color: #10b981;
-            margin-top: 8px;
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            color: #666;
-            font-size: 24px;
-            cursor: pointer;
-            display: none;
-        }
-
-        /* NAVIGATION */
+        /* NAV SECTION */
         .nav-section {
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
 
         .nav-section-title {
             font-size: 11px;
             font-weight: 700;
-            color: #666;
+            color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
-            padding: 0 12px;
+            letter-spacing: 0.8px;
+            margin-bottom: 10px;
+            padding: 0 8px;
         }
 
         .nav-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 12px;
+            gap: 10px;
+            padding: 10px 12px;
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s ease;
-            color: #b0b0b0;
-            text-decoration: none;
+            color: var(--text-muted);
             font-size: 14px;
             border-left: 3px solid transparent;
         }
 
         .nav-item:hover {
-            background: rgba(102, 126, 234, 0.1);
-            color: #e0e0e0;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--text);
         }
 
         .nav-item.active {
-            background: rgba(102, 126, 234, 0.15);
-            border-left-color: #667eea;
-            color: #667eea;
+            background: rgba(99, 102, 241, 0.15);
+            border-left-color: var(--primary);
+            color: var(--primary);
         }
 
-        .resources-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 12px;
-            cursor: pointer;
-        }
-
-        .resources-toggle {
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #666;
-        }
-
-        .resources-items {
-            display: none;
-        }
-
-        .resources-items.open {
-            display: block;
-        }
-
-        .resource-link {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            color: #b0b0b0;
-            font-size: 14px;
-            margin-top: 8px;
-        }
-
-        .resource-link:hover {
-            background: rgba(102, 126, 234, 0.1);
-            color: #e0e0e0;
-        }
-
-        .external-icon {
-            width: 16px;
-            height: 16px;
-            color: #666;
+        .nav-item i {
+            width: 18px;
+            text-align: center;
         }
 
         .sidebar-footer {
             margin-top: auto;
             padding-top: 20px;
-            border-top: 1px solid #1a1f3a;
+            border-top: 1px solid var(--border);
         }
 
-        .sign-out-btn {
+        .logout-btn {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             width: 100%;
-            padding: 12px;
+            padding: 10px 12px;
             background: none;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            color: #ff6b6b;
+            color: var(--danger);
             font-size: 14px;
+            font-weight: 600;
             transition: all 0.2s ease;
         }
 
-        .sign-out-btn:hover {
-            background: rgba(255, 107, 107, 0.1);
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.1);
         }
 
         /* MAIN CONTENT */
@@ -230,8 +200,8 @@
         }
 
         .header {
-            background: #0f1229;
-            border-bottom: 1px solid #1a1f3a;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
             padding: 20px 30px;
             display: flex;
             align-items: center;
@@ -245,25 +215,22 @@
 
         .header-actions {
             display: flex;
-            gap: 15px;
+            gap: 12px;
             align-items: center;
         }
 
-        .header-btn {
+        .icon-btn {
             background: none;
             border: none;
-            color: #e0e0e0;
-            font-size: 20px;
+            color: var(--text-muted);
+            font-size: 18px;
             cursor: pointer;
             transition: color 0.2s ease;
-        }
-
-        .header-btn:hover {
-            color: #667eea;
-        }
-
-        .menu-toggle {
             display: none;
+        }
+
+        .icon-btn:hover {
+            color: var(--primary);
         }
 
         .content {
@@ -274,36 +241,37 @@
 
         /* WELCOME CARD */
         .welcome-card {
-            background: linear-gradient(135deg, #1a1f3a 0%, #0f1229 100%);
-            border: 1px solid #1a1f3a;
+            background: var(--surface);
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 30px;
             margin-bottom: 30px;
             display: flex;
             align-items: center;
-            gap: 30px;
+            gap: 25px;
         }
 
         .welcome-avatar {
             width: 80px;
             height: 80px;
             border-radius: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 36px;
-            font-weight: bold;
+            font-size: 32px;
+            font-weight: 700;
+            color: white;
             flex-shrink: 0;
         }
 
         .welcome-text h2 {
-            font-size: 28px;
-            margin-bottom: 8px;
+            font-size: 26px;
+            margin-bottom: 6px;
         }
 
         .welcome-text p {
-            color: #999;
+            color: var(--text-muted);
             font-size: 14px;
         }
 
@@ -316,7 +284,7 @@
         }
 
         .servers-header h3 {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
         }
 
@@ -325,17 +293,18 @@
             align-items: center;
             gap: 8px;
             padding: 10px 16px;
-            background: rgba(102, 126, 234, 0.1);
-            border: 1px solid #667eea;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid var(--primary);
             border-radius: 8px;
-            color: #667eea;
+            color: var(--primary);
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
+            font-weight: 600;
             transition: all 0.2s ease;
         }
 
         .refresh-btn:hover {
-            background: rgba(102, 126, 234, 0.2);
+            background: rgba(99, 102, 241, 0.2);
         }
 
         .refresh-btn.loading {
@@ -344,9 +313,9 @@
         }
 
         .refresh-icon {
+            display: inline-block;
             width: 16px;
             height: 16px;
-            display: inline-block;
         }
 
         .refresh-icon.spinning {
@@ -361,21 +330,21 @@
         /* SERVER CARDS */
         .servers-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
         }
 
         .server-card {
-            background: #0f1229;
-            border: 1px solid #1a1f3a;
+            background: var(--surface);
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 20px;
             transition: all 0.2s ease;
         }
 
         .server-card:hover {
-            border-color: #667eea;
-            background: rgba(102, 126, 234, 0.05);
+            border-color: rgba(99, 102, 241, 0.35);
+            background: rgba(99, 102, 241, 0.05);
         }
 
         .server-header {
@@ -386,20 +355,22 @@
         }
 
         .server-icon {
-            width: 50px;
-            height: 50px;
+            width: 48px;
+            height: 48px;
             border-radius: 8px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--surface2);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            font-weight: bold;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--primary);
             flex-shrink: 0;
         }
 
         .server-info h4 {
-            font-size: 16px;
+            font-size: 15px;
+            font-weight: 600;
             margin-bottom: 4px;
             white-space: nowrap;
             overflow: hidden;
@@ -408,17 +379,27 @@
 
         .server-role {
             font-size: 12px;
-            color: #999;
+            color: var(--text-muted);
         }
 
         .server-status {
             font-size: 12px;
-            color: #ff6b6b;
+            color: var(--danger);
             margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
-        .server-status.installed {
-            color: #10b981;
+        .server-status.active {
+            color: var(--success);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
         }
 
         .server-action {
@@ -427,42 +408,43 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
             transition: all 0.2s ease;
             margin-top: 15px;
         }
 
         .manage-btn {
-            background: rgba(102, 126, 234, 0.2);
-            color: #667eea;
-            border: 1px solid #667eea;
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--primary);
+            border: 1px solid var(--primary);
         }
 
         .manage-btn:hover {
-            background: rgba(102, 126, 234, 0.3);
+            background: rgba(99, 102, 241, 0.25);
         }
 
         .add-bot-btn {
-            background: #667eea;
+            background: var(--primary);
             color: white;
-            border: 1px solid #667eea;
+            border: 1px solid var(--primary);
         }
 
         .add-bot-btn:hover {
-            background: #5568d3;
+            background: var(--primary-hover);
+            border-color: var(--primary-hover);
         }
 
         /* EMPTY STATE */
         .empty-state {
             text-align: center;
             padding: 60px 20px;
-            color: #666;
+            color: var(--text-muted);
         }
 
         .empty-state-icon {
             font-size: 48px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         /* RESPONSIVE */
@@ -475,11 +457,10 @@
                 width: 100%;
                 height: auto;
                 border-right: none;
-                border-bottom: 1px solid #1a1f3a;
-                padding: 15px;
+                border-bottom: 1px solid var(--border);
                 position: fixed;
                 top: 0;
-                left: -280px;
+                left: -260px;
                 height: 100vh;
                 transition: left 0.3s ease;
                 z-index: 1000;
@@ -489,11 +470,7 @@
                 left: 0;
             }
 
-            .menu-toggle {
-                display: block;
-            }
-
-            .close-btn {
+            .icon-btn {
                 display: block;
             }
 
@@ -525,56 +502,53 @@
         <!-- SIDEBAR -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">Z</div>
+                    <span>Zenith</span>
+                </div>
+            </div>
+
+            <!-- USER SECTION -->
+            <div class="user-section">
                 <div class="user-info">
                     <div class="user-avatar" id="userAvatar">Z</div>
                     <div class="user-details">
-                        <h3 id="userName">Loading...</h3>
+                        <h4 id="userName">Loading...</h4>
                         <p id="userId">...</p>
-                        <div class="online-badge">Online</div>
                     </div>
                 </div>
-                <button class="close-btn" onclick="toggleSidebar()">✕</button>
             </div>
 
-            <!-- GENERAL NAV -->
+            <!-- NAVIGATION -->
             <div class="nav-section">
-                <div class="nav-section-title">General</div>
+                <div class="nav-section-title">Menu</div>
                 <a href="#" class="nav-item active">
-                    <span>🏠</span>
+                    <i class="fas fa-th-large"></i>
                     <span>Dashboard</span>
                 </a>
                 <a href="#" class="nav-item">
-                    <span>👤</span>
-                    <span>Account Settings</span>
-                </a>
-                <a href="#" class="nav-item">
-                    <span>⭐</span>
-                    <span>Manage Premium</span>
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
                 </a>
             </div>
 
-            <!-- RESOURCES NAV -->
+            <!-- RESOURCES -->
             <div class="nav-section">
-                <div class="resources-header" onclick="toggleResources()">
-                    <div class="nav-section-title">Resources</div>
-                    <div class="resources-toggle">▼</div>
-                </div>
-                <div class="resources-items open">
-                    <div class="resource-link">
-                        <span>🔔 Support Server</span>
-                        <span class="external-icon">↗</span>
-                    </div>
-                    <div class="resource-link">
-                        <span>👑 Premium</span>
-                        <span class="external-icon">↗</span>
-                    </div>
-                </div>
+                <div class="nav-section-title">Resources</div>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-circle-question"></i>
+                    <span>Support</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-star"></i>
+                    <span>Premium</span>
+                </a>
             </div>
 
             <!-- FOOTER -->
             <div class="sidebar-footer">
-                <button class="sign-out-btn" onclick="logout()">
-                    <span>↩</span>
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
                     <span>Sign Out</span>
                 </button>
             </div>
@@ -586,8 +560,9 @@
             <header class="header">
                 <h1 class="header-title">Zenith Dashboard</h1>
                 <div class="header-actions">
-                    <button class="header-btn" onclick="toggleNotifications()">🔔</button>
-                    <button class="header-btn menu-toggle" onclick="toggleSidebar()">☰</button>
+                    <button class="icon-btn" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
                 </div>
             </header>
 
@@ -606,7 +581,7 @@
                 <div class="servers-header">
                     <h3>My Servers</h3>
                     <button class="refresh-btn" onclick="refreshServers()">
-                        <span class="refresh-icon" id="refreshIcon">🔄</span>
+                        <i class="fas fa-sync-alt refresh-icon" id="refreshIcon"></i>
                         <span>Refresh</span>
                     </button>
                 </div>
@@ -614,7 +589,9 @@
                 <!-- SERVERS GRID -->
                 <div class="servers-grid" id="serversGrid">
                     <div class="empty-state">
-                        <div class="empty-state-icon">⏳</div>
+                        <div class="empty-state-icon">
+                            <i class="fas fa-hourglass-start"></i>
+                        </div>
                         <p>Loading your servers...</p>
                     </div>
                 </div>
@@ -667,7 +644,9 @@
                 console.error('Failed to load servers:', error);
                 document.getElementById('serversGrid').innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">❌</div>
+                        <div class="empty-state-icon">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </div>
                         <p>Failed to load servers. Please try again.</p>
                     </div>
                 `;
@@ -681,7 +660,9 @@
             if (servers.length === 0) {
                 document.getElementById('serversGrid').innerHTML = `
                     <div class="empty-state">
-                        <div class="empty-state-icon">📭</div>
+                        <div class="empty-state-icon">
+                            <i class="fas fa-inbox"></i>
+                        </div>
                         <p>No servers found. You need to be an admin or owner of a server.</p>
                     </div>
                 `;
@@ -696,13 +677,15 @@
                         <div class="server-info">
                             <h4>${server.name || 'Unknown Server'}</h4>
                             <p class="server-role">${server.role || 'Member'}</p>
-                            <p class="server-status ${server.botAdded ? 'installed' : ''}">
-                                ${server.botAdded ? '✓ Bot Added' : '✗ Bot not added'}
+                            <p class="server-status ${server.botAdded ? 'active' : ''}">
+                                <span class="status-dot"></span>
+                                ${server.botAdded ? 'Bot Active' : 'Bot not added'}
                             </p>
                         </div>
                     </div>
                     <button class="server-action ${server.botAdded ? 'manage-btn' : 'add-bot-btn'}">
-                        ${server.botAdded ? '⚙️ Configure' : '➕ Add Bot'}
+                        <i class="fas ${server.botAdded ? 'fa-sliders-h' : 'fa-plus'}"></i>
+                        ${server.botAdded ? 'Configure' : 'Add Bot'}
                     </button>
                 </div>
             `).join('');
@@ -727,24 +710,14 @@
             document.getElementById('sidebar').classList.toggle('open');
         }
 
-        // Toggle resources
-        function toggleResources() {
-            document.querySelector('.resources-items').classList.toggle('open');
-        }
-
         // Logout
         async function logout() {
             try {
-                await fetch('/api/auth/logout', { method: 'POST' });
+                await fetch('/auth/logout', { method: 'POST' });
                 window.location.href = '/';
             } catch (error) {
                 console.error('Logout failed:', error);
             }
-        }
-
-        // Toggle notifications
-        function toggleNotifications() {
-            alert('Notifications coming soon!');
         }
 
         // Set time-based greeting

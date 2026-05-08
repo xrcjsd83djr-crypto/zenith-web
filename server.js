@@ -95,7 +95,7 @@ import express from 'express';
           : `https://cdn.discordapp.com/embed/avatars/${Number(user.discriminator || 0) % 5}.png`,
         accessToken: tokens.access_token,
       };
-      req.session.save(() => res.redirect('/select-server'));
+      req.session.save(() => res.redirect('/dashboard'));
     } catch (err) {
       console.error('[auth] Callback error:', err);
       res.redirect('/?error=auth_failed');
@@ -116,12 +116,17 @@ import express from 'express';
     res.json({ botClientId: BOT_CLIENT_ID || DISCORD_CLIENT_ID || '' });
   });
 
+  app.get('/api/auth/user', requireAuth, (req, res) => {
+    const { accessToken, ...safe } = req.session.user;
+    res.json(safe);
+  });
+
   app.get('/api/me', requireAuth, (req, res) => {
     const { accessToken, ...safe } = req.session.user;
     res.json(safe);
   });
 
-  app.get('/api/guilds', requireAuth, async (req, res) => {
+  app.get('/api/auth/guilds', requireAuth, async (req, res) => {
     const { accessToken } = req.session.user;
     try {
       const guildsRes = await fetch(`${DISCORD_API}/users/@me/guilds`, {
@@ -160,7 +165,8 @@ import express from 'express';
         name: g.name,
         icon: g.icon,
         iconUrl: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
-        hasBot: botGuildIds.has(g.id),
+        botAdded: botGuildIds.has(g.id),
+        role: g.owner ? 'Owner' : 'Manager',
       })));
     } catch (err) {
       console.error('[guilds] Error:', err);
@@ -168,7 +174,7 @@ import express from 'express';
     }
   });
 
-  app.get('/api/guild/:id', requireAuth, async (req, res) => {
+  app.get('/api/guilds/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { accessToken } = req.session.user;
     try {
@@ -207,7 +213,12 @@ import express from 'express';
 
   // ── Pages ─────────────────────────────────────────────────────────────────
   ['select-server', 'dashboard', 'tos', 'privacy'].forEach(page => {
-    app.get(`/${page}`, (_req, res) => res.sendFile(join(__dirname, 'public', `${page}.html`)));
+    app.get(`/${page}`, (req, res) => {
+      if ((page === 'dashboard' || page === 'select-server') && !req.session.user) {
+        return res.redirect('/');
+      }
+      res.sendFile(join(__dirname, 'public', `${page}.html`));
+    });
   });
 
   app.listen(PORT, '0.0.0.0', () => {

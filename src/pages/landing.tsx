@@ -1,0 +1,171 @@
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { 
+  ShieldCheck, 
+  Settings2, 
+  Activity, 
+  Users, 
+  ChevronRight,
+  ArrowRight,
+  Star
+} from "lucide-react";
+
+export default function LandingPage() {
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Navbar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-xl">
+              Z
+            </div>
+            <span className="font-bold text-xl tracking-tight text-gray-900">Zenith</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <Link href="/tos" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Terms</Link>
+            <Link href="/privacy" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Privacy</Link>
+            <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Log in</Link>
+            <Link href="/servers">
+              <Button className="font-semibold shadow-sm">Try the demo</Button>
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section className="pt-32 pb-20 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-50 border border-gray-200 text-sm font-medium text-gray-600 mb-8 cursor-help group">
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            V2 Now Available
+            <span className="hidden group-hover:inline ml-2 text-xs text-gray-400">(no actual bugs were harmed)</span>
+          </div>
+          <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 tracking-tight leading-[1.1] mb-6">
+            The command center for <br/>
+            <span className="text-primary">serious ERLC servers.</span>
+          </h1>
+          <p className="text-lg md:text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
+            Zenith is the professional, no-nonsense hub that every serious staff team needs. 
+            Manage applications, strikes, activity, and ranks from a single precise dashboard.
+          </p>
+          <div className="flex items-center justify-center gap-4">
+            <Link href="/servers">
+              <Button size="lg" className="h-12 px-8 text-base font-semibold shadow-md hover:shadow-lg transition-all">
+                Get Started <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+            </Link>
+            <Button size="lg" variant="outline" className="h-12 px-8 text-base font-semibold bg-white border-gray-200">
+              View Documentation
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Grid */}
+      <section className="py-24 bg-gray-50/50 border-y border-gray-100">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900">Everything you need to run a server.</h2>
+            <p className="text-gray-600 mt-2">Built for efficiency. Designed for professionals.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: <Users className="w-6 h-6 text-primary" />,
+                title: "Staff Management",
+                desc: "Track every staff member's history, strikes, and activity in one unified roster."
+              },
+              {
+                icon: <Activity className="w-6 h-6 text-primary" />,
+                title: "Activity Tracking",
+                desc: "Automated leaderboards and activity logging so you always know who's putting in the work."
+              },
+              {
+                icon: <Settings2 className="w-6 h-6 text-primary" />,
+                title: "Deep Configuration",
+                desc: "Customize every aspect of your bot. From channels and roles to strike thresholds."
+              },
+              {
+                icon: <ShieldCheck className="w-6 h-6 text-primary" />,
+                title: "Application Pipeline",
+                desc: "Review, accept, and deny staff applications with custom questionnaires."
+              }
+            ].map((f, i) => (
+              <div key={i} className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
+                  {f.icon}
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">{f.title}</h3>
+                <p className="text-gray-600 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing / Premium */}
+      <section className="py-24 px-4">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900">Choose your tier</h2>
+            <p className="text-gray-600 mt-2">Start for free, upgrade when you need more power.</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Free */}
+            <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm">
+              <h3 className="text-2xl font-bold text-gray-900">Standard</h3>
+              <p className="text-gray-500 mt-2 min-h-12">Perfect for growing communities starting to organize.</p>
+              <div className="text-4xl font-extrabold text-gray-900 my-6">Free</div>
+              <ul className="space-y-4 mb-8">
+                {['Basic staff roster', 'Standard application system', 'Strike tracking', 'Basic configuration'].map(f => (
+                  <li key={f} className="flex items-center text-gray-600">
+                    <ChevronRight className="w-5 h-5 text-gray-400 mr-2" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Button variant="outline" className="w-full h-12 text-base font-semibold">Start for free</Button>
+            </div>
+            
+            {/* Premium */}
+            <div className="bg-gray-50 p-8 rounded-3xl border-2 border-premium shadow-md relative overflow-hidden">
+              <div className="absolute top-4 right-4 flex items-center bg-premium/10 text-premium-foreground px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                <Star className="w-3 h-3 mr-1 fill-current" /> Zenith Pro
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900">Premium</h3>
+              <p className="text-gray-500 mt-2 min-h-12">Advanced features for established roleplay servers.</p>
+              <div className="text-4xl font-extrabold text-gray-900 my-6">500 <span className="text-lg font-medium text-gray-500">R$ / mo</span></div>
+              <ul className="space-y-4 mb-8">
+                {['Custom bot branding', 'Advanced activity analytics', 'Multi-server syncing', 'Priority support', 'Unlimited applications'].map(f => (
+                  <li key={f} className="flex items-center text-gray-900 font-medium">
+                    <Star className="w-5 h-5 text-premium mr-2 fill-premium" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Button className="w-full h-12 text-base font-semibold bg-premium hover:bg-premium/90 text-white border-0">
+                Get Premium
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      {/* Footer */}
+      <footer className="border-t border-gray-100 bg-white py-12">
+        <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded bg-gray-200 flex items-center justify-center text-gray-600 font-bold text-xs">
+              Z
+            </div>
+            <span className="font-semibold text-gray-900">Zenith</span>
+          </div>
+          <div className="text-sm text-gray-500">
+            © {new Date().getFullYear()} Zenith. Not affiliated with Discord or ERLC.
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}

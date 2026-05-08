@@ -1,185 +1,186 @@
 <!DOCTYPE html>
-  <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zenith — Discord Bot Management</title>
-    <style>
-      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      :root {
-        --bg: #08090e; --surface: #0d0f18; --surface2: #12141f;
-        --border: rgba(255,255,255,0.07); --primary: #6366f1; --primary-hover: #818cf8;
-        --text: #e2e8f0; --muted: #64748b; --danger: #ef4444;
-      }
-      html { scroll-behavior: smooth; }
-      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
-      a { color: inherit; text-decoration: none; }
-      /* NAV */
-      nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); background: rgba(8,9,14,0.85); backdrop-filter: blur(12px); }
-      .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
-      .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; }
-      .logo-icon { width: 32px; height: 32px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 15px; }
-      .nav-links { display: flex; align-items: center; gap: 28px; font-size: 14px; color: var(--muted); }
-      .nav-links a:hover { color: var(--text); }
-      .nav-actions { display: flex; align-items: center; gap: 10px; }
-      .btn { display: inline-flex; align-items: center; gap-6px; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; text-decoration: none; }
-      .btn-primary { background: var(--primary); color: #fff; }
-      .btn-primary:hover { background: var(--primary-hover); }
-      .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
-      .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
-      .btn-lg { padding: 12px 24px; font-size: 15px; border-radius: 10px; }
-      /* HERO */
-      .hero { max-width: 1100px; margin: 0 auto; padding: 100px 24px 80px; text-align: center; }
-      .badge { display: inline-block; padding: 4px 14px; border-radius: 999px; border: 1px solid rgba(99,102,241,.4); background: rgba(99,102,241,.08); color: #818cf8; font-size: 12px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 28px; }
-      h1 { font-size: clamp(36px,6vw,64px); font-weight: 900; line-height: 1.1; letter-spacing: -1.5px; margin-bottom: 20px; }
-      h1 span { background: linear-gradient(135deg, #6366f1, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-      .hero-sub { font-size: 18px; color: var(--muted); max-width: 560px; margin: 0 auto 40px; line-height: 1.7; }
-      .hero-actions { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
-      /* STATS */
-      .stats { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--surface); }
-      .stats-inner { max-width: 1100px; margin: 0 auto; padding: 32px 24px; display: flex; justify-content: center; gap: 64px; flex-wrap: wrap; }
-      .stat { text-align: center; }
-      .stat-num { font-size: 28px; font-weight: 800; color: var(--text); }
-      .stat-label { font-size: 13px; color: var(--muted); margin-top: 2px; }
-      /* FEATURES */
-      .section { max-width: 1100px; margin: 0 auto; padding: 80px 24px; }
-      .section-label { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--primary); margin-bottom: 12px; }
-      .section-title { font-size: clamp(28px,4vw,40px); font-weight: 800; letter-spacing: -.5px; margin-bottom: 12px; }
-      .section-sub { font-size: 16px; color: var(--muted); max-width: 500px; line-height: 1.7; }
-      .features-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-top: 48px; }
-      .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; transition: border-color .2s; }
-      .feature-card:hover { border-color: rgba(99,102,241,.4); }
-      .feature-icon { width: 42px; height: 42px; background: rgba(99,102,241,.12); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 16px; }
-      .feature-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-      .feature-card p { font-size: 14px; color: var(--muted); line-height: 1.6; }
-      /* HOW IT WORKS */
-      .how { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-      .steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px; margin-top: 48px; }
-      .step { display: flex; gap: 16px; }
-      .step-num { width: 36px; height: 36px; min-width: 36px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; }
-      .step h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
-      .step p { font-size: 14px; color: var(--muted); line-height: 1.6; }
-      /* CTA */
-      .cta-section { text-align: center; padding: 80px 24px; }
-      .cta-box { max-width: 600px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 60px 40px; }
-      .cta-box h2 { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
-      .cta-box p { color: var(--muted); margin-bottom: 32px; font-size: 16px; }
-      /* FOOTER */
-      footer { border-top: 1px solid var(--border); }
-      .footer-inner { max-width: 1100px; margin: 0 auto; padding: 40px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: gap; gap: 20px; }
-      .footer-links { display: flex; gap: 24px; font-size: 13px; color: var(--muted); }
-      .footer-links a:hover { color: var(--text); }
-      .footer-copy { font-size: 13px; color: var(--muted); }
-      @media (max-width: 640px) {
-        .nav-links { display: none; }
-        .stats-inner { gap: 32px; }
-        .footer-inner { flex-direction: column; text-align: center; }
-      }
-    </style>
-  </head>
-  <body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zenith — Discord Bot Management</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #08090e; --surface: #0d0f18; --surface2: #12141f;
+      --border: rgba(255,255,255,0.07); --primary: #6366f1; --primary-hover: #818cf8;
+      --text: #e2e8f0; --muted: #64748b; --danger: #ef4444;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    a { color: inherit; text-decoration: none; }
+    /* NAV */
+    nav { position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); background: rgba(8,9,14,0.85); backdrop-filter: blur(12px); }
+    .nav-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; }
+    .logo-icon { width: 32px; height: 32px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 15px; color: white; }
+    .nav-links { display: flex; align-items: center; gap: 28px; font-size: 14px; color: var(--muted); }
+    .nav-links a:hover { color: var(--text); }
+    .nav-actions { display: flex; align-items: center; gap: 10px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; text-decoration: none; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
+    .btn-lg { padding: 12px 24px; font-size: 15px; border-radius: 10px; }
+    /* HERO */
+    .hero { max-width: 1100px; margin: 0 auto; padding: 100px 24px 80px; text-align: center; }
+    .badge { display: inline-block; padding: 4px 14px; border-radius: 999px; border: 1px solid rgba(99,102,241,.4); background: rgba(99,102,241,.08); color: #818cf8; font-size: 12px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 28px; }
+    h1 { font-size: clamp(36px,6vw,64px); font-weight: 900; line-height: 1.1; letter-spacing: -1.5px; margin-bottom: 20px; }
+    h1 span { color: var(--primary); }
+    .hero-sub { font-size: 18px; color: var(--muted); max-width: 560px; margin: 0 auto 40px; line-height: 1.7; }
+    .hero-actions { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+    /* STATS */
+    .stats { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--surface); }
+    .stats-inner { max-width: 1100px; margin: 0 auto; padding: 32px 24px; display: flex; justify-content: center; gap: 64px; flex-wrap: wrap; }
+    .stat { text-align: center; }
+    .stat-num { font-size: 28px; font-weight: 800; color: var(--text); }
+    .stat-label { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    /* FEATURES */
+    .section { max-width: 1100px; margin: 0 auto; padding: 80px 24px; }
+    .section-label { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--primary); margin-bottom: 12px; }
+    .section-title { font-size: clamp(28px,4vw,40px); font-weight: 800; letter-spacing: -.5px; margin-bottom: 12px; }
+    .section-sub { font-size: 16px; color: var(--muted); max-width: 500px; line-height: 1.7; }
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-top: 48px; }
+    .feature-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; transition: border-color .2s; }
+    .feature-card:hover { border-color: rgba(99,102,241,.4); }
+    .feature-icon { width: 42px; height: 42px; background: rgba(99,102,241,.12); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 16px; color: var(--primary); }
+    .feature-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .feature-card p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+    /* HOW IT WORKS */
+    .how { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px; margin-top: 48px; }
+    .step { display: flex; gap: 16px; }
+    .step-num { width: 36px; height: 36px; min-width: 36px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: white; }
+    .step h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .step p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+    /* CTA */
+    .cta-section { text-align: center; padding: 80px 24px; }
+    .cta-box { max-width: 600px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 60px 40px; }
+    .cta-box h2 { font-size: 32px; font-weight: 800; margin-bottom: 12px; }
+    .cta-box p { color: var(--muted); margin-bottom: 32px; font-size: 16px; }
+    /* FOOTER */
+    footer { border-top: 1px solid var(--border); }
+    .footer-inner { max-width: 1100px; margin: 0 auto; padding: 40px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
+    .footer-links { display: flex; gap: 24px; font-size: 13px; color: var(--muted); }
+    .footer-links a:hover { color: var(--text); }
+    .footer-copy { font-size: 13px; color: var(--muted); }
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .stats-inner { gap: 32px; }
+      .footer-inner { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
 
-  <nav>
-    <div class="nav-inner">
-      <a href="/" class="logo">
-        <div class="logo-icon">Z</div>
-        Zenith
-      </a>
-      <div class="nav-links">
-        <a href="#features">Features</a>
-        <a href="#how-it-works">How it works</a>
-        <a href="/tos">Terms</a>
-        <a href="/privacy">Privacy</a>
-      </div>
-      <div class="nav-actions">
-        <a href="/auth/discord" class="btn btn-ghost">Login</a>
-        <a href="#add-bot" class="btn btn-primary" id="nav-add-btn">Add to Discord</a>
-      </div>
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">
+      <div class="logo-icon">Z</div>
+      Zenith
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How it works</a>
+      <a href="/tos">Terms</a>
+      <a href="/privacy">Privacy</a>
     </div>
-  </nav>
+    <div class="nav-actions">
+      <a href="/auth/discord" class="btn btn-ghost">Login</a>
+      <a href="#add-bot" class="btn btn-primary" id="nav-add-btn">Add to Discord</a>
+    </div>
+  </div>
+</nav>
 
-  <main>
-    <section class="hero">
-      <div class="badge">Discord Bot Management</div>
-      <h1>Run your server like a<br><span>professional team</span></h1>
-      <p class="hero-sub">Zenith gives you full control over staff management, applications, strikes, LOAs, and more — all from one clean dashboard.</p>
+<main>
+  <section class="hero">
+    <div class="badge">Discord Bot Management</div>
+    <h1>Run your server like a<br><span>professional team</span></h1>
+    <p class="hero-sub">Zenith gives you full control over staff management, applications, strikes, LOAs, and more — all from one clean dashboard.</p>
+    <div class="hero-actions">
+      <a href="#add-bot" class="btn btn-primary btn-lg" id="hero-add-btn">Add to Discord →</a>
+      <a href="/auth/discord" class="btn btn-ghost btn-lg">Open Dashboard</a>
+    </div>
+  </section>
+
+  <div class="stats">
+    <div class="stats-inner">
+      <div class="stat"><div class="stat-num">500+</div><div class="stat-label">Discord Servers</div></div>
+      <div class="stat"><div class="stat-num">50k+</div><div class="stat-label">Members Managed</div></div>
+      <div class="stat"><div class="stat-num">99.9%</div><div class="stat-label">Uptime</div></div>
+    </div>
+  </div>
+
+  <section class="section" id="features">
+    <div class="section-label">Features</div>
+    <div class="section-title">Everything you need to manage your team</div>
+    <p class="section-sub">Purpose-built tools for Discord server management, from staff tracking to automated workflows.</p>
+    <div class="features-grid">
+      <div class="feature-card"><div class="feature-icon"><i class="fas fa-users-gear"></i></div><h3>Staff Management</h3><p>Track your entire staff roster with detailed profiles, rank history, and activity logs.</p></div>
+      <div class="feature-card"><div class="feature-icon"><i class="fas fa-bolt"></i></div><h3>Strike System</h3><p>Issue, track, and manage strikes with configurable thresholds and automated actions.</p></div>
+      <div class="feature-card"><div class="feature-icon"><i class="fas fa-umbrella-beach"></i></div><h3>LOA Manager</h3><p>Handle leave of absence requests with structured approval workflows and tracking.</p></div>
+      <div class="feature-card"><div class="feature-icon"><i class="fas fa-clipboard-list"></i></div><h3>Applications</h3><p>Run custom application processes directly in your server with review panels.</p></div>
+      <div class="feature-card"><div class="feature-icon"><i class="fas fa-arrow-trend-up"></i></div><h3>Promotions</h3><p>Track and announce staff promotions with configurable criteria and logs.</p></div>
+      <div class="feature-card"><div class="feature-icon"><i class="fas fa-calendar-check"></i></div><h3>Meeting Logs</h3><p>Keep organized records of all staff meetings, decisions, and attendance.</p></div>
+    </div>
+  </section>
+
+  <div class="how">
+    <section class="section" id="how-it-works">
+      <div class="section-label">How it works</div>
+      <div class="section-title">Up and running in minutes</div>
+      <p class="section-sub">Getting started with Zenith is quick and straightforward.</p>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div><h3>Add Zenith to your server</h3><p>Click "Add to Discord" and select your server. Zenith will join with the permissions it needs.</p></div></div>
+        <div class="step"><div class="step-num">2</div><div><h3>Log in to the dashboard</h3><p>Sign in with your Discord account to access the web dashboard for your servers.</p></div></div>
+        <div class="step"><div class="step-num">3</div><div><h3>Configure and manage</h3><p>Set up roles, channels, and features to match your server's structure and workflow.</p></div></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="cta-section" id="add-bot">
+    <div class="cta-box">
+      <h2>Ready to get started?</h2>
+      <p>Add Zenith to your Discord server today and take full control of your community management.</p>
       <div class="hero-actions">
-        <a href="#add-bot" class="btn btn-primary btn-lg" id="hero-add-btn">Add to Discord →</a>
-        <a href="/auth/discord" class="btn btn-ghost btn-lg">Open Dashboard</a>
-      </div>
-    </section>
-
-    <div class="stats">
-      <div class="stats-inner">
-        <div class="stat"><div class="stat-num">500+</div><div class="stat-label">Discord Servers</div></div>
-        <div class="stat"><div class="stat-num">50k+</div><div class="stat-label">Members Managed</div></div>
-        <div class="stat"><div class="stat-num">99.9%</div><div class="stat-label">Uptime</div></div>
+        <a href="#" class="btn btn-primary btn-lg" id="cta-add-btn">Add to Discord →</a>
+        <a href="/auth/discord" class="btn btn-ghost btn-lg">Login to Dashboard</a>
       </div>
     </div>
+  </div>
+</main>
 
-    <section class="section" id="features">
-      <div class="section-label">Features</div>
-      <div class="section-title">Everything you need to manage your team</div>
-      <p class="section-sub">Purpose-built tools for Discord server management, from staff tracking to automated workflows.</p>
-      <div class="features-grid">
-        <div class="feature-card"><div class="feature-icon">🧑‍💼</div><h3>Staff Management</h3><p>Track your entire staff roster with detailed profiles, rank history, and activity logs.</p></div>
-        <div class="feature-card"><div class="feature-icon">⚡</div><h3>Strike System</h3><p>Issue, track, and manage strikes with configurable thresholds and automated actions.</p></div>
-        <div class="feature-card"><div class="feature-icon">🏖️</div><h3>LOA Manager</h3><p>Handle leave of absence requests with structured approval workflows and tracking.</p></div>
-        <div class="feature-card"><div class="feature-icon">📋</div><h3>Applications</h3><p>Run custom application processes directly in your server with review panels.</p></div>
-        <div class="feature-card"><div class="feature-icon">📈</div><h3>Promotions</h3><p>Track and announce staff promotions with configurable criteria and logs.</p></div>
-        <div class="feature-card"><div class="feature-icon">📅</div><h3>Meeting Logs</h3><p>Keep organized records of all staff meetings, decisions, and attendance.</p></div>
-      </div>
-    </section>
-
-    <div class="how">
-      <section class="section" id="how-it-works">
-        <div class="section-label">How it works</div>
-        <div class="section-title">Up and running in minutes</div>
-        <p class="section-sub">Getting started with Zenith is quick and straightforward.</p>
-        <div class="steps">
-          <div class="step"><div class="step-num">1</div><div><h3>Add Zenith to your server</h3><p>Click "Add to Discord" and select your server. Zenith will join with the permissions it needs.</p></div></div>
-          <div class="step"><div class="step-num">2</div><div><h3>Log in to the dashboard</h3><p>Sign in with your Discord account to access the web dashboard for your servers.</p></div></div>
-          <div class="step"><div class="step-num">3</div><div><h3>Configure and manage</h3><p>Set up roles, channels, and features to match your server's structure and workflow.</p></div></div>
-        </div>
-      </section>
+<footer>
+  <div class="footer-inner">
+    <a href="/" class="logo" style="font-size:15px">
+      <div class="logo-icon" style="width:28px;height:28px;font-size:13px">Z</div>
+      Zenith
+    </a>
+    <div class="footer-links">
+      <a href="#features">Features</a>
+      <a href="/auth/discord">Dashboard</a>
+      <a href="/tos">Terms of Service</a>
+      <a href="/privacy">Privacy Policy</a>
     </div>
+    <div class="footer-copy">© 2025 Zenith. All rights reserved.</div>
+  </div>
+</footer>
 
-    <div class="cta-section" id="add-bot">
-      <div class="cta-box">
-        <h2>Ready to get started?</h2>
-        <p>Add Zenith to your Discord server today and take full control of your community management.</p>
-        <div class="hero-actions">
-          <a href="#" class="btn btn-primary btn-lg" id="cta-add-btn">Add to Discord →</a>
-          <a href="/auth/discord" class="btn btn-ghost btn-lg">Login to Dashboard</a>
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <footer>
-    <div class="footer-inner">
-      <a href="/" class="logo" style="font-size:15px">
-        <div class="logo-icon" style="width:28px;height:28px;font-size:13px">Z</div>
-        Zenith
-      </a>
-      <div class="footer-links">
-        <a href="#features">Features</a>
-        <a href="/auth/discord">Dashboard</a>
-        <a href="/tos">Terms of Service</a>
-        <a href="/privacy">Privacy Policy</a>
-      </div>
-      <div class="footer-copy">© 2025 Zenith. All rights reserved.</div>
-    </div>
-  </footer>
-
-  <script>
-    // Populate bot invite links once config is loaded
-    fetch('/api/config').then(r => r.json()).then(cfg => {
-      const botId = cfg.botClientId;
-      if (!botId) return;
-      const url = `https://discord.com/oauth2/authorize?client_id=${botId}&scope=bot+applications.commands&permissions=8`;
-      document.querySelectorAll('#nav-add-btn, #hero-add-btn, #cta-add-btn').forEach(el => el.href = url);
-    }).catch(() => {});
-  </script>
-  </body>
-  </html>
+<script>
+  // Populate bot invite links once config is loaded
+  fetch('/api/config').then(r => r.json()).then(cfg => {
+    const botId = cfg.botClientId;
+    if (!botId) return;
+    const url = `https://discord.com/oauth2/authorize?client_id=${botId}&scope=bot+applications.commands&permissions=8`;
+    document.querySelectorAll('#nav-add-btn, #hero-add-btn, #cta-add-btn').forEach(el => el.href = url);
+  }).catch(() => {});
+</script>
+</body>
+</html>

@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zenith — Server Configuration</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+    }
+
+    .container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 280px;
+      background: #ffffff;
+      border-right: 1px solid #e0e0e0;
+      padding: 20px;
+      overflow-y: auto;
+      position: fixed;
+      height: 100vh;
+      left: 0;
+      top: 0;
+    }
+
+    .sidebar-header {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 30px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-section {
+      margin-bottom: 25px;
+    }
+
+    .sidebar-section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #999;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .sidebar-item {
+      padding: 10px 12px;
+      margin-bottom: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #555;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-item:hover {
+      background: #f0f0f0;
+      color: #1a1a1a;
+    }
+
+    .sidebar-item.active {
+      background: #e3f2fd;
+      color: #2196f3;
+      font-weight: 600;
+    }
+
+    .sidebar-item.premium {
+      color: #d4af37;
+    }
+
+    .sidebar-item.premium::after {
+      content: '★';
+      margin-left: auto;
+      font-size: 12px;
+    }
+
+    /* Main Content */
+    .main-content {
+      margin-left: 280px;
+      flex: 1;
+      padding: 40px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      color: #1a1a1a;
+      font-weight: 700;
+    }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #d4af37;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+    }
+
+    /* Configuration Sections */
+    .config-section {
+      display: none;
+    }
+
+    .config-section.active {
+      display: block;
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-title .premium-badge {
+      background: #d4af37;
+      color: white;
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    /* Config Cards */
+    .config-card {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      transition: all 0.2s ease;
+    }
+
+    .config-card:hover {
+      border-color: #2196f3;
+      box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+    }
+
+    .config-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 15px;
+    }
+
+    .config-card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .config-card-toggle {
+      width: 50px;
+      height: 28px;
+      background: #ccc;
+      border-radius: 14px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.3s ease;
+    }
+
+    .config-card-toggle.enabled {
+      background: #4caf50;
+    }
+
+    .config-card-toggle::after {
+      content: '';
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: left 0.3s ease;
+    }
+
+    .config-card-toggle.enabled::after {
+      left: 24px;
+    }
+
+    .config-card-description {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 15px;
+    }
+
+    /* Nested Dropdowns (Folder Structure) */
+    .config-group {
+      margin-bottom: 15px;
+    }
+
+    .config-group-header {
+      padding: 12px;
+      background: #f9f9f9;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+      color: #333;
+      transition: all 0.2s ease;
+    }
+
+    .config-group-header:hover {
+      background: #f0f0f0;
+    }
+
+    .config-group-header.expanded {
+      background: #e3f2fd;
+      color: #2196f3;
+    }
+
+    .config-group-icon {
+      width: 20px;
+      text-align: center;
+      transition: transform 0.2s ease;
+    }
+
+    .config-group-header.expanded .config-group-icon {
+      transform: rotate(90deg);
+    }
+
+    .config-group-content {
+      display: none;
+      padding-left: 20px;
+      margin-top: 10px;
+      border-left: 2px solid #e0e0e0;
+    }
+
+    .config-group-content.expanded {
+      display: block;
+    }
+
+    /* Form Elements */
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 6px;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 13px;
+      transition: border-color 0.2s ease;
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+      outline: none;
+      border-color: #2196f3;
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    }
+
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* Search & Filter */
+    .search-box {
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 12px 15px 12px 40px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .search-box i {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #999;
+    }
+
+    /* Channel/Role Selector */
+    .selector-dropdown {
+      position: relative;
+    }
+
+    .selector-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .selector-dropdown-menu {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      max-height: 300px;
+      overflow-y: auto;
+      display: none;
+      z-index: 100;
+    }
+
+    .selector-dropdown-menu.open {
+      display: block;
+    }
+
+    .selector-item {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .selector-item:hover {
+      background: #f5f5f5;
+    }
+
+    .selector-item.selected {
+      background: #e3f2fd;
+      color: #2196f3;
+      font-weight: 500;
+    }
+
+    .selector-item-icon {
+      width: 20px;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .btn-primary {
+      background: #2196f3;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1976d2;
+      box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .btn-success {
+      background: #4caf50;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #45a049;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    /* Premium Lock */
+    .premium-lock {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #d4af37;
+      color: white;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      cursor: help;
+      title: "Premium Feature";
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        border-right: none;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        overflow-x: auto;
+        overflow-y: visible;
+      }
+
+      .main-content {
+        margin-left: 0;
+        padding: 20px;
+      }
+
+      .sidebar-section {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 0;
+      }
+
+      .sidebar-item {
+        white-space: nowrap;
+      }
+    }
+
+    /* Loading Animation */
+    .loading {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #2196f3;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Success Message */
+    .alert {
+      padding: 12px 15px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .alert.success {
+      background: #c8e6c9;
+      color: #2e7d32;
+      display: block;
+    }
+
+    .alert.error {
+      background: #ffcdd2;
+      color: #c62828;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <i class="fas fa-cog"></i> Configuration
+      </div>
+
+      <!-- General Settings -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">General</div>
+        <div class="sidebar-item active" onclick="switchSection('general')">
+          <i class="fas fa-sliders-h"></i> General Settings
+        </div>
+        <div class="sidebar-item" onclick="switchSection('channels')">
+          <i class="fas fa-hashtag"></i> Channels
+        </div>
+        <div class="sidebar-item" onclick="switchSection('roles')">
+          <i class="fas fa-shield-alt"></i> Roles
+        </div>
+      </div>
+
+      <!-- Staff Management -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Staff Management</div>
+        <div class="sidebar-item" onclick="switchSection('applications')">
+          <i class="fas fa-file-alt"></i> Applications
+        </div>
+        <div class="sidebar-item" onclick="switchSection('ranks')">
+          <i class="fas fa-crown"></i> Ranks & Divisions
+        </div>
+        <div class="sidebar-item" onclick="switchSection('activity')">
+          <i class="fas fa-chart-line"></i> Activity Tracking
+        </div>
+      </div>
+
+      <!-- Discipline & HR -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Discipline & HR</div>
+        <div class="sidebar-item" onclick="switchSection('strikes')">
+          <i class="fas fa-exclamation-triangle"></i> Strike System
+        </div>
+        <div class="sidebar-item" onclick="switchSection('loa')">
+          <i class="fas fa-calendar-alt"></i> LOA & Inactivity
+        </div>
+        <div class="sidebar-item" onclick="switchSection('appeals')">
+          <i class="fas fa-gavel"></i> Appeals
+        </div>
+      </div>
+
+      <!-- Premium Features -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Premium Features</div>
+        <div class="sidebar-item premium" onclick="switchSection('branding')">
+          <i class="fas fa-palette"></i> Bot Branding
+        </div>
+        <div class="sidebar-item premium" onclick="switchSection('analytics')">
+          <i class="fas fa-chart-bar"></i> Analytics
+        </div>
+        <div class="sidebar-item premium" onclick="switchSection('advanced')">
+          <i class="fas fa-star"></i> Advanced Settings
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="header">
+        <h1>Server Configuration</h1>
+        <div class="user-profile">
+          <div class="user-avatar">Z</div>
+          <span>Zenith Bot</span>
+        </div>
+      </div>
+
+      <div class="alert success" id="successAlert">
+        <i class="fas fa-check-circle"></i> Configuration saved successfully!
+      </div>
+
+      <!-- General Settings Section -->
+      <div class="config-section active" id="general">
+        <div class="section-title">
+          <i class="fas fa-sliders-h"></i> General Settings
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-header">
+            <div class="config-card-title">
+              <i class="fas fa-cog"></i> Bot Prefix
+            </div>
+          </div>
+          <div class="config-card-description">Set the command prefix for your bot (default: !)</div>
+          <div class="form-group">
+            <label class="form-label">Prefix</label>
+            <input type="text" class="form-input" value="!" maxlength="5" placeholder="!">
+          </div>
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-header">
+            <div class="config-card-title">
+              <i class="fas fa-bell"></i> Notifications
+            </div>
+            <div class="config-card-toggle enabled" onclick="toggleFeature(this)"></div>
+          </div>
+          <div class="config-card-description">Enable bot notifications and announcements</div>
+          <div class="form-group">
+            <label class="form-label">Notification Channel</label>
+            <div class="selector-dropdown">
+              <div class="selector-input" onclick="toggleSelector(this)">
+                <span>#announcements</span>
+                <i class="fas fa-chevron-down"></i>
+              </div>
+              <div class="selector-dropdown-menu">
+                <div class="selector-item selected">
+                  <span class="selector-item-icon">#</span> announcements
+                </div>
+                <div class="selector-item">
+                  <span class="selector-item-icon">#</span> general
+                </div>
+                <div class="selector-item">
+                  <span class="selector-item-icon">#</span> staff-logs
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Channels Section -->
+      <div class="config-section" id="channels">
+        <div class="section-title">
+          <i class="fas fa-hashtag"></i> Channel Configuration
+        </div>
+
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="Search channels...">
+        </div>
+
+        <div class="config-card">
+          <div class="config-group">
+            <div class="config-group-header expanded" onclick="toggleGroup(this)">
+              <span class="config-group-icon">▶</span>
+              <span>Staff Channels</span>
+            </div>
+            <div class="config-group-content expanded">
+              <div class="form-group">
+                <label class="form-label">Applications Channel</label>
+                <div class="selector-dropdown">
+                  <div class="selector-input" onclick="toggleSelector(this)">
+                    <span>#staff-applications</span>
+                    <i class="fas fa-chevron-down"></i>
+                  </div>
+                  <div class="selector-dropdown-menu">
+                    <div class="selector-item selected">
+                      <span class="selector-item-icon">#</span> staff-applications
+                    </div>
+                    <div class="selector-item">
+                      <span class="selector-item-icon">#</span> applications
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Audit Log Channel</label>
+                <div class="selector-dropdown">
+                  <div class="selector-input" onclick="toggleSelector(this)">
+                    <span>#audit-logs</span>
+                    <i class="fas fa-chevron-down"></i>
+                  </div>
+                  <div class="selector-dropdown-menu">
+                    <div class="selector-item selected">
+                      <span class="selector-item-icon">#</span> audit-logs
+                    </div>
+                    <div class="selector-item">
+                      <span class="selector-item-icon">#</span> logs
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="config-group">
+            <div class="config-group-header" onclick="toggleGroup(this)">
+              <span class="config-group-icon">▶</span>
+              <span>Logging Channels</span>
+            </div>
+            <div class="config-group-content">
+              <div class="form-group">
+                <label class="form-label">Strikes Log</label>
+                <div class="selector-dropdown">
+                  <div class="selector-input" onclick="toggleSelector(this)">
+                    <span>#strikes-log</span>
+                    <i class="fas fa-chevron-down"></i>
+                  </div>
+                  <div class="selector-dropdown-menu">
+                    <div class="selector-item selected">
+                      <span class="selector-item-icon">#</span> strikes-log
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Promotions Log</label>
+                <div class="selector-dropdown">
+                  <div class="selector-input" onclick="toggleSelector(this)">
+                    <span>#promotions-log</span>
+                    <i class="fas fa-chevron-down"></i>
+                  </div>
+                  <div class="selector-dropdown-menu">
+                    <div class="selector-item selected">
+                      <span class="selector-item-icon">#</span> promotions-log
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Roles Section -->
+      <div class="config-section" id="roles">
+        <div class="section-title">
+          <i class="fas fa-shield-alt"></i> Role Configuration
+        </div>
+
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" placeholder="Search roles...">
+        </div>
+
+        <div class="config-card">
+          <div class="config-group">
+            <div class="config-group-header expanded" onclick="toggleGroup(this)">
+              <span class="config-group-icon">▶</span>
+              <span>Staff Roles</span>
+            </div>
+            <div class="config-group-content expanded">
+              <div class="form-group">
+                <label class="form-label">Admin Role</label>
+                <div class="selector-dropdown">
+                  <div class="selector-input" onclick="toggleSelector(this)">
+                    <span>@Admin</span>
+                    <i class="fas fa-chevron-down"></i>
+                  </div>
+                  <div class="selector-dropdown-menu">
+                    <div class="selector-item selected">
+                      <span class="selector-item-icon">@</span> Admin
+                    </div>
+                    <div class="selector-item">
+                      <span class="selector-item-icon">@</span> Moderator
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Moderator Role</label>
+                <div class="selector-dropdown">
+                  <div class="selector-input" onclick="toggleSelector(this)">
+                    <span>@Moderator</span>
+                    <i class="fas fa-chevron-down"></i>
+                  </div>
+                  <div class="selector-dropdown-menu">
+                    <div class="selector-item selected">
+                      <span class="selector-item-icon">@</span> Moderator
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Applications Section -->
+      <div class="config-section" id="applications">
+        <div class="section-title">
+          <i class="fas fa-file-alt"></i> Application Settings
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-header">
+            <div class="config-card-title">
+              <i class="fas fa-check-square"></i> Enable Applications
+            </div>
+            <div class="config-card-toggle enabled" onclick="toggleFeature(this)"></div>
+          </div>
+          <div class="config-card-description">Allow staff to submit applications through the bot</div>
+
+          <div class="form-group">
+            <label class="form-label">Application Channel</label>
+            <div class="selector-dropdown">
+              <div class="selector-input" onclick="toggleSelector(this)">
+                <span>#staff-applications</span>
+                <i class="fas fa-chevron-down"></i>
+              </div>
+              <div class="selector-dropdown-menu">
+                <div class="selector-item selected">
+                  <span class="selector-item-icon">#</span> staff-applications
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Application Cooldown (days)</label>
+            <input type="number" class="form-input" value="7" min="1" max="365">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Custom Application Questions</label>
+            <textarea class="form-textarea" placeholder="Enter questions separated by newlines...">Why do you want to join staff?
+What experience do you have?
+How active are you?</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ranks & Divisions Section -->
+      <div class="config-section" id="ranks">
+        <div class="section-title">
+          <i class="fas fa-crown"></i> Ranks & Divisions
+        </div>
+
+        <div class="config-card">
+          <div class="config-group">
+            <div class="config-group-header expanded" onclick="toggleGroup(this)">
+              <span class="config-group-icon">▶</span>
+              <span>Management Division</span>
+            </div>
+            <div class="config-group-content expanded">
+              <div class="form-group">
+                <label class="form-label">Ranks in this Division</label>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                  <span style="background: #f0f0f0; padding: 6px 12px; border-radius: 4px; font-size: 12px;">Director</span>
+                  <span style="background: #f0f0f0; padding: 6px 12px; border-radius: 4px; font-size: 12px;">Manager</span>
+                  <span style="background: #f0f0f0; padding: 6px 12px; border-radius: 4px; font-size: 12px;">Supervisor</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="config-group">
+            <div class="config-group-header" onclick="toggleGroup(this)">
+              <span class="config-group-icon">▶</span>
+              <span>Moderation Division</span>
+            </div>
+            <div class="config-group-content">
+              <div class="form-group">
+                <label class="form-label">Ranks in this Division</label>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                  <span style="background: #f0f0f0; padding: 6px 12px; border-radius: 4px; font-size: 12px;">Senior Mod</span>
+                  <span style="background: #f0f0f0; padding: 6px 12px; border-radius: 4px; font-size: 12px;">Moderator</span>
+                  <span style="background: #f0f0f0; padding: 6px 12px; border-radius: 4px; font-size: 12px;">Trial Mod</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Tracking Section -->
+      <div class="config-section" id="activity">
+        <div class="section-title">
+          <i class="fas fa-chart-line"></i> Activity Tracking
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-header">
+            <div class="config-card-title">
+              <i class="fas fa-eye"></i> Enable Activity Tracking
+            </div>
+            <div class="config-card-toggle enabled" onclick="toggleFeature(this)"></div>
+          </div>
+          <div class="config-card-description">Track staff activity (messages, voice time, etc.)</div>
+
+          <div class="form-group">
+            <label class="form-label">Inactivity Threshold (days)</label>
+            <input type="number" class="form-input" value="14" min="1" max="365">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Activity Report Channel</label>
+            <div class="selector-dropdown">
+              <div class="selector-input" onclick="toggleSelector(this)">
+                <span>#activity-reports</span>
+                <i class="fas fa-chevron-down"></i>
+              </div>
+              <div class="selector-dropdown-menu">
+                <div class="selector-item selected">
+                  <span class="selector-item-icon">#</span> activity-reports
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Strikes Section -->
+      <div class="config-section" id="strikes">
+        <div class="section-title">
+          <i class="fas fa-exclamation-triangle"></i> Strike System
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-header">
+            <div class="config-card-title">
+              <i class="fas fa-ban"></i> Enable Strike System
+            </div>
+            <div class="config-card-toggle enabled" onclick="toggleFeature(this)"></div>
+          </div>
+          <div class="config-card-description">Track and manage staff strikes</div>
+
+          <div class="form-group">
+            <label class="form-label">Strikes Until Auto-Demotion</label>
+            <input type="number" class="form-input" value="3" min="1" max="10">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Strike Log Channel</label>
+            <div class="selector-dropdown">
+              <div class="selector-input" onclick="toggleSelector(this)">
+                <span>#strikes-log</span>
+                <i class="fas fa-chevron-down"></i>
+              </div>
+              <div class="selector-dropdown-menu">
+                <div class="selector-item selected">
+                  <span class="selector-item-icon">#</span> strikes-log
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOA & Inactivity Section -->
+      <div class="config-section" id="loa">
+        <div class="section-title">
+          <i class="fas fa-calendar-alt"></i> LOA & Inactivity
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-header">
+            <div class="config-card-title">
+              <i class="fas fa-check"></i> Enable LOA System
+            </div>
+            <div class="config-card-toggle enabled" onclick="toggleFeature(this)"></div>
+          </div>
+          <div class="config-card-description">Allow staff to request leave of absence</div>
+
+          <div class="form-group">
+            <label class="form-label">Max LOA Duration (days)</label>
+            <input type="number" class="form-input" value="30" min="1" max="365">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">LOA Review Channel</label>
+            <div class="selector-dropdown">
+              <div class="selector-input" onclick="toggleSelector(this)">
+                <span>#loa-requests</span>
+                <i class="fas fa-chevron-down"></i>
+              </div>
+              <div class="selector-dropdown-menu">
+                <div class="selector-item selected">
+                  <span class="selector-item-icon">#</span> loa-requests
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Appeals Section -->
+      <div class="config-section" id="appeals">
+        <div class="section-title">
+          <i class="fas fa-gavel"></i> Appeals System
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-header">
+            <div class="config-card-title">
+              <i class="fas fa-check"></i> Enable Appeals
+            </div>
+            <div class="config-card-toggle enabled" onclick="toggleFeature(this)"></div>
+          </div>
+          <div class="config-card-description">Allow staff to appeal strikes and disciplinary actions</div>
+
+          <div class="form-group">
+            <label class="form-label">Appeals Channel</label>
+            <div class="selector-dropdown">
+              <div class="selector-input" onclick="toggleSelector(this)">
+                <span>#appeals</span>
+                <i class="fas fa-chevron-down"></i>
+              </div>
+              <div class="selector-dropdown-menu">
+                <div class="selector-item selected">
+                  <span class="selector-item-icon">#</span> appeals
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bot Branding (Premium) -->
+      <div class="config-section" id="branding">
+        <div class="section-title">
+          <i class="fas fa-palette"></i> Bot Branding
+          <span class="premium-badge">Premium</span>
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-header">
+            <div class="config-card-title">
+              <i class="fas fa-robot"></i> Custom Bot Name
+            </div>
+          </div>
+          <div class="config-card-description">Change the bot's display name for this server only</div>
+
+          <div class="form-group">
+            <label class="form-label">Bot Name</label>
+            <input type="text" class="form-input" value="Zenith" placeholder="Custom bot name">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Bot Avatar URL</label>
+            <input type="url" class="form-input" placeholder="https://example.com/avatar.png">
+          </div>
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-header">
+            <div class="config-card-title">
+              <i class="fas fa-palette"></i> Embed Color
+            </div>
+          </div>
+          <div class="config-card-description">Customize the color of bot embeds</div>
+
+          <div class="form-group">
+            <label class="form-label">Color (Hex)</label>
+            <input type="text" class="form-input" value="#2196f3" placeholder="#2196f3">
+          </div>
+        </div>
+      </div>
+
+      <!-- Analytics (Premium) -->
+      <div class="config-section" id="analytics">
+        <div class="section-title">
+          <i class="fas fa-chart-bar"></i> Analytics Dashboard
+          <span class="premium-badge">Premium</span>
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-header">
+            <div class="config-card-title">
+              <i class="fas fa-chart-line"></i> Analytics
+            </div>
+            <div class="config-card-toggle enabled" onclick="toggleFeature(this)"></div>
+          </div>
+          <div class="config-card-description">View detailed analytics and reports</div>
+
+          <div style="padding: 20px; background: #f9f9f9; border-radius: 6px; text-align: center; color: #999;">
+            <i class="fas fa-chart-bar" style="font-size: 32px; margin-bottom: 10px;"></i>
+            <p>Analytics dashboard coming soon!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced Settings (Premium) -->
+      <div class="config-section" id="advanced">
+        <div class="section-title">
+          <i class="fas fa-star"></i> Advanced Settings
+          <span class="premium-badge">Premium</span>
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-header">
+            <div class="config-card-title">
+              <i class="fas fa-cogs"></i> Advanced Options
+            </div>
+          </div>
+          <div class="config-card-description">Configure advanced bot behavior</div>
+
+          <div class="form-group">
+            <label class="form-label">Custom Command Aliases</label>
+            <textarea class="form-textarea" placeholder="Enter custom aliases (one per line)"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Auto-Moderation Level</label>
+            <select class="form-select">
+              <option>Off</option>
+              <option>Low</option>
+              <option>Medium</option>
+              <option>High</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Save Button -->
+      <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="saveConfiguration()">
+            <i class="fas fa-save"></i> Save Configuration
+          </button>
+          <button class="btn btn-secondary" onclick="resetConfiguration()">
+            <i class="fas fa-undo"></i> Reset
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchSection(sectionId) {
+      // Hide all sections
+      document.querySelectorAll('.config-section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+
+      // Show selected section
+      document.getElementById(sectionId).classList.add('active');
+      event.target.closest('.sidebar-item').classList.add('active');
+    }
+
+    function toggleFeature(element) {
+      element.classList.toggle('enabled');
+    }
+
+    function toggleGroup(element) {
+      element.classList.toggle('expanded');
+      element.nextElementSibling.classList.toggle('expanded');
+    }
+
+    function toggleSelector(element) {
+      const menu = element.nextElementSibling;
+      menu.classList.toggle('open');
+    }
+
+    function saveConfiguration() {
+      const alert = document.getElementById('successAlert');
+      alert.style.display = 'block';
+      setTimeout(() => alert.style.display = 'none', 3000);
+    }
+
+    function resetConfiguration() {
+      if (confirm('Are you sure you want to reset all settings?')) {
+        location.reload();
+      }
+    }
+
+    // Close selectors when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.selector-dropdown')) {
+        document.querySelectorAll('.selector-dropdown-menu').forEach(m => m.classList.remove('open'));
+      }
+    });
+  </script>
+</body>
+</html>

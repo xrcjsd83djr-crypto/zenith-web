@@ -234,7 +234,7 @@ app.get('/api/guilds/:id', requireAuth, async (req, res) => {
 });
 
 // ── Pages ─────────────────────────────────────────────────────────────────
-['select-server', 'dashboard', 'tos', 'privacy'].forEach(page => {
+['select-server', 'dashboard', 'settings', 'tos', 'privacy'].forEach(page => {
   app.get(`/${page}`, (req, res) => {
     if ((page === 'dashboard' || page === 'select-server') && !req.session.user) {
       return res.redirect('/');

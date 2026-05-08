@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — Zenith</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      :root { --bg:#08090e; --surface:#0d0f18; --border:rgba(255,255,255,0.07); --primary:#6366f1; --text:#e2e8f0; --muted:#64748b; }
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; }
+      a { color: var(--primary); text-decoration: none; } a:hover { text-decoration: underline; }
+      nav { border-bottom: 1px solid var(--border); background: rgba(8,9,14,0.9); backdrop-filter: blur(10px); position: sticky; top:0; z-index:10; }
+      .nav-inner { max-width: 760px; margin: 0 auto; padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+      .logo { display:flex; align-items:center; gap:9px; font-weight:700; font-size:15px; color:var(--text); text-decoration:none; }
+      .logo-icon { width:28px; height:28px; background:var(--primary); border-radius:7px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:13px; }
+      .nav-links { display:flex; gap:20px; font-size:13px; } .nav-links a { color:var(--muted); text-decoration:none; } .nav-links a:hover { color:var(--text); }
+      article { max-width: 760px; margin: 0 auto; padding: 56px 24px 80px; }
+      .doc-badge { display:inline-block; padding:3px 10px; border-radius:999px; border:1px solid rgba(99,102,241,.35); background:rgba(99,102,241,.08); color:#818cf8; font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; margin-bottom:20px; }
+      h1 { font-size: 36px; font-weight: 900; letter-spacing: -.5px; margin-bottom: 8px; }
+      .meta { font-size:13px; color:var(--muted); margin-bottom: 40px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+      h2 { font-size:18px; font-weight:800; margin: 36px 0 12px; color:var(--text); }
+      p { font-size:14px; color:#94a3b8; margin-bottom:12px; }
+      ul { font-size:14px; color:#94a3b8; padding-left:20px; margin-bottom:12px; } ul li { margin-bottom:6px; }
+      .info-box { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px 20px; margin-bottom:20px; font-size:13px; color:var(--muted); }
+      footer { border-top:1px solid var(--border); }
+      .footer-inner { max-width:760px; margin:0 auto; padding:24px; display:flex; gap:20px; justify-content:space-between; flex-wrap:wrap; font-size:12px; color:var(--muted); align-items:center; }
+      .footer-links { display:flex; gap:16px; } .footer-links a { color:var(--muted); } .footer-links a:hover { color:var(--text); }
+  </style>
+  </head>
+  <body>
+  <nav>
+    <div class="nav-inner">
+      <a href="/" class="logo"><div class="logo-icon">Z</div>Zenith</a>
+      <div class="nav-links"><a href="/">Home</a><a href="/tos">Terms of Service</a></div>
+    </div>
+  </nav>
+  <article>
+    <div class="doc-badge">Legal</div>
+    <h1>Privacy Policy</h1>
+    <p class="meta">Last updated: May 2025 &nbsp;·&nbsp; Effective immediately upon use of our services</p>
+    <div class="info-box">Your privacy matters. Zenith is designed to collect the minimum data necessary to operate. We do not sell your data, and we do not store any data beyond your active session unless explicitly noted below.</div>
+
+    <h2>1. Who We Are</h2>
+    <p>Zenith ("we", "our", "the Service") is a Discord bot and web dashboard for Discord server management. This Privacy Policy explains how we handle information when you use Zenith.</p>
+
+    <h2>2. What Data We Collect</h2>
+    <p>When you log in via Discord OAuth, we temporarily store the following in your session:</p>
+    <ul>
+      <li><strong>Discord User ID</strong> — a unique identifier for your Discord account</li>
+      <li><strong>Username and display name</strong> — as shown on your Discord profile</li>
+      <li><strong>Avatar URL</strong> — your Discord profile picture</li>
+      <li><strong>OAuth access token</strong> — used to fetch your server list; stored in-memory for your session only</li>
+      <li><strong>List of Discord servers</strong> — retrieved on-demand to show servers you manage; never stored persistently</li>
+    </ul>
+    <p>We do <strong>not</strong> collect, store, or access:</p>
+    <ul>
+      <li>Your messages or direct messages</li>
+      <li>Server message history</li>
+      <li>Payment or financial information</li>
+      <li>Email address or phone number</li>
+      <li>Any data beyond what is listed above</li>
+    </ul>
+
+    <h2>3. How We Use Your Data</h2>
+    <p>Data is used solely to authenticate you, display servers you manage, and identify your server in the dashboard. We do not use your data for advertising, analytics profiling, or any other purpose.</p>
+
+    <h2>4. Data Retention</h2>
+    <p>Session data is held in server memory only — no persistent database. Sessions expire after 7 days of inactivity or immediately on logout. When your session ends, all data is cleared.</p>
+
+    <h2>5. Cookies</h2>
+    <p>We use a single session cookie (<code>connect.sid</code>) to maintain your login. It is HttpOnly, Secure (HTTPS only), and SameSite: Lax. We do not use tracking, analytics, or advertising cookies.</p>
+
+    <h2>6. Discord Bot Data</h2>
+    <p>When Zenith is active in your server, the bot processes interactions to execute commands. It does not log or store message content. Any bot-generated records (strikes, LOAs, etc.) exist within your Discord server and are subject to Discord's data practices. This section will be updated as bot features expand.</p>
+
+    <h2>7. Third Parties</h2>
+    <p>We rely on <a href="https://discord.com/privacy" target="_blank">Discord</a> for authentication. We do not share your data with any other third parties.</p>
+
+    <h2>8. Data Security</h2>
+    <p>We use HTTPS, HttpOnly cookies, and in-memory-only sessions. No system is completely secure — we encourage you to log out when you are done.</p>
+
+    <h2>9. Your Rights</h2>
+    <p>Since we hold no persistent database, there is no stored profile to delete or export. Log out at any time to immediately clear all session data. For concerns, contact us using the information below.</p>
+
+    <h2>10. Children's Privacy</h2>
+    <p>The Service is not directed at children under 13. We do not knowingly collect data from anyone under 13 and will remove any such data if identified.</p>
+
+    <h2>11. Changes to This Policy</h2>
+    <p>We may update this policy periodically. Changes are effective when posted. Continued use constitutes acceptance of the updated policy.</p>
+
+    <h2>12. Contact</h2>
+    <p>Questions about this Privacy Policy? Reach out to the Zenith team. Contact details will be provided once the team directory is finalized.</p>
+  </article>
+  <footer>
+    <div class="footer-inner">
+      <span>© 2025 Zenith. All rights reserved.</span>
+      <div class="footer-links"><a href="/">Home</a><a href="/tos">Terms of Service</a><a href="/privacy">Privacy Policy</a></div>
+    </div>
+  </footer>
+  </body>
+  </html>

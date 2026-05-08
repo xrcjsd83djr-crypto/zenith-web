@@ -3,21 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Select Server — Zenith</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #08090e;
-      --surface: #0d0f18;
-      --surface2: #12141f;
-      --border: rgba(255,255,255,0.07);
-      --primary: #6366f1;
-      --primary-hover: #818cf8;
-      --text: #e2e8f0;
-      --muted: #64748b;
-      --success: #10b981;
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --surface2: #f0f2f5;
+      --border: #e0e0e0;
+      --primary: #d4af37;
+      --primary-hover: #ffd700;
+      --text: #2c3e50;
+      --muted: #7f8c8d;
+      --success: #27ae60;
+      --accent: #2196f3;
     }
     html { scroll-behavior: smooth; }
     body {
@@ -58,7 +62,7 @@
       content: '';
       display: block;
       height: 100%;
-      background: linear-gradient(90deg, var(--primary), var(--primary-hover), var(--primary));
+      background: linear-gradient(90deg, #d4af37, #ffd700, #d4af37);
       animation: loading 1.5s infinite;
     }
     @keyframes loading {
@@ -69,9 +73,10 @@
 
     /* NAV */
     nav {
-      border-bottom: 1px solid var(--border);
+      border-bottom: 2px solid #d4af37;
       background: var(--surface);
       padding: 16px 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
     .nav-inner {
       max-width: 1200px;
@@ -90,7 +95,7 @@
     .logo-icon {
       width: 32px;
       height: 32px;
-      background: var(--primary);
+      background: linear-gradient(135deg, #d4af37, #ffd700);
       border-radius: 8px;
       display: flex;
       align-items: center;
@@ -130,13 +135,13 @@
       text-decoration: none;
     }
     .btn-ghost {
-      background: transparent;
-      color: var(--muted);
-      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      border: 2px solid #d4af37;
     }
     .btn-ghost:hover {
-      color: var(--text);
-      border-color: rgba(255,255,255,0.15);
+      background: #d4af37;
+      color: white;
     }
 
     /* MAIN */
@@ -174,8 +179,9 @@
       text-align: center;
     }
     .guild-card:hover {
-      border-color: rgba(99,102,241,0.4);
+      border-color: #d4af37;
       background: var(--surface2);
+      box-shadow: 0 4px 12px rgba(212, 175, 55, 0.1);
     }
     .guild-icon {
       width: 80px;
@@ -215,12 +221,12 @@
       padding: 8px 12px;
       border-radius: 6px;
       margin-bottom: 12px;
-      background: rgba(16,185,129,0.1);
-      color: var(--success);
+      background: #d4f1d4;
+      color: #27ae60;
     }
     .guild-status.inactive {
-      background: rgba(239,68,68,0.1);
-      color: #ef4444;
+      background: #fadbd8;
+      color: #c0392b;
     }
     .guild-status i {
       font-size: 12px;
@@ -245,11 +251,13 @@
       gap: 4px;
     }
     .guild-btn-primary {
-      background: var(--primary);
+      background: linear-gradient(135deg, #d4af37, #ffd700);
       color: white;
+      font-weight: 600;
     }
     .guild-btn-primary:hover {
-      background: var(--primary-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
     }
     .guild-btn-secondary {
       background: var(--surface2);
@@ -257,7 +265,8 @@
       border: 1px solid var(--border);
     }
     .guild-btn-secondary:hover {
-      border-color: rgba(99,102,241,0.4);
+      border-color: #d4af37;
+      background: var(--surface);
     }
 
     /* EMPTY STATE */
@@ -358,17 +367,33 @@
     }
   }
 
-  // Fetch guilds
-  async function fetchGuilds() {
+  // Fetch guilds with retry logic
+  async function fetchGuilds(retries = 3) {
     try {
-      const res = await fetch('/api/auth/guilds');
+      const res = await fetch('/api/auth/guilds?t=' + Date.now(), {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
       if (!res.ok) {
+        if (res.status === 401) {
+          window.location.href = '/';
+          return;
+        }
+        if (retries > 0) {
+          console.log('Retrying guilds fetch...');
+          setTimeout(() => fetchGuilds(retries - 1), 1000);
+          return;
+        }
         console.error('Failed to fetch guilds:', res.statusText);
         return;
       }
       const guilds = await res.json();
       renderGuilds(guilds);
     } catch (err) {
+      if (retries > 0) {
+        console.log('Retrying guilds fetch...');
+        setTimeout(() => fetchGuilds(retries - 1), 1000);
+        return;
+      }
       console.error('Failed to fetch guilds:', err);
     }
   }

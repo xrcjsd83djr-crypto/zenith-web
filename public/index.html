@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zenith Bot - Advanced Discord Bot Management</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #08090e;
+      color: #e0e0e0;
+      line-height: 1.6;
+    }
+
+    /* Header & Navigation */
+    header {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(8, 9, 14, 0.8);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    nav {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      gap: 2rem;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 0.9rem;
+    }
+
+    nav ul {
+      display: flex;
+      list-style: none;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    nav a {
+      color: #e0e0e0;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.3s;
+    }
+
+    nav a:hover {
+      color: #6366f1;
+    }
+
+    .btn-primary {
+      background: #6366f1;
+      color: white;
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: background 0.3s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-primary:hover {
+      background: #4f46e5;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #e0e0e0;
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.3s;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Hero Section */
+    .hero {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 6rem 2rem;
+      text-align: center;
+    }
+
+    .hero h1 {
+      font-size: 3.5rem;
+      font-weight: 900;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #ffffff, #a0aec0);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 1.2rem;
+      color: #a0aec0;
+      margin-bottom: 2rem;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* Stats Section */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+      max-width: 1200px;
+      margin: 4rem auto;
+      padding: 0 2rem;
+      text-align: center;
+    }
+
+    .stat {
+      padding: 2rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #6366f1;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      color: #a0aec0;
+      font-size: 0.9rem;
+    }
+
+    /* Features Section */
+    .features {
+      max-width: 1200px;
+      margin: 6rem auto;
+      padding: 0 2rem;
+    }
+
+    .section-title {
+      font-size: 2.5rem;
+      font-weight: 900;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .section-subtitle {
+      text-align: center;
+      color: #a0aec0;
+      margin-bottom: 3rem;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+
+    .feature-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 2rem;
+      transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+      border-color: rgba(99, 102, 241, 0.3);
+      background: rgba(99, 102, 241, 0.05);
+    }
+
+    .feature-icon {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .feature-card h3 {
+      margin-bottom: 0.5rem;
+      font-size: 1.2rem;
+    }
+
+    .feature-card p {
+      color: #a0aec0;
+      font-size: 0.9rem;
+    }
+
+    /* Staff Section */
+    .staff {
+      max-width: 1200px;
+      margin: 6rem auto;
+      padding: 0 2rem;
+    }
+
+    .staff-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+
+    .staff-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .staff-card:hover {
+      border-color: rgba(99, 102, 241, 0.3);
+      background: rgba(99, 102, 241, 0.05);
+    }
+
+    .staff-avatar {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 50%;
+      margin: 0 auto 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 900;
+    }
+
+    .staff-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+    }
+
+    .staff-role {
+      color: #6366f1;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 0.8rem;
+    }
+
+    .staff-bio {
+      color: #a0aec0;
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+
+    .staff-skills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+
+    .skill-badge {
+      background: rgba(99, 102, 241, 0.2);
+      color: #a0aec0;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    /* CTA Section */
+    .cta {
+      max-width: 1200px;
+      margin: 6rem auto;
+      padding: 4rem 2rem;
+      background: rgba(99, 102, 241, 0.1);
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .cta h2 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .cta p {
+      color: #a0aec0;
+      margin-bottom: 2rem;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(8, 9, 14, 0.5);
+      padding: 3rem 2rem;
+      margin-top: 6rem;
+    }
+
+    .footer-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .footer-section h4 {
+      margin-bottom: 1rem;
+      font-size: 0.95rem;
+    }
+
+    .footer-section a {
+      display: block;
+      color: #a0aec0;
+      text-decoration: none;
+      font-size: 0.85rem;
+      margin-bottom: 0.5rem;
+      transition: color 0.3s;
+    }
+
+    .footer-section a:hover {
+      color: #6366f1;
+    }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 2rem;
+      text-align: center;
+      color: #a0aec0;
+      font-size: 0.85rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero h1 {
+        font-size: 2rem;
+      }
+
+      nav ul {
+        gap: 1rem;
+      }
+
+      .hero-buttons {
+        flex-direction: column;
+      }
+
+      .btn-primary, .btn-secondary {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <nav>
+      <div class="logo">
+        <div class="logo-icon">Z</div>
+        <span>Zenith</span>
+      </div>
+      <ul>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#staff">Staff</a></li>
+        <li><a href="#premium">Premium</a></li>
+        <li><a href="https://discord.gg/zenith" class="btn-primary">Join Server</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <h1>Advanced Discord Bot Management</h1>
+    <p>Zenith is your all-in-one solution for server management, moderation, and community engagement.</p>
+    <div class="hero-buttons">
+      <button class="btn-primary" onclick="alert('Add to Discord feature coming soon!')">Add to Discord</button>
+      <button class="btn-secondary" onclick="alert('Dashboard coming soon!')">Dashboard</button>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="stats">
+    <div class="stat">
+      <div class="stat-number">5,000+</div>
+      <div class="stat-label">Active Servers</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">1.2M+</div>
+      <div class="stat-label">Commands Executed</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">99.9%</div>
+      <div class="stat-label">Uptime</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">24/7</div>
+      <div class="stat-label">Support</div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features" id="features">
+    <h2 class="section-title">Powerful Features</h2>
+    <p class="section-subtitle">Everything you need to manage your Discord community effectively</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3>Advanced Moderation</h3>
+        <p>Comprehensive moderation tools with infraction tracking and timeout management.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">👥</div>
+        <h3>Staff Management</h3>
+        <p>Efficiently manage your staff team with built-in feedback systems.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💰</div>
+        <h3>Economy System</h3>
+        <p>Full-featured economy system with shops, items, and transactions.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎉</div>
+        <h3>Welcome System</h3>
+        <p>Customize welcome messages and autoroles for new members.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚙️</div>
+        <h3>Easy Configuration</h3>
+        <p>User-friendly configuration system with intuitive menus.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💡</div>
+        <h3>Suggestions</h3>
+        <p>Built-in suggestion system with voting and staff feedback.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Staff Team -->
+  <section class="staff" id="staff">
+    <h2 class="section-title">Meet Our Team</h2>
+    <p class="section-subtitle">The dedicated people behind Zenith Bot</p>
+    <div class="staff-grid">
+      <div class="staff-card">
+        <div class="staff-avatar">👑</div>
+        <div class="staff-name">Founder</div>
+        <div class="staff-role">Founder & CEO</div>
+        <div class="staff-bio">Visionary leader and creator of Zenith Bot.</div>
+        <div class="staff-skills">
+          <span class="skill-badge">Leadership</span>
+          <span class="skill-badge">Vision</span>
+          <span class="skill-badge">Strategy</span>
+        </div>
+      </div>
+      <div class="staff-card">
+        <div class="staff-avatar">⭐</div>
+        <div class="staff-name">Co-Founder</div>
+        <div class="staff-role">Co-Founder</div>
+        <div class="staff-bio">Co-founder focusing on product and community.</div>
+        <div class="staff-skills">
+          <span class="skill-badge">Product</span>
+          <span class="skill-badge">Community</span>
+          <span class="skill-badge">Strategy</span>
+        </div>
+      </div>
+      <div class="staff-card">
+        <div class="staff-avatar">💻</div>
+        <div class="staff-name">Senior Developer</div>
+        <div class="staff-role">Senior Developer</div>
+        <div class="staff-bio">Primary bot developer focused on backend operations.</div>
+        <div class="staff-skills">
+          <span class="skill-badge">Bot Dev</span>
+          <span class="skill-badge">Backend</span>
+          <span class="skill-badge">Operations</span>
+        </div>
+      </div>
+      <div class="staff-card">
+        <div class="staff-avatar">🔧</div>
+        <div class="staff-name">Developer</div>
+        <div class="staff-role">Developer</div>
+        <div class="staff-bio">Core developer focusing on bot infrastructure.</div>
+        <div class="staff-skills">
+          <span class="skill-badge">Infrastructure</span>
+          <span class="skill-badge">API Dev</span>
+          <span class="skill-badge">Backend</span>
+        </div>
+      </div>
+      <div class="staff-card">
+        <div class="staff-avatar">🔐</div>
+        <div class="staff-name">Developer</div>
+        <div class="staff-role">Developer</div>
+        <div class="staff-bio">Assisting with feature development and optimization.</div>
+        <div class="staff-skills">
+          <span class="skill-badge">Security</span>
+          <span class="skill-badge">Optimization</span>
+          <span class="skill-badge">Backend</span>
+        </div>
+      </div>
+      <div class="staff-card">
+        <div class="staff-avatar">🌐</div>
+        <div class="staff-name">Moderator</div>
+        <div class="staff-role">Community Moderator</div>
+        <div class="staff-bio">Managing community and supporting users.</div>
+        <div class="staff-skills">
+          <span class="skill-badge">Community</span>
+          <span class="skill-badge">Support</span>
+          <span class="skill-badge">Moderation</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Premium CTA -->
+  <section class="cta" id="premium">
+    <h2>Upgrade to Premium</h2>
+    <p>Unlock exclusive features and advanced customization options</p>
+    <button class="btn-primary" onclick="alert('Premium plans coming soon!')">View Plans</button>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-content">
+      <div class="footer-section">
+        <h4>Product</h4>
+        <a href="#">Features</a>
+        <a href="#">Pricing</a>
+        <a href="#">Status</a>
+      </div>
+      <div class="footer-section">
+        <h4>Community</h4>
+        <a href="#">Discord Server</a>
+        <a href="#">Support</a>
+        <a href="#">Feedback</a>
+      </div>
+      <div class="footer-section">
+        <h4>Legal</h4>
+        <a href="#">Terms of Service</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Cookies</a>
+      </div>
+      <div class="footer-section">
+        <h4>About</h4>
+        <a href="#">Blog</a>
+        <a href="#">Team</a>
+        <a href="#">Careers</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2026 Zenith Bot. All rights reserved.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -32,7 +32,15 @@ app.use(session({
     maxAge: 7 * 24 * 60 * 60 * 1000,
   },
 }));
-app.use(express.static(join(__dirname, 'public')));
+app.use(express.static(join(__dirname, 'public'), {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 function requireAuth(req, res, next) {
   if (!req.session.user) return res.status(401).json({ error: 'Not authenticated' });
@@ -231,6 +239,7 @@ app.get('/api/guilds/:id', requireAuth, async (req, res) => {
     if ((page === 'dashboard' || page === 'select-server') && !req.session.user) {
       return res.redirect('/');
     }
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(join(__dirname, 'public', `${page}.html`));
   });
 });

@@ -222,6 +222,77 @@ import express from 'express';
     }
   });
 
+  // ── Route-specific HTML files ───────────────────────────────────────────
+  app.get('/select-server', (_req, res) => {
+    const file = join(publicPath, 'select-server.html');
+    if (existsSync(file)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.sendFile(file);
+    } else {
+      res.redirect('/');
+    }
+  });
+
+  app.get('/dashboard', (_req, res) => {
+    const file = join(publicPath, 'dashboard.html');
+    if (existsSync(file)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.sendFile(file);
+    } else {
+      res.redirect('/');
+    }
+  });
+
+  app.get('/settings', (_req, res) => {
+    const file = join(publicPath, 'settings.html');
+    if (existsSync(file)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.sendFile(file);
+    } else {
+      res.redirect('/');
+    }
+  });
+
+  app.get('/status', (_req, res) => {
+    const file = join(publicPath, 'status.html');
+    if (existsSync(file)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.sendFile(file);
+    } else {
+      res.redirect('/');
+    }
+  });
+
+  app.get('/premium', (_req, res) => {
+    const file = join(publicPath, 'premium.html');
+    if (existsSync(file)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.sendFile(file);
+    } else {
+      res.redirect('/');
+    }
+  });
+
+  app.get('/tos', (_req, res) => {
+    const file = join(publicPath, 'tos.html');
+    if (existsSync(file)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.sendFile(file);
+    } else {
+      res.redirect('/');
+    }
+  });
+
+  app.get('/privacy', (_req, res) => {
+    const file = join(publicPath, 'privacy.html');
+    if (existsSync(file)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.sendFile(file);
+    } else {
+      res.redirect('/');
+    }
+  });
+
   // ── SPA fallback — must be last ───────────────────────────────────────────
   const indexHtml = join(publicPath, 'index.html');
   app.get('*', (_req, res) => {

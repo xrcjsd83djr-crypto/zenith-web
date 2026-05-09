@@ -34,9 +34,9 @@ import express from 'express';
     },
   }));
 
-  const distPath = join(__dirname, 'dist', 'public');
-  if (existsSync(distPath)) {
-    app.use(express.static(distPath, {
+  const publicPath = join(__dirname, 'public');
+  if (existsSync(publicPath)) {
+    app.use(express.static(publicPath, {
       setHeaders: (res, filePath) => {
         if (filePath.endsWith('.html')) {
           res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -223,13 +223,13 @@ import express from 'express';
   });
 
   // ── SPA fallback — must be last ───────────────────────────────────────────
-  const indexHtml = join(distPath, 'index.html');
+  const indexHtml = join(publicPath, 'index.html');
   app.get('*', (_req, res) => {
     if (existsSync(indexHtml)) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.sendFile(indexHtml);
     } else {
-      res.status(503).send('App not built. Run npm run build first.');
+      res.status(503).send('App not built. Check public directory.');
     }
   });
 

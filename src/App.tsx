@@ -16,6 +16,7 @@ import ApplicationsPage from "@/pages/dashboard/applications";
 import StrikesPage from "@/pages/dashboard/strikes";
 import LoaPage from "@/pages/dashboard/loa";
 import ActivityPage from "@/pages/dashboard/activity";
+import StatsPage from "@/pages/dashboard/stats";
 import RanksPage from "@/pages/dashboard/ranks";
 import ConfigPage from "@/pages/dashboard/config";
 import TOSPage from "@/pages/tos";
@@ -29,16 +30,15 @@ function ProtectedRoute({ component: Component }: { component: any }) {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      setLocation("/login");
-    }
+    if (!isLoading && !isAuthenticated) setLocation("/login");
   }, [isLoading, isAuthenticated, setLocation]);
 
   if (isLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
-          <div className="w-16 h-16 bg-gray-200 rounded-xl mb-6"></div>
+          <div className="w-12 h-12 bg-gray-200 rounded-xl mb-4" />
+          <div className="h-3 w-24 bg-gray-200 rounded" />
         </div>
       </div>
     );
@@ -58,6 +58,7 @@ function DashboardRoutes({ params }: { params: { guildId: string } }) {
         <Route path="/dashboard/:guildId/strikes" component={() => <StrikesPage guildId={guildId} />} />
         <Route path="/dashboard/:guildId/loa" component={() => <LoaPage guildId={guildId} />} />
         <Route path="/dashboard/:guildId/activity" component={() => <ActivityPage guildId={guildId} />} />
+        <Route path="/dashboard/:guildId/stats" component={() => <StatsPage guildId={guildId} />} />
         <Route path="/dashboard/:guildId/ranks" component={() => <RanksPage guildId={guildId} />} />
         <Route path="/dashboard/:guildId/config" component={() => <ConfigPage guildId={guildId} />} />
         <Route component={NotFound} />
@@ -73,17 +74,15 @@ function Router() {
       <Route path="/login" component={LoginPage} />
       <Route path="/tos" component={TOSPage} />
       <Route path="/privacy" component={PrivacyPage} />
-      
-      <Route path="/servers" component={() => <ProtectedRoute component={ServersPage} />} />
       <Route path="/premium" component={PremiumPage} />
+      <Route path="/servers" component={() => <ProtectedRoute component={ServersPage} />} />
       <Route path="/dashboard/:guildId/*?" component={({ params }) => <ProtectedRoute component={() => <DashboardRoutes params={params as any} />} />} />
-      
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-function App() {
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -97,5 +96,3 @@ function App() {
     </QueryClientProvider>
   );
 }
-
-export default App;

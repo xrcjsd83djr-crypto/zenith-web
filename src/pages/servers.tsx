@@ -1,12 +1,12 @@
 import { Link } from "wouter";
-import { useGetGuilds, Guild } from "@workspace/api-client-react";
+import { useGetGuilds, Guild } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { LogOut, Plus, Star } from "lucide-react";
-import { useLogout } from "@workspace/api-client-react";
+import { useLogout } from "@/lib/api-client";
 import { useLocation } from "wouter";
 
 export default function ServersPage() {
-  const { data: guilds, isLoading } = useGetGuilds({ query: { retry: false } });
+  const { data: guilds, isLoading } = useGetGuilds({ query: { queryKey: ["/api/guilds"], retry: false } });
   const logout = useLogout();
   const [, setLocation] = useLocation();
 

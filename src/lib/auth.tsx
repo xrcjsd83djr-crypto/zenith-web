@@ -1,5 +1,5 @@
 import { createContext, useContext, ReactNode } from "react";
-import { useGetMe, User } from "@workspace/api-client-react";
+import { useGetMe, User } from "@/lib/api-client";
 
 interface AuthContextType {
   user: User | null;
@@ -15,20 +15,11 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: user, isLoading } = useGetMe({
-    query: {
-      retry: false,
-      refetchOnWindowFocus: false,
-    },
+    query: { queryKey: ["/api/auth/me"], retry: false, refetchOnWindowFocus: false },
   });
 
   return (
-    <AuthContext.Provider
-      value={{
-        user: user ?? null,
-        isLoading,
-        isAuthenticated: !!user,
-      }}
-    >
+    <AuthContext.Provider value={{ user: user ?? null, isLoading, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

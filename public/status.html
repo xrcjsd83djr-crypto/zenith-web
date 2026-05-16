@@ -3,172 +3,181 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <title>Status — Zenith Bot</title>
+  <title>Status — Zenith</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --surface2: #f0f2f5;
+      --border: #e0e0e0;
+      --primary: #d4af37;
+      --primary-hover: #ffd700;
+      --text: #2c3e50;
+      --muted: #7f8c8d;
+      --success: #27ae60;
+    }
     body {
       font-family: 'Poppins', sans-serif;
-      background: #f5f5f5;
-      color: #333;
+      background: var(--bg);
+      color: var(--text);
       line-height: 1.6;
     }
-    .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
-    h1 { font-size: 32px; font-weight: 800; margin-bottom: 30px; color: #1a1a1a; }
-    .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 40px; }
-    .status-card {
-      background: white;
-      border-radius: 12px;
-      padding: 24px;
-      border: 1px solid #e0e0e0;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      transition: all 0.2s;
-    }
-    .status-card:hover { border-color: #d4af37; box-shadow: 0 4px 12px rgba(212,175,55,0.1); }
-    .status-label { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #999; margin-bottom: 8px; letter-spacing: 0.5px; }
-    .status-value { font-size: 28px; font-weight: 800; color: #1a1a1a; margin-bottom: 12px; }
-    .status-indicator { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-    .indicator-dot { width: 10px; height: 10px; border-radius: 50%; }
-    .indicator-dot.online { background: #10b981; }
-    .indicator-dot.offline { background: #ef4444; }
-    .indicator-dot.idle { background: #f59e0b; }
     nav {
+      border-bottom: 2px solid #d4af37;
       background: white;
-      border-bottom: 1px solid #e0e0e0;
-      padding: 16px 0;
-      margin-bottom: 40px;
+      padding: 16px 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
-    nav .container { display: flex; justify-content: space-between; align-items: center; }
-    .nav-logo { font-size: 18px; font-weight: 800; color: #1a1a1a; display: flex; align-items: center; gap: 8px; }
-    .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; }
-    .nav-links { display: flex; gap: 24px; }
-    .nav-links a { text-decoration: none; color: #666; font-size: 14px; font-weight: 500; transition: color 0.2s; }
-    .nav-links a:hover { color: #d4af37; }
-    .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
-    .btn-primary { background: linear-gradient(135deg, #d4af37, #ffd700); color: white; }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(212,175,55,0.3); }
-    .btn-ghost { background: white; color: #666; border: 1px solid #e0e0e0; }
-    .btn-ghost:hover { border-color: #d4af37; color: #d4af37; }
-    .services-list { display: grid; gap: 12px; }
-    .service-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f9f9f9; border-radius: 8px; border-left: 3px solid #d4af37; }
-    .service-name { font-weight: 600; color: #1a1a1a; }
-    .service-status { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-    .status-operational { color: #10b981; }
-    .status-degraded { color: #f59e0b; }
-    .status-down { color: #ef4444; }
+    .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 18px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #d4af37, #ffd700);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 16px;
+      color: white;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 60px auto;
+      padding: 0 24px;
+    }
+    .status-header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .status-header h1 {
+      font-size: 48px;
+      font-weight: 900;
+      margin-bottom: 12px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      background: #d4f1d4;
+      color: #27ae60;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 24px;
+      margin-top: 48px;
+    }
+    .stat-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+    .stat-card i {
+      font-size: 32px;
+      color: #d4af37;
+      margin-bottom: 16px;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .stat-label {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
   </style>
 </head>
 <body>
-<nav>
+  <nav>
+    <div class="nav-inner">
+      <a href="/" class="logo">
+        <div class="logo-icon">Z</div>
+        Zenith
+      </a>
+      <a href="/" style="font-size: 14px; font-weight: 600; text-decoration: none; color: var(--muted);">Back to Home</a>
+    </div>
+  </nav>
+
   <div class="container">
-    <div class="nav-logo">
-      <div class="logo-icon">Z</div>
-      Zenith
-    </div>
-    <div class="nav-links">
-      <a href="/">Home</a>
-      <a href="/select-server">Dashboard</a>
-      <a href="/status">Status</a>
-      <a href="/premium">Premium</a>
-    </div>
-  </div>
-</nav>
-
-<div class="container">
-  <h1>System Status</h1>
-
-  <div class="status-grid">
-    <div class="status-card">
-      <div class="status-label">Bot Status</div>
-      <div class="status-value">Online</div>
-      <div class="status-indicator">
-        <div class="indicator-dot online"></div>
-        <span>All systems operational</span>
+    <div class="status-header">
+      <div class="status-badge" id="bot-status-badge">
+        <i class="fas fa-check-circle"></i> Checking...
       </div>
+      <h1>System Status</h1>
+      <p style="color: var(--muted); font-size: 18px;">Real-time statistics and status of Zenith Bot.</p>
     </div>
 
-    <div class="status-card">
-      <div class="status-label">Servers</div>
-      <div class="status-value" id="server-count">0</div>
-      <div class="status-indicator">
-        <i class="fas fa-server" style="color: #d4af37;"></i>
-        <span>Active servers</span>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <i class="fas fa-server"></i>
+        <div class="stat-value" id="guilds-count">...</div>
+        <div class="stat-label">Active Servers</div>
       </div>
-    </div>
-
-    <div class="status-card">
-      <div class="status-label">Uptime</div>
-      <div class="status-value">99.9%</div>
-      <div class="status-indicator">
-        <i class="fas fa-check-circle" style="color: #10b981;"></i>
-        <span>Last 30 days</span>
+      <div class="stat-card">
+        <i class="fas fa-users"></i>
+        <div class="stat-value" id="users-count">...</div>
+        <div class="stat-label">Users Managed</div>
       </div>
-    </div>
-
-    <div class="status-card">
-      <div class="status-label">Response Time</div>
-      <div class="status-value" id="response-time">45ms</div>
-      <div class="status-indicator">
-        <i class="fas fa-tachometer-alt" style="color: #d4af37;"></i>
-        <span>Average</span>
+      <div class="stat-card">
+        <i class="fas fa-clock"></i>
+        <div class="stat-value" id="uptime-value">...</div>
+        <div class="stat-label">Uptime</div>
       </div>
     </div>
   </div>
 
-  <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 20px; color: #1a1a1a;">Service Status</h2>
-  <div class="services-list">
-    <div class="service-item">
-      <span class="service-name"><i class="fas fa-robot" style="margin-right: 8px; color: #d4af37;"></i> Discord Bot</span>
-      <span class="service-status status-operational">Operational</span>
-    </div>
-    <div class="service-item">
-      <span class="service-name"><i class="fas fa-database" style="margin-right: 8px; color: #d4af37;"></i> Database</span>
-      <span class="service-status status-operational">Operational</span>
-    </div>
-    <div class="service-item">
-      <span class="service-name"><i class="fas fa-globe" style="margin-right: 8px; color: #d4af37;"></i> API</span>
-      <span class="service-status status-operational">Operational</span>
-    </div>
-    <div class="service-item">
-      <span class="service-name"><i class="fas fa-cloud" style="margin-right: 8px; color: #d4af37;"></i> CDN</span>
-      <span class="service-status status-operational">Operational</span>
-    </div>
-  </div>
-</div>
-
-<script>
-  // Fetch server count
-  async function fetchServerCount() {
-    try {
-      const res = await fetch('/api/auth/guilds?t=' + Date.now(), {
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      if (res.ok) {
-        const guilds = await res.json();
-        document.getElementById('server-count').textContent = guilds.length || 0;
+  <script>
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/bot/stats');
+        const data = await res.json();
+        document.getElementById('guilds-count').textContent = data.guilds;
+        document.getElementById('users-count').textContent = data.users;
+        
+        const uptimeHours = Math.floor(data.uptime / 3600);
+        const uptimeMinutes = Math.floor((data.uptime % 3600) / 60);
+        document.getElementById('uptime-value').textContent = `${uptimeHours}h ${uptimeMinutes}m`;
+        
+        const badge = document.getElementById('bot-status-badge');
+        badge.innerHTML = `<i class="fas fa-check-circle"></i> ${data.status}`;
+      } catch (err) {
+        console.error('Failed to fetch stats:', err);
       }
-    } catch (err) {
-      console.error('Failed to fetch server count:', err);
     }
-  }
-
-  // Measure response time
-  async function measureResponseTime() {
-    try {
-      const start = performance.now();
-      await fetch('/api/config');
-      const end = performance.now();
-      const time = Math.round(end - start);
-      document.getElementById('response-time').textContent = time + 'ms';
-    } catch (err) {
-      console.error('Failed to measure response time:', err);
-    }
-  }
-
-  fetchServerCount();
-  measureResponseTime();
-</script>
+    fetchStats();
+    setInterval(fetchStats, 60000);
+  </script>
 </body>
 </html>

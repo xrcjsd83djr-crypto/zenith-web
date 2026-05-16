@@ -3,219 +3,224 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <title>Premium — Zenith Bot</title>
+  <title>Premium — Zenith</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --surface2: #f0f2f5;
+      --border: #e0e0e0;
+      --primary: #d4af37;
+      --primary-hover: #ffd700;
+      --text: #2c3e50;
+      --muted: #7f8c8d;
+    }
     body {
       font-family: 'Poppins', sans-serif;
-      background: #f5f5f5;
-      color: #333;
+      background: var(--bg);
+      color: var(--text);
       line-height: 1.6;
     }
-    .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
-    h1 { font-size: 36px; font-weight: 800; margin-bottom: 12px; color: #1a1a1a; }
-    .subtitle { font-size: 16px; color: #666; margin-bottom: 40px; }
     nav {
+      border-bottom: 2px solid #d4af37;
       background: white;
-      border-bottom: 1px solid #e0e0e0;
-      padding: 16px 0;
-      margin-bottom: 40px;
+      padding: 16px 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
-    nav .container { display: flex; justify-content: space-between; align-items: center; }
-    .nav-logo { font-size: 18px; font-weight: 800; color: #1a1a1a; display: flex; align-items: center; gap: 8px; }
-    .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; }
-    .nav-links { display: flex; gap: 24px; }
-    .nav-links a { text-decoration: none; color: #666; font-size: 14px; font-weight: 500; transition: color 0.2s; }
-    .nav-links a:hover { color: #d4af37; }
-    .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-bottom: 60px; }
-    .pricing-card {
+    .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 18px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #d4af37, #ffd700);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 16px;
+      color: white;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 80px auto;
+      padding: 0 24px;
+      text-align: center;
+    }
+    .premium-header h1 {
+      font-size: 48px;
+      font-weight: 900;
+      margin-bottom: 16px;
+    }
+    .premium-header p {
+      font-size: 18px;
+      color: var(--muted);
+      max-width: 600px;
+      margin: 0 auto 48px;
+    }
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 32px;
+      margin-top: 60px;
+    }
+    .plan-card {
       background: white;
-      border-radius: 12px;
-      padding: 32px;
-      border: 2px solid #e0e0e0;
+      border: 2px solid var(--border);
+      border-radius: 24px;
+      padding: 48px 32px;
       transition: all 0.3s;
       position: relative;
     }
-    .pricing-card.featured {
+    .plan-card.popular {
       border-color: #d4af37;
-      box-shadow: 0 8px 24px rgba(212,175,55,0.15);
-      transform: translateY(-8px);
+      transform: scale(1.05);
+      box-shadow: 0 20px 40px rgba(212, 175, 55, 0.1);
     }
-    .pricing-card.featured::before {
-      content: 'POPULAR';
+    .popular-badge {
       position: absolute;
-      top: -12px;
+      top: -16px;
       left: 50%;
       transform: translateX(-50%);
       background: linear-gradient(135deg, #d4af37, #ffd700);
       color: white;
-      padding: 4px 16px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 700;
+      padding: 6px 20px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
       letter-spacing: 1px;
     }
-    .plan-name { font-size: 20px; font-weight: 700; margin-bottom: 8px; color: #1a1a1a; }
-    .plan-price { font-size: 32px; font-weight: 800; color: #d4af37; margin-bottom: 4px; }
-    .plan-period { font-size: 13px; color: #999; margin-bottom: 24px; }
-    .plan-description { font-size: 14px; color: #666; margin-bottom: 24px; line-height: 1.5; }
-    .features-list { list-style: none; margin-bottom: 24px; }
-    .features-list li { padding: 10px 0; font-size: 14px; color: #666; display: flex; align-items: center; gap: 10px; }
-    .features-list li::before { content: '✓'; color: #d4af37; font-weight: 800; }
-    .btn { padding: 12px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; width: 100%; }
-    .btn-primary { background: linear-gradient(135deg, #d4af37, #ffd700); color: white; }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(212,175,55,0.3); }
-    .btn-secondary { background: white; color: #d4af37; border: 2px solid #d4af37; }
-    .btn-secondary:hover { background: #d4af37; color: white; }
-    .features-section { margin-top: 60px; }
-    .features-section h2 { font-size: 28px; font-weight: 800; margin-bottom: 32px; color: #1a1a1a; }
-    .features-comparison { display: grid; grid-template-columns: 1fr repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
-    .feature-row { display: contents; }
-    .feature-row > * { padding: 16px; border-radius: 8px; border: 1px solid #e0e0e0; }
-    .feature-row:nth-child(odd) > * { background: #f9f9f9; }
-    .feature-name { font-weight: 600; color: #1a1a1a; }
-    .feature-check { text-align: center; color: #d4af37; font-weight: 700; }
-    .feature-check.no { color: #ccc; }
+    .plan-name {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .plan-price {
+      font-size: 48px;
+      font-weight: 900;
+      margin-bottom: 32px;
+    }
+    .plan-price span {
+      font-size: 16px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .plan-features {
+      list-style: none;
+      text-align: left;
+      margin-bottom: 40px;
+    }
+    .plan-features li {
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 15px;
+    }
+    .plan-features i {
+      color: #27ae60;
+    }
+    .btn-premium {
+      width: 100%;
+      padding: 16px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 16px;
+      text-decoration: none;
+      display: inline-block;
+      transition: all 0.2s;
+    }
+    .btn-gold {
+      background: linear-gradient(135deg, #d4af37, #ffd700);
+      color: white;
+    }
+    .btn-gold:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3);
+    }
+    .btn-outline {
+      border: 2px solid #d4af37;
+      color: #d4af37;
+    }
+    .btn-outline:hover {
+      background: #d4af37;
+      color: white;
+    }
   </style>
 </head>
 <body>
-<nav>
+  <nav>
+    <div class="nav-inner">
+      <a href="/" class="logo">
+        <div class="logo-icon">Z</div>
+        Zenith
+      </a>
+      <a href="/" style="font-size: 14px; font-weight: 600; text-decoration: none; color: var(--muted);">Back to Home</a>
+    </div>
+  </nav>
+
   <div class="container">
-    <div class="nav-logo">
-      <div class="logo-icon">Z</div>
-      Zenith
-    </div>
-    <div class="nav-links">
-      <a href="/">Home</a>
-      <a href="/select-server">Dashboard</a>
-      <a href="/status">Status</a>
-      <a href="/premium">Premium</a>
-    </div>
-  </div>
-</nav>
-
-<div class="container">
-  <h1>Zenith Premium</h1>
-  <p class="subtitle">Unlock advanced features and take your server management to the next level</p>
-
-  <div class="pricing-grid">
-    <div class="pricing-card">
-      <div class="plan-name">Free</div>
-      <div class="plan-price">$0</div>
-      <div class="plan-period">Forever</div>
-      <div class="plan-description">Perfect for small servers and getting started</div>
-      <ul class="features-list">
-        <li>Basic staff management</li>
-        <li>Strike system (5 max)</li>
-        <li>LOA requests</li>
-        <li>Activity tracking</li>
-        <li>Community support</li>
-      </ul>
-      <button class="btn btn-secondary">Current Plan</button>
+    <div class="premium-header">
+      <h1>Elevate Your Server</h1>
+      <p>Unlock advanced management tools, priority support, and exclusive features to grow your community.</p>
     </div>
 
-    <div class="pricing-card featured">
-      <div class="plan-name">Pro</div>
-      <div class="plan-price">$4.99</div>
-      <div class="plan-period">per month</div>
-      <div class="plan-description">For growing servers with advanced needs</div>
-      <ul class="features-list">
-        <li>Unlimited staff ranks</li>
-        <li>Unlimited strikes</li>
-        <li>Advanced LOA system</li>
-        <li>Performance reviews</li>
-        <li>Custom bot branding</li>
-        <li>Priority support</li>
-        <li>Analytics dashboard</li>
-      </ul>
-      <button class="btn btn-primary">Upgrade to Pro</button>
-    </div>
-
-    <div class="pricing-card">
-      <div class="plan-name">Enterprise</div>
-      <div class="plan-price">Custom</div>
-      <div class="plan-period">Contact us</div>
-      <div class="plan-description">For large organizations with custom needs</div>
-      <ul class="features-list">
-        <li>Everything in Pro</li>
-        <li>Custom integrations</li>
-        <li>Dedicated support</li>
-        <li>API access</li>
-        <li>White-label options</li>
-        <li>SLA guarantee</li>
-      </ul>
-      <button class="btn btn-secondary">Contact Sales</button>
-    </div>
-  </div>
-
-  <div class="features-section">
-    <h2>Feature Comparison</h2>
-    <div class="features-comparison">
-      <div class="feature-name">Feature</div>
-      <div class="feature-name">Free</div>
-      <div class="feature-name">Pro</div>
-      <div class="feature-name">Enterprise</div>
-
-      <div class="feature-row">
-        <div class="feature-name">Staff Management</div>
-        <div class="feature-check">✓</div>
-        <div class="feature-check">✓</div>
-        <div class="feature-check">✓</div>
+    <div class="pricing-grid">
+      <div class="plan-card">
+        <div class="plan-name">Tier 1</div>
+        <div class="plan-price">500 <span>Robux / mo</span></div>
+        <ul class="plan-features">
+          <li><i class="fas fa-check"></i> 1 Server Access</li>
+          <li><i class="fas fa-check"></i> Custom Embeds</li>
+          <li><i class="fas fa-check"></i> 7-Day Scheduling</li>
+          <li><i class="fas fa-check"></i> Priority Support</li>
+        </ul>
+        <a href="#" class="btn-premium btn-outline">Get Tier 1</a>
       </div>
 
-      <div class="feature-row">
-        <div class="feature-name">Unlimited Ranks</div>
-        <div class="feature-check no">✗</div>
-        <div class="feature-check">✓</div>
-        <div class="feature-check">✓</div>
+      <div class="plan-card popular">
+        <div class="popular-badge">Most Popular</div>
+        <div class="plan-name">Tier 2</div>
+        <div class="plan-price">800 <span>Robux / mo</span></div>
+        <ul class="plan-features">
+          <li><i class="fas fa-check"></i> 2 Servers Access</li>
+          <li><i class="fas fa-check"></i> All Tier 1 Features</li>
+          <li><i class="fas fa-check"></i> Custom Bot Status</li>
+          <li><i class="fas fa-check"></i> Advanced Logs</li>
+        </ul>
+        <a href="#" class="btn-premium btn-gold">Get Tier 2</a>
       </div>
 
-      <div class="feature-row">
-        <div class="feature-name">Strike System</div>
-        <div class="feature-check">5</div>
-        <div class="feature-check">∞</div>
-        <div class="feature-check">∞</div>
-      </div>
-
-      <div class="feature-row">
-        <div class="feature-name">Performance Reviews</div>
-        <div class="feature-check no">✗</div>
-        <div class="feature-check">✓</div>
-        <div class="feature-check">✓</div>
-      </div>
-
-      <div class="feature-row">
-        <div class="feature-name">Custom Bot Branding</div>
-        <div class="feature-check no">✗</div>
-        <div class="feature-check">✓</div>
-        <div class="feature-check">✓</div>
-      </div>
-
-      <div class="feature-row">
-        <div class="feature-name">Analytics Dashboard</div>
-        <div class="feature-check no">✗</div>
-        <div class="feature-check">✓</div>
-        <div class="feature-check">✓</div>
-      </div>
-
-      <div class="feature-row">
-        <div class="feature-name">API Access</div>
-        <div class="feature-check no">✗</div>
-        <div class="feature-check no">✗</div>
-        <div class="feature-check">✓</div>
-      </div>
-
-      <div class="feature-row">
-        <div class="feature-name">Priority Support</div>
-        <div class="feature-check no">✗</div>
-        <div class="feature-check">✓</div>
-        <div class="feature-check">✓</div>
+      <div class="plan-card">
+        <div class="plan-name">Tier 3</div>
+        <div class="plan-price">1000 <span>Robux / mo</span></div>
+        <ul class="plan-features">
+          <li><i class="fas fa-check"></i> 3 Servers Access</li>
+          <li><i class="fas fa-check"></i> All Tier 2 Features</li>
+          <li><i class="fas fa-check"></i> White-label Bot</li>
+          <li><i class="fas fa-check"></i> 24/7 Dedicated Support</li>
+        </ul>
+        <a href="#" class="btn-premium btn-outline">Get Tier 3</a>
       </div>
     </div>
   </div>
-</div>
 </body>
 </html>

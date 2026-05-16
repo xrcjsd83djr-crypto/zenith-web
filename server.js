@@ -251,6 +251,90 @@ if (DATABASE_URL) {
     }
   });
 
+  app.get('/api/guilds/:id/roles', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    if (!DISCORD_BOT_TOKEN) return res.status(500).json({ error: 'Bot token not configured' });
+    try {
+      const rolesRes = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+      });
+      if (!rolesRes.ok) return res.status(rolesRes.status).json({ error: 'Failed to fetch roles' });
+      const roles = await rolesRes.json();
+      res.json(roles.map(r => ({ id: r.id, name: r.name, color: r.color, position: r.position })));
+    } catch (err) {
+      console.error('[roles] Error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/guilds/:id/staff', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+      const staffRes = await query('SELECT * FROM staff_members WHERE guild_id = $1', [id]);
+      res.json(staffRes.rows);
+    } catch (err) {
+      console.error('[staff] Error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/guilds/:id/staff-roles', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { roleIds } = req.body;
+    if (!roleIds || !Array.isArray(roleIds)) return res.status(400).json({ error: 'Invalid roleIds' });
+    
+    try {
+      // For each role, fetch members and upsert into staff_members
+      for (const roleId of roleIds) {
+        const membersRes = await fetch(`${DISCORD_API}/guilds/${id}/members?limit=1000`, {
+          headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+        });
+        if (membersRes.ok) {
+          const members = await membersRes.json();
+          const staffWithRole = members.filter(m => m.roles.includes(roleId));
+          for (const m of staffWithRole) {
+            await query(`
+              INSERT INTO staff_members (guild_id, user_id, username, role)
+              VALUES ($1, $2, $3, $4)
+              ON CONFLICT (guild_id, user_id) DO UPDATE SET username = EXCLUDED.username
+            `, [id, m.user.id, m.user.global_name || m.user.username, 'Staff']);
+          }
+        }
+      }
+      res.json({ ok: true });
+    } catch (err) {
+      console.error('[staff-roles] Error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/guilds/:id/premium', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+      const premiumRes = await query('SELECT is_premium FROM servers WHERE id = $1', [id]);
+      res.json({ isPremium: premiumRes.rows[0]?.is_premium || false });
+    } catch (err) {
+      console.error('[premium] Error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/bot/stats', async (_req, res) => {
+    try {
+      const guildsCount = await query('SELECT COUNT(*) FROM servers');
+      const usersCount = await query('SELECT COUNT(*) FROM users');
+      res.json({
+        guilds: guildsCount.rows[0].count,
+        users: usersCount.rows[0].count,
+        uptime: process.uptime(),
+        status: 'Online'
+      });
+    } catch (err) {
+      console.error('[stats] Error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   // ── Route-specific HTML files ───────────────────────────────────────────
   app.get('/select-server', (_req, res) => {
     const file = join(publicPath, 'select-server.html');

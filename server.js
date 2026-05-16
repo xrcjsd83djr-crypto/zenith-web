@@ -122,6 +122,9 @@ if (DATABASE_URL) {
           : `https://cdn.discordapp.com/embed/avatars/${Number(user.discriminator || 0) % 5}.png`,
         accessToken: tokens.access_token,
       };
+      
+      // Store the access token in the session for later API calls
+      req.session.discordAccessToken = tokens.access_token;
 
       if (DATABASE_URL) {
         try {
@@ -456,44 +459,55 @@ if (DATABASE_URL) {
 
   app.get('/api/guilds/:id/detailed', requireAuth, async (req, res) => {
     const { id } = req.params;
-    const token = req.session.discordAccessToken;
+    const userToken = req.session.discordAccessToken;
+    
     try {
-      const guildRes = await fetch(`${DISCORD_API}/guilds/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      // First try with Bot Token (more reliable for guilds where bot is present)
+      let guildData;
+      const botRes = await fetch(`${DISCORD_API}/guilds/${id}?with_counts=true`, {
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` }
       });
-      const guild = await guildRes.json();
       
-      const channelsRes = await fetch(`${DISCORD_API}/guilds/${id}/channels`, {
-        headers: { Authorization: `Bearer ${token}` }
+      if (botRes.ok) {
+        guildData = await botRes.json();
+      } else {
+        // Fallback to User Token
+        const userRes = await fetch(`${DISCORD_API}/guilds/${id}`, {
+          headers: { Authorization: `Bearer ${userToken}` }
+        });
+        guildData = await userRes.json();
+      }
+
+      // Fetch Channels (Bot token preferred)
+      const chanRes = await fetch(`${DISCORD_API}/guilds/${id}/channels`, {
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` }
       });
-      const channels = await channelsRes.json();
-      
+      const channels = chanRes.ok ? await chanRes.json() : [];
+
+      // Fetch Roles (Bot token preferred)
       const rolesRes = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` }
       });
-      const roles = await rolesRes.json();
-      
+      const roles = rolesRes.ok ? await rolesRes.json() : [];
+
       res.json({
-        name: guild.name,
-        description: guild.description,
-        icon: guild.icon,
-        banner: guild.banner,
-        owner_id: guild.owner_id,
-        member_count: guild.approximate_member_count,
-        online_count: guild.approximate_presence_count,
-        premium_tier: guild.premium_tier,
-        premium_subscription_count: guild.premium_subscription_count,
-        verification_level: guild.verification_level,
-        explicit_content_filter: guild.explicit_content_filter,
+        name: guildData.name,
+        icon: guildData.icon,
+        member_count: guildData.approximate_member_count || 0,
+        online_count: guildData.approximate_presence_count || 0,
+        premium_tier: guildData.premium_tier || 0,
+        premium_subscription_count: guildData.premium_subscription_count || 0,
+        verification_level: guildData.verification_level || 0,
+        explicit_content_filter: guildData.explicit_content_filter || 0,
         channels: channels.length,
         roles: roles.length,
-        emojis: guild.emojis ? guild.emojis.length : 0,
-        stickers: guild.stickers ? guild.stickers.length : 0,
-        created_at: guild.created_at
+        emojis: guildData.emojis ? guildData.emojis.length : 0,
+        stickers: guildData.stickers ? guildData.stickers.length : 0,
+        created_at: guildData.id ? new Date(Number((BigInt(guildData.id) >> 22n) + 1420070400000n)) : null
       });
     } catch (err) {
       console.error('[detailed] Error:', err);
-      res.json({});
+      res.status(500).json({ error: 'Failed to fetch detailed guild data' });
     }
   });
 
@@ -530,15 +544,29 @@ if (DATABASE_URL) {
   app.post('/api/guilds/:id/staff-roles', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { roleIds } = req.body;
+    if (!roleIds || !Array.isArray(roleIds)) return res.status(400).json({ error: 'Invalid roleIds' });
+    
     try {
-      if (roleIds && roleIds.length > 0) {
-        console.log(`[staff-roles] Saved roles for guild ${id}:`, roleIds);
-        res.json({ success: true, message: 'Staff roles configured' });
-      } else {
-        res.status(400).json({ error: 'No roles selected' });
+      // Fetch members with these roles using Bot Token
+      for (const roleId of roleIds) {
+        const membersRes = await fetch(`${DISCORD_API}/guilds/${id}/members?limit=1000`, {
+          headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+        });
+        if (membersRes.ok) {
+          const members = await membersRes.json();
+          const staffWithRole = members.filter(m => m.roles.includes(roleId));
+          for (const m of staffWithRole) {
+            await query(`
+              INSERT INTO staff_members (guild_id, user_id, username, role)
+              VALUES ($1, $2, $3, $4)
+              ON CONFLICT (guild_id, user_id) DO UPDATE SET username = EXCLUDED.username
+            `, [id, m.user.id, m.user.global_name || m.user.username, 'Staff']);
+          }
+        }
       }
+      res.json({ success: true, ok: true });
     } catch (err) {
       console.error('[staff-roles] Error:', err);
-      res.status(500).json({ error: 'Failed to save roles' });
+      res.status(500).json({ error: 'Internal server error' });
     }
   });

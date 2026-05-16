@@ -421,3 +421,35 @@ if (DATABASE_URL) {
     console.log(`[Zenith] Web server running on port ${PORT}`);
   });
   
+  app.get('/api/guilds/:id/shifts', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+      const shiftsRes = await query('SELECT * FROM shifts WHERE guild_id = $1 ORDER BY start_time DESC LIMIT 50', [id]);
+      res.json(shiftsRes.rows || []);
+    } catch (err) {
+      console.error('[shifts] Error:', err);
+      res.json([]);
+    }
+  });
+
+  app.get('/api/guilds/:id/performance', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+      const perfRes = await query('SELECT * FROM performance_reviews WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 50', [id]);
+      res.json(perfRes.rows || []);
+    } catch (err) {
+      console.error('[performance] Error:', err);
+      res.json([]);
+    }
+  });
+
+  app.get('/api/guilds/:id/trainings', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+      const trainRes = await query('SELECT * FROM training_logs WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 50', [id]);
+      res.json(trainRes.rows || []);
+    } catch (err) {
+      console.error('[trainings] Error:', err);
+      res.json([]);
+    }
+  });

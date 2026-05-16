@@ -85,34 +85,34 @@
     .section-header h1 { font-size: 32px; font-weight: 900; letter-spacing: -1px; margin-bottom: 8px; }
     .section-header p { color: var(--muted); font-size: 16px; }
 
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 40px; }
-    .stat-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; }
-    .stat-icon { font-size: 32px; color: #d4af37; margin-bottom: 12px; }
-    .stat-value { font-size: 28px; font-weight: 900; margin-bottom: 4px; }
-    .stat-label { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 40px; }
+    .stat-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: center; }
+    .stat-icon { font-size: 28px; color: #d4af37; margin-bottom: 8px; }
+    .stat-value { font-size: 24px; font-weight: 900; margin-bottom: 2px; }
+    .stat-label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
 
-    .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 24px; }
-    .staff-card { background: white; border: 1px solid var(--border); border-radius: 20px; padding: 32px 24px; text-align: center; transition: all 0.3s; cursor: pointer; }
-    .staff-card:hover { transform: translateY(-8px); border-color: #d4af37; box-shadow: 0 12px 24px rgba(0,0,0,0.05); }
-    .staff-avatar { width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 16px; border: 3px solid #d4af37; padding: 3px; }
+    .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+    .staff-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: center; transition: all 0.3s; cursor: pointer; }
+    .staff-card:hover { transform: translateY(-4px); border-color: #d4af37; box-shadow: 0 8px 16px rgba(0,0,0,0.05); }
+    .staff-avatar { width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 12px; border: 2px solid #d4af37; }
     .staff-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-    .staff-name { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
-    .staff-role { font-size: 13px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
+    .staff-name { font-size: 14px; font-weight: 800; margin-bottom: 2px; }
+    .staff-role { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
 
-    .role-selector { background: white; border: 2px dashed #d4af37; border-radius: 24px; padding: 48px; text-align: center; margin-bottom: 40px; }
-    .role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin: 32px 0; text-align: left; }
-    .role-item { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--bg); border-radius: 12px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
+    .role-selector { background: white; border: 2px dashed #d4af37; border-radius: 16px; padding: 40px; text-align: center; margin-bottom: 40px; }
+    .role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 24px 0; text-align: left; }
+    .role-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--bg); border-radius: 10px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
     .role-item:hover { border-color: #d4af37; }
     .role-item.selected { background: rgba(212, 175, 55, 0.1); border-color: #d4af37; }
-    .role-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .role-dot { width: 10px; height: 10px; border-radius: 50%; }
 
-    .btn-gold { background: linear-gradient(135deg, #d4af37, #ffd700); color: white; padding: 12px 32px; border-radius: 12px; font-weight: 800; border: none; cursor: pointer; font-size: 14px; }
-    .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3); }
+    .btn-gold { background: linear-gradient(135deg, #d4af37, #ffd700); color: white; padding: 10px 24px; border-radius: 10px; font-weight: 800; border: none; cursor: pointer; font-size: 13px; }
+    .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(212, 175, 55, 0.3); }
 
-    .table-container { background: white; border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
+    .table-container { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 32px; }
     .table-container table { width: 100%; border-collapse: collapse; }
-    .table-container th { background: var(--surface2); padding: 16px; text-align: left; font-weight: 800; font-size: 12px; text-transform: uppercase; color: var(--muted); }
-    .table-container td { padding: 16px; border-top: 1px solid var(--border); }
+    .table-container th { background: var(--surface2); padding: 12px 16px; text-align: left; font-weight: 800; font-size: 11px; text-transform: uppercase; color: var(--muted); }
+    .table-container td { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 13px; }
     .table-container tr:hover { background: var(--surface2); }
 
     @media (max-width: 768px) { .sidebar { left: -260px; } .main { margin-left: 0; } }
@@ -131,9 +131,12 @@
 
     <ul class="sidebar-nav">
       <li><a class="nav-link active" data-section="overview"><i class="fas fa-th-large"></i> Overview</a></li>
-      <li><a class="nav-link" data-section="staff"><i class="fas fa-users-cog"></i> Staff Overview</a></li>
-      <li><a class="nav-link" data-section="strikes"><i class="fas fa-gavel"></i> Strike System</a></li>
-      <li><a class="nav-link" data-section="loa"><i class="fas fa-calendar-alt"></i> LOA Manager</a></li>
+      <li><a class="nav-link" data-section="staff"><i class="fas fa-users-cog"></i> Staff</a></li>
+      <li><a class="nav-link" data-section="shifts"><i class="fas fa-clock"></i> Shifts</a></li>
+      <li><a class="nav-link" data-section="strikes"><i class="fas fa-gavel"></i> Strikes</a></li>
+      <li><a class="nav-link" data-section="performance"><i class="fas fa-star"></i> Performance</a></li>
+      <li><a class="nav-link" data-section="trainings"><i class="fas fa-graduation-cap"></i> Trainings</a></li>
+      <li><a class="nav-link" data-section="loa"><i class="fas fa-calendar-alt"></i> LOA</a></li>
       <li><a class="nav-link" data-section="applications"><i class="fas fa-file-signature"></i> Applications</a></li>
     </ul>
 
@@ -144,13 +147,13 @@
 
     <div class="premium-card">
       <h4>Upgrade to Pro</h4>
-      <p>Get unlimited staff, advanced logs, and custom branding.</p>
+      <p>Unlimited staff, advanced logs, and custom branding.</p>
       <a href="/premium" class="btn-white">View Plans</a>
     </div>
 
     <div class="sidebar-section-label">Account</div>
     <ul class="sidebar-nav">
-      <li><a href="/select-server"><i class="fas fa-exchange-alt"></i> Switch Server</a></li>
+      <li><a href="/select-server"><i class="fas fa-exchange-alt"></i> Switch</a></li>
       <li><a onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
     </ul>
   </aside>
@@ -164,89 +167,38 @@
           <p id="server-role">Server Administrator</p>
         </div>
       </div>
-      <div class="header-right">
-        <a href="/status" style="font-size: 13px; font-weight: 700; color: var(--muted); margin-right: 20px;">
-          <i class="fas fa-circle" style="color: #27ae60; font-size: 8px; margin-right: 4px;"></i> Bot Status
-        </a>
-      </div>
+      <a href="/status" style="font-size: 12px; font-weight: 700; color: var(--muted);"><i class="fas fa-circle" style="color: #27ae60; font-size: 6px; margin-right: 4px;"></i> Bot Status</a>
     </header>
 
     <div class="content">
-      <!-- Overview Section -->
+      <!-- OVERVIEW -->
       <div id="overview" class="section">
         <div class="section-header">
-          <h1>Welcome Back</h1>
-          <p>Here is what's happening in your server today.</p>
+          <h1>Dashboard Overview</h1>
+          <p>Real-time server management and analytics.</p>
         </div>
         
         <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-users"></i></div>
-            <div class="stat-value" id="stat-members">...</div>
-            <div class="stat-label">Total Members</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-user-shield"></i></div>
-            <div class="stat-value" id="stat-staff">0</div>
-            <div class="stat-label">Staff Members</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-exclamation-circle"></i></div>
-            <div class="stat-value" id="stat-strikes">0</div>
-            <div class="stat-label">Active Strikes</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-calendar-times"></i></div>
-            <div class="stat-value" id="stat-loa">0</div>
-            <div class="stat-label">On LOA</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
-            <div class="stat-value" id="stat-applications">0</div>
-            <div class="stat-label">Pending Apps</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-crown"></i></div>
-            <div class="stat-value" id="stat-premium">Free</div>
-            <div class="stat-label">Plan Status</div>
-          </div>
-        </div>
-
-        <div class="section-header" style="margin-top: 48px;">
-          <h1>Recent Activity</h1>
-          <p>Latest staff actions and updates.</p>
-        </div>
-
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Staff Member</th>
-                <th>Action</th>
-                <th>Details</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody id="activity-table">
-              <tr>
-                <td colspan="4" style="text-align: center; color: var(--muted);">No recent activity</td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="stat-card"><div class="stat-icon"><i class="fas fa-users"></i></div><div class="stat-value" id="stat-members">0</div><div class="stat-label">Members</div></div>
+          <div class="stat-card"><div class="stat-icon"><i class="fas fa-user-shield"></i></div><div class="stat-value" id="stat-staff">0</div><div class="stat-label">Staff</div></div>
+          <div class="stat-card"><div class="stat-icon"><i class="fas fa-exclamation-circle"></i></div><div class="stat-value" id="stat-strikes">0</div><div class="stat-label">Strikes</div></div>
+          <div class="stat-card"><div class="stat-icon"><i class="fas fa-calendar-times"></i></div><div class="stat-value" id="stat-loa">0</div><div class="stat-label">On LOA</div></div>
+          <div class="stat-card"><div class="stat-icon"><i class="fas fa-file-alt"></i></div><div class="stat-value" id="stat-apps">0</div><div class="stat-label">Apps</div></div>
+          <div class="stat-card"><div class="stat-icon"><i class="fas fa-crown"></i></div><div class="stat-value" id="stat-plan">Free</div><div class="stat-label">Plan</div></div>
         </div>
       </div>
 
-      <!-- Staff Overview Section -->
+      <!-- STAFF OVERVIEW -->
       <div id="staff" class="section" style="display: none;">
         <div class="section-header">
-          <h1>Staff Overview</h1>
-          <p>View and manage your entire staff team in one place.</p>
+          <h1>Staff Management</h1>
+          <p>Manage your entire staff team.</p>
         </div>
 
         <div id="staff-setup" class="role-selector" style="display: none;">
-          <i class="fas fa-user-shield" style="font-size: 48px; color: #d4af37; margin-bottom: 20px;"></i>
-          <h2>Configure Staff Roles</h2>
-          <p>Select the roles that should be considered "Staff" in your server.</p>
+          <i class="fas fa-user-shield" style="font-size: 40px; color: #d4af37; margin-bottom: 16px;"></i>
+          <h2 style="margin-bottom: 8px;">Configure Staff Roles</h2>
+          <p style="color: var(--muted); margin-bottom: 20px;">Select roles to mark as staff:</p>
           <div id="role-grid" class="role-grid"></div>
           <button class="btn-gold" onclick="saveStaffRoles()">Save Configuration</button>
         </div>
@@ -254,91 +206,79 @@
         <div id="staff-list" class="staff-grid" style="display: none;"></div>
       </div>
 
-      <!-- Strike System Section -->
+      <!-- SHIFTS -->
+      <div id="shifts" class="section" style="display: none;">
+        <div class="section-header"><h1>Shift Tracking</h1><p>Monitor staff shift activity.</p></div>
+        <div class="table-container">
+          <table>
+            <thead><tr><th>Staff</th><th>Start</th><th>End</th><th>Duration</th></tr></thead>
+            <tbody id="shifts-table"><tr><td colspan="4" style="text-align: center; color: var(--muted);">No shifts recorded</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- STRIKES -->
       <div id="strikes" class="section" style="display: none;">
-        <div class="section-header">
-          <h1>Strike System</h1>
-          <p>Track and manage staff violations and strikes.</p>
-        </div>
+        <div class="section-header"><h1>Strike System</h1><p>Track staff violations.</p></div>
         <div class="table-container">
           <table>
-            <thead>
-              <tr>
-                <th>Staff Member</th>
-                <th>Strikes</th>
-                <th>Reason</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody id="strikes-table">
-              <tr>
-                <td colspan="4" style="text-align: center; color: var(--muted);">No strikes recorded</td>
-              </tr>
-            </tbody>
+            <thead><tr><th>Staff</th><th>Strikes</th><th>Reason</th><th>Date</th></tr></thead>
+            <tbody id="strikes-table"><tr><td colspan="4" style="text-align: center; color: var(--muted);">No strikes recorded</td></tr></tbody>
           </table>
         </div>
       </div>
 
-      <!-- LOA Manager Section -->
+      <!-- PERFORMANCE -->
+      <div id="performance" class="section" style="display: none;">
+        <div class="section-header"><h1>Performance Reviews</h1><p>Staff performance evaluations.</p></div>
+        <div class="table-container">
+          <table>
+            <thead><tr><th>Staff</th><th>Rating</th><th>Reviewer</th><th>Date</th></tr></thead>
+            <tbody id="performance-table"><tr><td colspan="4" style="text-align: center; color: var(--muted);">No reviews yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TRAININGS -->
+      <div id="trainings" class="section" style="display: none;">
+        <div class="section-header"><h1>Training Logs</h1><p>Staff training records.</p></div>
+        <div class="table-container">
+          <table>
+            <thead><tr><th>Trainer</th><th>Trainee</th><th>Topic</th><th>Date</th></tr></thead>
+            <tbody id="trainings-table"><tr><td colspan="4" style="text-align: center; color: var(--muted);">No trainings recorded</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- LOA -->
       <div id="loa" class="section" style="display: none;">
-        <div class="section-header">
-          <h1>Leave of Absence Manager</h1>
-          <p>View and manage staff leave requests.</p>
-        </div>
+        <div class="section-header"><h1>Leave of Absence</h1><p>Manage staff LOA requests.</p></div>
         <div class="table-container">
           <table>
-            <thead>
-              <tr>
-                <th>Staff Member</th>
-                <th>Status</th>
-                <th>Start Date</th>
-                <th>End Date</th>
-              </tr>
-            </thead>
-            <tbody id="loa-table">
-              <tr>
-                <td colspan="4" style="text-align: center; color: var(--muted);">No LOA requests</td>
-              </tr>
-            </tbody>
+            <thead><tr><th>Staff</th><th>Status</th><th>Start</th><th>End</th></tr></thead>
+            <tbody id="loa-table"><tr><td colspan="4" style="text-align: center; color: var(--muted);">No LOA requests</td></tr></tbody>
           </table>
         </div>
       </div>
 
-      <!-- Applications Section -->
+      <!-- APPLICATIONS -->
       <div id="applications" class="section" style="display: none;">
-        <div class="section-header">
-          <h1>Applications</h1>
-          <p>Manage pending staff applications.</p>
-        </div>
+        <div class="section-header"><h1>Applications</h1><p>Pending staff applications.</p></div>
         <div class="table-container">
           <table>
-            <thead>
-              <tr>
-                <th>Applicant</th>
-                <th>Position</th>
-                <th>Status</th>
-                <th>Submitted</th>
-              </tr>
-            </thead>
-            <tbody id="applications-table">
-              <tr>
-                <td colspan="4" style="text-align: center; color: var(--muted);">No pending applications</td>
-              </tr>
-            </tbody>
+            <thead><tr><th>Applicant</th><th>Position</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody id="applications-table"><tr><td colspan="4" style="text-align: center; color: var(--muted);">No pending applications</td></tr></tbody>
           </table>
         </div>
       </div>
 
-      <!-- Manage Premium Section -->
+      <!-- MANAGE PREMIUM -->
       <div id="manage-premium" class="section" style="display: none;">
-        <div class="section-header">
-          <h1>Manage Premium</h1>
-          <p>View and manage your server's premium subscription.</p>
-        </div>
-        <div style="background: white; padding: 40px; border-radius: 24px; border: 1px solid var(--border); text-align: center;">
-          <i class="fas fa-crown" style="font-size: 64px; color: #d4af37; margin-bottom: 24px;"></i>
-          <h2 id="premium-status-title">Free Plan</h2>
-          <p id="premium-status-desc" style="margin-bottom: 32px; color: var(--muted);">Your server is currently on the Free plan. Upgrade to unlock all features.</p>
+        <div class="section-header"><h1>Manage Premium</h1><p>Your subscription details.</p></div>
+        <div style="background: white; padding: 32px; border-radius: 16px; border: 1px solid var(--border); text-align: center;">
+          <i class="fas fa-crown" style="font-size: 56px; color: #d4af37; margin-bottom: 20px;"></i>
+          <h2 id="premium-status-title" style="margin-bottom: 8px;">Free Plan</h2>
+          <p id="premium-status-desc" style="margin-bottom: 24px; color: var(--muted);">Upgrade to unlock all features.</p>
           <a href="/premium" class="btn-gold">Upgrade Now</a>
         </div>
       </div>
@@ -352,8 +292,7 @@
   let selectedRoles = new Set();
 
   window.addEventListener('load', () => {
-    const loader = document.getElementById('loader');
-    setTimeout(() => loader.classList.add('hidden'), 300);
+    document.getElementById('loader').classList.add('hidden');
     if (!serverId) window.location.href = '/select-server';
     init();
   });
@@ -371,7 +310,7 @@
       document.getElementById('stat-members').textContent = server.memberCount || '0';
       if (server.iconUrl) document.getElementById('server-icon').innerHTML = `<img src="${server.iconUrl}">`;
     } catch (err) {
-      console.error('Failed to fetch server info:', err);
+      console.error('Error:', err);
     }
   }
 
@@ -385,8 +324,6 @@
       } else {
         renderStaffList(staff);
         document.getElementById('stat-staff').textContent = staff.length;
-        
-        // Calculate strikes and LOA
         const strikes = staff.reduce((sum, s) => sum + (s.strikes || 0), 0);
         const loa = staff.filter(s => s.loa_status && s.loa_status !== 'none').length;
         document.getElementById('stat-strikes').textContent = strikes;
@@ -395,13 +332,9 @@
 
       const premiumRes = await fetch(`/api/guilds/${serverId}/premium`);
       const premium = premiumRes.ok ? await premiumRes.json() : { isPremium: false };
-      if (premium.isPremium) {
-        document.getElementById('stat-premium').textContent = 'Pro';
-        document.getElementById('premium-status-title').textContent = 'Premium Active';
-        document.getElementById('premium-status-desc').textContent = 'Your server is enjoying all Pro features!';
-      }
+      document.getElementById('stat-plan').textContent = premium.isPremium ? 'Pro' : 'Free';
     } catch (err) {
-      console.error('Failed to load dashboard data:', err);
+      console.error('Error:', err);
     }
   }
 
@@ -413,18 +346,18 @@
       const grid = document.getElementById('role-grid');
       
       if (roles.length === 0) {
-        grid.innerHTML = '<p style="grid-column: 1/-1; color: var(--muted);">No roles found in this server.</p>';
+        grid.innerHTML = '<p style="grid-column: 1/-1; color: var(--muted);">No roles found.</p>';
         return;
       }
 
       grid.innerHTML = roles.sort((a,b) => b.position - a.position).map(role => `
         <div class="role-item" onclick="toggleRole(this, '${role.id}')">
           <div class="role-dot" style="background: #${(role.color || 0).toString(16).padStart(6, '0')}"></div>
-          <span style="font-size: 13px; font-weight: 600;">${role.name}</span>
+          <span style="font-size: 12px; font-weight: 600;">${role.name}</span>
         </div>
       `).join('');
     } catch (err) {
-      console.error('Failed to fetch roles:', err);
+      console.error('Error:', err);
     }
   }
 
@@ -448,7 +381,7 @@
       });
       if (res.ok) location.reload();
     } catch (err) {
-      console.error('Failed to save roles:', err);
+      console.error('Error:', err);
     }
   }
 
@@ -456,12 +389,10 @@
     document.getElementById('staff-list').style.display = 'grid';
     document.getElementById('staff-list').innerHTML = staff.map(s => `
       <div class="staff-card">
-        <div class="staff-avatar">
-          <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="${s.username}">
-        </div>
+        <div class="staff-avatar"><img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="${s.username}"></div>
         <div class="staff-name">${s.username}</div>
         <div class="staff-role">${s.role || 'Staff'}</div>
-        <div style="font-size: 11px; color: var(--muted); margin-top: 8px;">Strikes: ${s.strikes || 0}</div>
+        <div style="font-size: 10px; color: var(--muted); margin-top: 6px;">Strikes: ${s.strikes || 0}</div>
       </div>
     `).join('');
   }
@@ -482,7 +413,7 @@
       await fetch('/api/auth/logout', { method: 'POST' });
       window.location.href = '/';
     } catch (err) {
-      console.error('Logout error:', err);
+      console.error('Error:', err);
     }
   }
 </script>

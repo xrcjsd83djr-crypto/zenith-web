@@ -81,6 +81,38 @@ export async function initDb() {
         online_count INTEGER DEFAULT 0,
         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      
+      CREATE TABLE IF NOT EXISTS shifts (
+        id SERIAL PRIMARY KEY,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        username TEXT,
+        start_time TIMESTAMP,
+        end_time TIMESTAMP,
+        duration_minutes INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE TABLE IF NOT EXISTS performance_reviews (
+        id SERIAL PRIMARY KEY,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        reviewer_id TEXT,
+        rating INTEGER,
+        comments TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE TABLE IF NOT EXISTS training_logs (
+        id SERIAL PRIMARY KEY,
+        guild_id TEXT NOT NULL,
+        trainer_id TEXT,
+        trainee_id TEXT,
+        topic TEXT,
+        duration_minutes INTEGER,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
     console.log('[DB] Database tables initialized');
   } catch (err) {

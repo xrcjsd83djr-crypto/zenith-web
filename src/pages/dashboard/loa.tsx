@@ -1,15 +1,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function StatsPage({ guildId }: { guildId: string }) {
+export default function LoaPage({ guildId }: { guildId: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Statistics</h2>
-        <p className="text-gray-500 mt-1">View server and staff statistics</p>
+        <h2 className="text-2xl font-bold tracking-tight">Leave of Absence</h2>
+        <p className="text-gray-500 mt-1">Manage staff LOA requests</p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Stats & Analytics</CardTitle>
+          <CardTitle>LOA Requests</CardTitle>
           <CardDescription>Coming soon</CardDescription>
         </CardHeader>
         <CardContent>

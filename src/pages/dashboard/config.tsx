@@ -1,15 +1,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function StatsPage({ guildId }: { guildId: string }) {
+export default function ConfigPage({ guildId }: { guildId: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Statistics</h2>
-        <p className="text-gray-500 mt-1">View server and staff statistics</p>
+        <h2 className="text-2xl font-bold tracking-tight">Configuration</h2>
+        <p className="text-gray-500 mt-1">Configure bot settings for your server</p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Stats & Analytics</CardTitle>
+          <CardTitle>Server Settings</CardTitle>
           <CardDescription>Coming soon</CardDescription>
         </CardHeader>
         <CardContent>

@@ -1,15 +1,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function StatsPage({ guildId }: { guildId: string }) {
+export default function RanksPage({ guildId }: { guildId: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Statistics</h2>
-        <p className="text-gray-500 mt-1">View server and staff statistics</p>
+        <h2 className="text-2xl font-bold tracking-tight">Ranks</h2>
+        <p className="text-gray-500 mt-1">Manage staff ranks and hierarchy</p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Stats & Analytics</CardTitle>
+          <CardTitle>Rank Hierarchy</CardTitle>
           <CardDescription>Coming soon</CardDescription>
         </CardHeader>
         <CardContent>

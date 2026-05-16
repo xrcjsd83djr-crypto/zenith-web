@@ -1,7 +1,13 @@
 [build]
-  builder = "nixpacks"
+builder = "nixpacks"
+buildCommand = "npm install && npm run build"
 
-  [deploy]
-  startCommand = "node server.js"
-  restartPolicyType = "ON_FAILURE"
-  
+[build.nixpacks]
+node = "22.12.0"
+
+[deploy]
+startCommand = "npm start"
+restartPolicyType = "ON_FAILURE"
+
+[env]
+NPM_CONFIG_PRODUCTION = "false"

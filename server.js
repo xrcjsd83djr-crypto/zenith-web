@@ -1,24 +1,30 @@
 import express from 'express';
-  import session from 'express-session';
-  import { fileURLToPath } from 'url';
-  import { dirname, join } from 'path';
-  import { existsSync } from 'fs';
+import session from 'express-session';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { existsSync } from 'fs';
+import { initDb, upsertUser } from './server/db.js';
 
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-  const app = express();
-  const PORT = process.env.PORT || 3000;
-  const DISCORD_API = 'https://discord.com/api/v10';
+const app = express();
+const PORT = process.env.PORT || 3000;
+const DISCORD_API = 'https://discord.com/api/v10';
 
-  const {
-    DISCORD_CLIENT_ID,
-    DISCORD_CLIENT_SECRET,
-    DISCORD_REDIRECT_URI,
-    DISCORD_BOT_TOKEN,
-    SESSION_SECRET = 'change-this-secret-in-production',
-    BOT_CLIENT_ID,
-  } = process.env;
+const {
+  DISCORD_CLIENT_ID,
+  DISCORD_CLIENT_SECRET,
+  DISCORD_REDIRECT_URI,
+  DISCORD_BOT_TOKEN,
+  SESSION_SECRET = 'change-this-secret-in-production',
+  BOT_CLIENT_ID,
+  DATABASE_URL,
+} = process.env;
+
+if (DATABASE_URL) {
+  initDb();
+}
 
   app.set('trust proxy', 1);
   app.use(express.json());
@@ -34,17 +40,13 @@ import express from 'express';
     },
   }));
 
+  const distPath = join(__dirname, 'dist');
   const publicPath = join(__dirname, 'public');
-  if (existsSync(publicPath)) {
-    app.use(express.static(publicPath, {
-      setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.html')) {
-          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-          res.setHeader('Pragma', 'no-cache');
-          res.setHeader('Expires', '0');
-        }
-      }
-    }));
+
+  if (existsSync(distPath)) {
+    app.use(express.static(distPath));
+  } else if (existsSync(publicPath)) {
+    app.use(express.static(publicPath));
   }
 
   function requireAuth(req, res, next) {
@@ -94,7 +96,7 @@ import express from 'express';
         headers: { Authorization: `Bearer ${tokens.access_token}` },
       });
       const user = await userRes.json();
-      req.session.user = {
+      const userData = {
         id: user.id,
         username: user.global_name || user.username,
         avatar: user.avatar,
@@ -103,6 +105,16 @@ import express from 'express';
           : `https://cdn.discordapp.com/embed/avatars/${Number(user.discriminator || 0) % 5}.png`,
         accessToken: tokens.access_token,
       };
+
+      if (DATABASE_URL) {
+        try {
+          await upsertUser(userData);
+        } catch (dbErr) {
+          console.error('[DB] Failed to upsert user:', dbErr);
+        }
+      }
+
+      req.session.user = userData;
       res.redirect('/servers');
     } catch (err) {
       console.error('[auth] Callback error:', err);
@@ -294,13 +306,16 @@ import express from 'express';
   });
 
   // ── SPA fallback — must be last ───────────────────────────────────────────
-  const indexHtml = join(publicPath, 'index.html');
   app.get('*', (_req, res) => {
-    if (existsSync(indexHtml)) {
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.sendFile(indexHtml);
+    const distIndex = join(distPath, 'index.html');
+    const publicIndex = join(publicPath, 'index.html');
+    
+    if (existsSync(distIndex)) {
+      res.sendFile(distIndex);
+    } else if (existsSync(publicIndex)) {
+      res.sendFile(publicIndex);
     } else {
-      res.status(503).send('App not built. Check public directory.');
+      res.status(503).send('App not built. Check dist or public directory.');
     }
   });
 

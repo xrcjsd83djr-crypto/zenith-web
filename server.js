@@ -3,7 +3,7 @@ import session from 'express-session';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
-import { initDb, upsertUser } from './server/db.js';
+import { initDb, upsertUser, query } from './server/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

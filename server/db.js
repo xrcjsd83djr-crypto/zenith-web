@@ -1,11 +1,16 @@
 import pg from 'pg';
 const { Pool } = pg;
 
+// Railway networking can sometimes be flaky with IPv6, so we ensure proper connection options.
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  // Adding connection timeout and keepalive to handle network reachability issues
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 10
 });
 
 export async function query(text, params) {
@@ -13,18 +18,24 @@ export async function query(text, params) {
 }
 
 export async function upsertUser(user) {
-  const text = `
-    INSERT INTO users (id, username, avatar, discord_id)
-    VALUES ($1, $2, $3, $4)
-    ON CONFLICT (discord_id) 
-    DO UPDATE SET 
-      username = EXCLUDED.username,
-      avatar = EXCLUDED.avatar
-    RETURNING *;
-  `;
-  const values = [user.id, user.username, user.avatar, user.id];
-  const res = await query(text, values);
-  return res.rows[0];
+  try {
+    const text = `
+      INSERT INTO users (id, username, avatar, discord_id)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (discord_id) 
+      DO UPDATE SET 
+        username = EXCLUDED.username,
+        avatar = EXCLUDED.avatar
+      RETURNING *;
+    `;
+    const values = [user.id, user.username, user.avatar, user.id];
+    const res = await query(text, values);
+    return res.rows[0];
+  } catch (err) {
+    console.error('[DB] Failed to upsert user:', err.message);
+    // Return the user object anyway so login doesn't crash if DB is temporarily unreachable
+    return user;
+  }
 }
 
 export async function initDb() {
@@ -49,6 +60,7 @@ export async function initDb() {
         icon TEXT,
         bot_added BOOLEAN DEFAULT FALSE,
         owner_id TEXT,
+        is_premium BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       

@@ -103,7 +103,19 @@ import express from 'express';
           : `https://cdn.discordapp.com/embed/avatars/${Number(user.discriminator || 0) % 5}.png`,
         accessToken: tokens.access_token,
       };
-      req.session.save(() => res.redirect('/servers'));
+      req.session.save((err) => {
+        if (err) {
+          console.error('[auth] Session save error:', err);
+          return res.redirect('/?error=session_failed');
+        }
+        res.redirect('/servers');
+      });
+      setTimeout(() => {
+        if (!res.headersSent) {
+          console.error('[auth] Session save timeout');
+          res.redirect('/?error=timeout');
+        }
+      }, 5000);
     } catch (err) {
       console.error('[auth] Callback error:', err);
       res.redirect('/?error=auth_failed');

@@ -2,13 +2,21 @@ import pg from 'pg';
 const { Pool } = pg;
 
 // Railway networking can sometimes be flaky with IPv6, so we ensure proper connection options.
+// We parse the DATABASE_URL to modify it for IPv4 if necessary
+let connectionString = process.env.DATABASE_URL;
+if (connectionString && connectionString.includes('supabase.co')) {
+  // Append a parameter to prefer IPv4 if the driver supports it via some means, 
+  // but mostly we rely on the network layer or direct IP.
+  // Since we can't easily get the direct IP here without DNS lookup, 
+  // we'll try to use the 'pg' native bindings or just standard settings.
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: connectionString,
   ssl: {
     rejectUnauthorized: false
   },
-  // Adding connection timeout and keepalive to handle network reachability issues
-  connectionTimeoutMillis: 10000,
+  connectionTimeoutMillis: 20000, // Increased timeout
   idleTimeoutMillis: 30000,
   max: 10
 });

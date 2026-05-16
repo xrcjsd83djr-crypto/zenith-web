@@ -322,6 +322,16 @@ if (DATABASE_URL) {
     }
   });
 
+  app.get('/api/db-ping', async (req, res) => {
+    try {
+      const start = Date.now();
+      await query('SELECT 1');
+      res.json({ status: 'Connected', latency: `${Date.now() - start}ms` });
+    } catch (err) {
+      res.status(500).json({ status: 'Error', message: err.message });
+    }
+  });
+
   app.get('/api/bot/stats', async (_req, res) => {
     try {
       const guildsCount = await query('SELECT COUNT(*) FROM servers');
@@ -334,7 +344,12 @@ if (DATABASE_URL) {
       });
     } catch (err) {
       console.error('[stats] Error:', err);
-      res.status(500).json({ error: 'Internal server error' });
+      res.json({
+        guilds: 0,
+        users: 0,
+        uptime: process.uptime(),
+        status: 'Degraded (DB Error)'
+      });
     }
   });
 

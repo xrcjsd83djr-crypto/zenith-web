@@ -1,6 +1,6 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { useGetGuild, useGetMe, getGetGuildQueryKey, useLogout } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth";
 import {
   LayoutDashboard,
   Users,
@@ -17,17 +17,38 @@ import {
 } from "lucide-react";
 import { Button } from "./ui/button";
 
+export interface Guild {
+  id: string;
+  name: string;
+  icon?: string;
+  isPremium?: boolean;
+}
+
 export default function DashboardLayout({ guildId, children }: { guildId: string, children: ReactNode }) {
   const [location] = useLocation();
-  const { data: guild, isLoading: guildLoading } = useGetGuild(guildId, {
-    query: { enabled: !!guildId, queryKey: getGetGuildQueryKey(guildId) }
-  });
-  const { data: user } = useGetMe();
-  const logoutMutation = useLogout();
+  const { user, logout } = useAuth();
+  const [guild, setGuild] = useState<Guild | null>(null);
+  const [guildLoading, setGuildLoading] = useState(true);
 
-  const handleLogout = async () => {
-    try { await logoutMutation.mutateAsync(); } finally { window.location.href = "/"; }
-  };
+  useEffect(() => {
+    const fetchGuild = async () => {
+      try {
+        const res = await fetch(`/api/guilds/${guildId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setGuild(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch guild:", error);
+      } finally {
+        setGuildLoading(false);
+      }
+    };
+
+    if (guildId) {
+      fetchGuild();
+    }
+  }, [guildId]);
 
   const navItems = [
     { name: "Overview", path: `/dashboard/${guildId}`, icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -148,7 +169,7 @@ export default function DashboardLayout({ guildId, children }: { guildId: string
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-bold text-gray-900 truncate">{user.username}</div>
                 <button
-                  onClick={handleLogout}
+                  onClick={logout}
                   className="text-[11px] text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1 mt-0.5"
                 >
                   <LogOut className="w-2.5 h-2.5" />

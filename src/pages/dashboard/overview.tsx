@@ -1,15 +1,40 @@
-import { useGetGuildStats, getGetGuildStatsQueryKey, useGetActivityLeaderboard, useListStrikes, useListLoa } from "@/lib/api-client";
+import { useState, useEffect } from "react";
 import { Users, FileText, AlertTriangle, Clock, TrendingUp, UserPlus, Activity, Star } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Link } from "wouter";
 
 export default function OverviewPage({ guildId }: { guildId: string }) {
-  const { data: stats, isLoading } = useGetGuildStats(guildId, {
-    query: { enabled: !!guildId, queryKey: getGetGuildStatsQueryKey(guildId) }
-  });
-  const { data: leaderboard = [] } = useGetActivityLeaderboard(guildId, { query: { enabled: !!guildId, queryKey: [`/api/guilds/${guildId}/activity/leaderboard`] } });
-  const { data: strikes = [] } = useListStrikes(guildId, { query: { enabled: !!guildId, queryKey: [`/api/guilds/${guildId}/strikes`] } });
-  const { data: loas = [] } = useListLoa(guildId, { query: { enabled: !!guildId, queryKey: [`/api/guilds/${guildId}/loa`] } });
+  const [stats, setStats] = useState<any>(null);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [strikes, setStrikes] = useState<any[]>([]);
+  const [loas, setLoas] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsRes, leaderboardRes, strikesRes, loasRes] = await Promise.all([
+          fetch(`/api/guilds/${guildId}/stats`),
+          fetch(`/api/guilds/${guildId}/activity/leaderboard`),
+          fetch(`/api/guilds/${guildId}/strikes`),
+          fetch(`/api/guilds/${guildId}/loa`),
+        ]);
+
+        if (statsRes.ok) setStats(await statsRes.json());
+        if (leaderboardRes.ok) setLeaderboard(await leaderboardRes.json());
+        if (strikesRes.ok) setStrikes(await strikesRes.json());
+        if (loasRes.ok) setLoas(await loasRes.json());
+      } catch (error) {
+        console.error("Failed to fetch overview data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (guildId) {
+      fetchData();
+    }
+  }, [guildId]);
 
   if (isLoading) {
     return (
@@ -35,11 +60,11 @@ export default function OverviewPage({ guildId }: { guildId: string }) {
     { label: "Avg Activity", value: `${stats.avgActivityScore}pts`, icon: <Star className="w-4 h-4" />, color: "text-yellow-500", bg: "bg-yellow-50" },
   ];
 
-  const top5 = (leaderboard as any[]).slice(0, 5);
+  const top5 = leaderboard.slice(0, 5);
   const chartData = top5.map((e: any) => ({ name: (e.username ?? "?").slice(0, 8), score: e.score }));
 
-  const recentStrikes = (strikes as any[]).filter((s: any) => s.active).slice(0, 5);
-  const pendingLoas = (loas as any[]).filter((l: any) => l.status === "pending").slice(0, 5);
+  const recentStrikes = strikes.filter((s: any) => s.active).slice(0, 5);
+  const pendingLoas = loas.filter((l: any) => l.status === "pending").slice(0, 5);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">

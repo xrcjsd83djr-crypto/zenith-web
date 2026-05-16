@@ -1,18 +1,46 @@
 import { Link } from "wouter";
-import { useGetGuilds, Guild } from "@/lib/api-client";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { LogOut, Plus, Star } from "lucide-react";
-import { useLogout } from "@/lib/api-client";
-import { useLocation } from "wouter";
+
+export interface Guild {
+  id: string;
+  name: string;
+  icon?: string;
+  memberCount?: number;
+  botInstalled: boolean;
+  isPremium?: boolean;
+}
 
 export default function ServersPage() {
-  const { data: guilds, isLoading } = useGetGuilds({ query: { queryKey: ["/api/guilds"], retry: false } });
-  const logout = useLogout();
-  const [, setLocation] = useLocation();
+  const [guilds, setGuilds] = useState<Guild[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGuilds = async () => {
+      try {
+        const res = await fetch("/api/guilds");
+        if (res.ok) {
+          const data = await res.json();
+          setGuilds(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch guilds:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchGuilds();
+  }, []);
 
   const handleLogout = async () => {
-    await logout.mutateAsync(undefined);
-    window.location.href = "/";
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
 
   return (

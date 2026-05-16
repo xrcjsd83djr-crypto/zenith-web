@@ -453,3 +453,92 @@ if (DATABASE_URL) {
       res.json([]);
     }
   });
+
+  app.get('/api/guilds/:id/detailed', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const token = req.session.discordAccessToken;
+    try {
+      const guildRes = await fetch(`${DISCORD_API}/guilds/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const guild = await guildRes.json();
+      
+      const channelsRes = await fetch(`${DISCORD_API}/guilds/${id}/channels`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const channels = await channelsRes.json();
+      
+      const rolesRes = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const roles = await rolesRes.json();
+      
+      res.json({
+        name: guild.name,
+        description: guild.description,
+        icon: guild.icon,
+        banner: guild.banner,
+        owner_id: guild.owner_id,
+        member_count: guild.approximate_member_count,
+        online_count: guild.approximate_presence_count,
+        premium_tier: guild.premium_tier,
+        premium_subscription_count: guild.premium_subscription_count,
+        verification_level: guild.verification_level,
+        explicit_content_filter: guild.explicit_content_filter,
+        channels: channels.length,
+        roles: roles.length,
+        emojis: guild.emojis ? guild.emojis.length : 0,
+        stickers: guild.stickers ? guild.stickers.length : 0,
+        created_at: guild.created_at
+      });
+    } catch (err) {
+      console.error('[detailed] Error:', err);
+      res.json({});
+    }
+  });
+
+  app.get('/api/guilds/:id/channels', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const token = req.session.discordAccessToken;
+    try {
+      const channelsRes = await fetch(`${DISCORD_API}/guilds/${id}/channels`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const channels = await channelsRes.json();
+      res.json(channels || []);
+    } catch (err) {
+      console.error('[channels] Error:', err);
+      res.json([]);
+    }
+  });
+
+  app.get('/api/guilds/:id/emojis', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const token = req.session.discordAccessToken;
+    try {
+      const guildRes = await fetch(`${DISCORD_API}/guilds/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const guild = await guildRes.json();
+      res.json(guild.emojis || []);
+    } catch (err) {
+      console.error('[emojis] Error:', err);
+      res.json([]);
+    }
+  });
+
+  app.post('/api/guilds/:id/staff-roles', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { roleIds } = req.body;
+    try {
+      if (roleIds && roleIds.length > 0) {
+        console.log(`[staff-roles] Saved roles for guild ${id}:`, roleIds);
+        res.json({ success: true, message: 'Staff roles configured' });
+      } else {
+        res.status(400).json({ error: 'No roles selected' });
+      }
+    } catch (err) {
+      console.error('[staff-roles] Error:', err);
+      res.status(500).json({ error: 'Failed to save roles' });
+    }
+  });

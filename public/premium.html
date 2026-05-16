@@ -173,7 +173,7 @@
         <div class="logo-icon">Z</div>
         Zenith
       </a>
-      <a href="/" style="font-size: 14px; font-weight: 600; text-decoration: none; color: var(--muted);">Back to Home</a>
+      <button onclick="goBack()" style="background: none; border: none; font-size: 14px; font-weight: 600; text-decoration: none; color: var(--muted); cursor: pointer;"><i class="fas fa-arrow-left"></i> Back</button>
     </div>
   </nav>
 
@@ -222,5 +222,21 @@
       </div>
     </div>
   </div>
+
+  <script>
+    function goBack() {
+      const stored = localStorage.getItem('lastServerId');
+      if (stored) {
+        window.location.href = `/dashboard?id=${stored}`;
+      } else {
+        window.location.href = '/select-server';
+      }
+    }
+
+    if (window.location.search.includes('id=')) {
+      const id = new URLSearchParams(window.location.search).get('id');
+      localStorage.setItem('lastServerId', id);
+    }
+  </script>
 </body>
 </html>

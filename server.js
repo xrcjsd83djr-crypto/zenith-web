@@ -40,13 +40,17 @@ if (DATABASE_URL) {
     },
   }));
 
-  const distPath = join(__dirname, 'dist');
   const publicPath = join(__dirname, 'public');
-
-  if (existsSync(distPath)) {
-    app.use(express.static(distPath));
-  } else if (existsSync(publicPath)) {
-    app.use(express.static(publicPath));
+  if (existsSync(publicPath)) {
+    app.use(express.static(publicPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        }
+      }
+    }));
   }
 
   function requireAuth(req, res, next) {
@@ -57,6 +61,19 @@ if (DATABASE_URL) {
   // ── Auth ──────────────────────────────────────────────────────────────────
 
   app.get('/auth/discord', (req, res) => {
+    if (!DISCORD_CLIENT_ID || !DISCORD_REDIRECT_URI) {
+      return res.redirect('/?error=oauth_not_configured');
+    }
+    const params = new URLSearchParams({
+      client_id: DISCORD_CLIENT_ID,
+      redirect_uri: DISCORD_REDIRECT_URI,
+      response_type: 'code',
+      scope: 'identify guilds',
+    });
+    res.redirect(`https://discord.com/api/oauth2/authorize?${params}`);
+  });
+
+  app.get('/api/auth/discord', (req, res) => {
     if (!DISCORD_CLIENT_ID || !DISCORD_REDIRECT_URI) {
       return res.redirect('/?error=oauth_not_configured');
     }
@@ -115,7 +132,7 @@ if (DATABASE_URL) {
       }
 
       req.session.user = userData;
-      res.redirect('/servers');
+      res.redirect('/select-server');
     } catch (err) {
       console.error('[auth] Callback error:', err);
       res.redirect('/?error=auth_failed');
@@ -306,16 +323,13 @@ if (DATABASE_URL) {
   });
 
   // ── SPA fallback — must be last ───────────────────────────────────────────
+  const indexHtml = join(publicPath, 'index.html');
   app.get('*', (_req, res) => {
-    const distIndex = join(distPath, 'index.html');
-    const publicIndex = join(publicPath, 'index.html');
-    
-    if (existsSync(distIndex)) {
-      res.sendFile(distIndex);
-    } else if (existsSync(publicIndex)) {
-      res.sendFile(publicIndex);
+    if (existsSync(indexHtml)) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.sendFile(indexHtml);
     } else {
-      res.status(503).send('App not built. Check dist or public directory.');
+      res.status(503).send('App not built. Check public directory.');
     }
   });
 

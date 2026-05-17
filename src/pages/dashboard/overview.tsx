@@ -99,7 +99,7 @@ export default function OverviewPage({ guildId }: { guildId: string }) {
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6b7280" }} />
                 <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
                 <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: 12 }} />
-                <Bar dataKey="score" fill="#5BA4CF" radius={[4, 4, 0, 0]} name="Activity Score" />
+                <Bar dataKey="score" fill="#d4af37" radius={[4, 4, 0, 0]} name="Activity Score" />
               </BarChart>
             </ResponsiveContainer>
           )}

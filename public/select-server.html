@@ -456,6 +456,11 @@
           <a href="/dashboard?id=${guild.id}" class="guild-btn guild-btn-primary">
             <i class="fas fa-arrow-right"></i> Manage
           </a>
+          ${guild.isStaff ? `
+            <a href="/staff-dashboard?id=${guild.id}" class="guild-btn guild-btn-secondary">
+              <i class="fas fa-briefcase"></i> Staff
+            </a>
+          ` : ''}
           ${!guild.botAdded ? `
             <a href="https://discord.com/oauth2/authorize?client_id=1234567890&scope=bot&permissions=8&guild_id=${guild.id}" class="guild-btn guild-btn-secondary">
               <i class="fas fa-plus"></i> Add Bot

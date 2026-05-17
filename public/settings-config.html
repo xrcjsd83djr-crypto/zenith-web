@@ -346,19 +346,40 @@
     };
 
     try {
-      const res = await fetch(`/api/guilds/${guildId}/settings`, {
+      const configData = {
+        loaChannelId: document.getElementById('loaChannel')?.value,
+        applicationsChannelId: document.getElementById('appsChannel')?.value,
+        logsChannelId: document.getElementById('logsChannel')?.value,
+        staffRoleId: document.getElementById('staffRole')?.value,
+        adminRoleId: document.getElementById('adminRole')?.value,
+        prefix: document.getElementById('serverPrefix')?.value || '!',
+        premiumEnabled: false,
+        applicationsEnabled: document.getElementById('enableApplications')?.checked || false,
+        applicationsTitle: 'Staff Application',
+        applicationsQuestions: [],
+        requireRecommendations: false,
+        autoReject: false
+      };
+      
+      const res = await fetch(`/api/guilds/${guildId}/config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(configData),
       });
       if (res.ok) {
+        const saved = await res.json();
+        console.log('Config saved:', saved);
         alert('Settings saved successfully!');
+        // Reload to verify persistence
+        setTimeout(() => location.reload(), 500);
       } else {
-        alert('Failed to save settings. Please try again.');
+        const err = await res.text();
+        console.error('Save error:', err);
+        alert('Failed to save settings: ' + err);
       }
     } catch (err) {
       console.error('Error saving settings:', err);
-      alert('Error saving settings. Please check the console.');
+      alert('Error saving settings: ' + err.message);
     }
   }
 

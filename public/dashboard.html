@@ -80,8 +80,8 @@
     .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
     .staff-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: center; transition: all 0.3s; cursor: pointer; }
     .staff-card:hover { transform: translateY(-4px); border-color: #d4af37; box-shadow: 0 8px 16px rgba(0,0,0,0.05); }
-    .staff-avatar { width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 12px; border: 2px solid #d4af37; }
-    .staff-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+    .staff-avatar { width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 12px; border: 2px solid #d4af37; overflow: hidden; background: var(--surface2); }
+    .staff-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .staff-name { font-size: 14px; font-weight: 800; margin-bottom: 2px; }
     .staff-role { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
     
@@ -103,8 +103,8 @@
     .table-container tr:hover { background: var(--surface2); }
     
     .profile-card { background: white; border: 1px solid var(--border); border-radius: 20px; padding: 40px; text-align: center; margin-bottom: 32px; }
-    .profile-avatar { width: 100px; height: 100px; border-radius: 50%; margin: 0 auto 20px; border: 3px solid #d4af37; }
-    .profile-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+    .profile-avatar { width: 100px; height: 100px; border-radius: 50%; margin: 0 auto 20px; border: 3px solid #d4af37; overflow: hidden; background: var(--surface2); }
+    .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .profile-name { font-size: 24px; font-weight: 900; margin-bottom: 4px; }
     .profile-id { font-size: 12px; color: var(--muted); margin-bottom: 24px; font-family: monospace; }
     .profile-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
@@ -120,14 +120,21 @@
     .modal-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
     .btn-cancel { background: var(--surface2); color: var(--text); padding: 10px 24px; border-radius: 10px; font-weight: 800; border: none; cursor: pointer; }
     
-    .staff-detail-modal .modal-content { text-align: left; max-width: 600px; }
-    .staff-detail-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
-    .staff-detail-avatar { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #d4af37; }
-    .staff-detail-info h3 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
-    .staff-detail-info p { font-size: 12px; color: var(--muted); }
-    .staff-detail-section { margin-bottom: 20px; }
-    .staff-detail-section h4 { font-size: 13px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
-    .staff-detail-section p { font-size: 14px; color: var(--text); }
+    .staff-detail-modal .modal-content { text-align: left; max-width: 650px; }
+    .staff-detail-header { display: flex; align-items: center; gap: 20px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid var(--border); }
+    .staff-detail-avatar { width: 100px; height: 100px; border-radius: 50%; border: 3px solid #d4af37; overflow: hidden; background: var(--surface2); flex-shrink: 0; }
+    .staff-detail-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .staff-detail-info h3 { font-size: 22px; font-weight: 900; margin-bottom: 4px; }
+    .staff-detail-info p { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+    .staff-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .staff-detail-section { background: var(--surface2); padding: 16px; border-radius: 12px; }
+    .staff-detail-section h4 { font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .staff-detail-section p { font-size: 16px; font-weight: 700; color: var(--text); }
+    .staff-detail-full { grid-column: 1 / -1; }
+    .staff-history { background: var(--surface2); padding: 16px; border-radius: 12px; margin-bottom: 16px; }
+    .staff-history h4 { font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+    .history-item { font-size: 13px; color: var(--text); padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .history-item:last-child { border-bottom: none; }
     
     @media (max-width: 768px) {
       .sidebar { left: -260px; transition: left 0.3s; }
@@ -156,6 +163,9 @@
       .modal { padding: 10px; }
       .modal-content { padding: 24px; }
       .staff-detail-modal .modal-content { max-width: 90vw; }
+      .staff-detail-header { flex-direction: column; text-align: center; }
+      .staff-detail-avatar { width: 80px; height: 80px; }
+      .staff-detail-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -179,28 +189,40 @@
 <div id="staffDetailModal" class="modal staff-detail-modal">
   <div class="modal-content">
     <div class="staff-detail-header">
-      <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="" class="staff-detail-avatar" id="staffDetailAvatar">
+      <img src="" alt="" class="staff-detail-avatar" id="staffDetailAvatar">
       <div class="staff-detail-info">
         <h3 id="staffDetailName">Loading...</h3>
         <p id="staffDetailId"></p>
+        <p id="staffDetailJoined" style="font-size: 12px; color: var(--muted);"></p>
       </div>
     </div>
-    <div class="staff-detail-section">
-      <h4>Highest Role</h4>
-      <p id="staffDetailRole">Staff</p>
+    
+    <div class="staff-detail-grid">
+      <div class="staff-detail-section">
+        <h4>Highest Role</h4>
+        <p id="staffDetailRole">Staff</p>
+      </div>
+      <div class="staff-detail-section">
+        <h4>Strikes</h4>
+        <p id="staffDetailStrikes">0</p>
+      </div>
+      <div class="staff-detail-section">
+        <h4>Status</h4>
+        <p id="staffDetailStatus">Active</p>
+      </div>
+      <div class="staff-detail-section">
+        <h4>LOA Status</h4>
+        <p id="staffDetailLOA">None</p>
+      </div>
     </div>
-    <div class="staff-detail-section">
-      <h4>Strikes</h4>
-      <p id="staffDetailStrikes">0</p>
+
+    <div class="staff-history">
+      <h4>Activity & History</h4>
+      <div id="staffHistory">
+        <div class="history-item">No activity recorded yet</div>
+      </div>
     </div>
-    <div class="staff-detail-section">
-      <h4>Status</h4>
-      <p id="staffDetailStatus">Active</p>
-    </div>
-    <div class="staff-detail-section">
-      <h4>Joined</h4>
-      <p id="staffDetailJoined">N/A</p>
-    </div>
+
     <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
       <button class="btn-cancel" onclick="closeStaffDetailModal()">Close</button>
     </div>
@@ -510,7 +532,7 @@
           <p>Manage your account settings.</p>
         </div>
         <div class="profile-card">
-          <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="" class="profile-avatar" id="profile-avatar">
+          <img src="" alt="" class="profile-avatar" id="profile-avatar">
           <h2 class="profile-name" id="profile-name">Loading...</h2>
           <p class="profile-id" id="profile-id"></p>
           <div class="profile-actions">
@@ -649,8 +671,8 @@
     document.getElementById('staff-list').style.display = 'block';
     const container = document.querySelector('#staff-list .staff-grid');
     container.innerHTML = staff.map(s => `
-      <div class="staff-card" onclick="openStaffDetailModal('${s.user_id}', '${s.username}', '${s.role}', ${s.strikes || 0})">
-        <div class="staff-avatar"><img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="${s.username}"></div>
+      <div class="staff-card" onclick="openStaffDetailModal('${s.user_id}', '${s.username}', '${s.role}', ${s.strikes || 0}, '${s.avatar_url || ''}', '${s.joined_at || ''}')">
+        <div class="staff-avatar"><img src="${s.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" alt="${s.username}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'"></div>
         <div class="staff-name">${s.username}</div>
         <div class="staff-role">${s.role || 'Staff'}</div>
         <div style="font-size: 10px; color: var(--muted); margin-top: 6px;">Strikes: ${s.strikes || 0}</div>
@@ -658,13 +680,25 @@
     `).join('');
   }
 
-  function openStaffDetailModal(userId, username, role, strikes) {
+  function openStaffDetailModal(userId, username, role, strikes, avatarUrl, joinedAt) {
     document.getElementById('staffDetailName').textContent = username;
     document.getElementById('staffDetailId').textContent = `ID: ${userId}`;
     document.getElementById('staffDetailRole').textContent = role || 'Staff';
     document.getElementById('staffDetailStrikes').textContent = strikes || 0;
     document.getElementById('staffDetailStatus').textContent = 'Active';
-    document.getElementById('staffDetailJoined').textContent = new Date().toLocaleDateString();
+    document.getElementById('staffDetailLOA').textContent = 'None';
+    document.getElementById('staffDetailJoined').textContent = `Joined: ${joinedAt ? new Date(joinedAt).toLocaleDateString() : 'N/A'}`;
+    document.getElementById('staffDetailAvatar').src = avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png';
+    document.getElementById('staffDetailAvatar').onerror = function() { this.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; };
+    
+    // Build history
+    const historyHtml = `
+      <div class="history-item">✓ Added to staff team</div>
+      <div class="history-item">✓ Role: ${role || 'Staff'}</div>
+      ${strikes > 0 ? `<div class="history-item">⚠ ${strikes} strike(s) recorded</div>` : ''}
+    `;
+    document.getElementById('staffHistory').innerHTML = historyHtml;
+    
     document.getElementById('staffDetailModal').classList.add('show');
   }
 

@@ -79,9 +79,12 @@ export async function initDb() {
         guild_id TEXT NOT NULL,
         user_id TEXT NOT NULL,
         username TEXT,
+        avatar TEXT,
+        avatar_url TEXT,
         role TEXT,
         strikes INTEGER DEFAULT 0,
         loa_status TEXT DEFAULT 'none',
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(guild_id, user_id)
       );
       

@@ -351,11 +351,14 @@ app.post('/api/guilds/:id/staff-roles', requireAuth, async (req, res) => {
         const staff = members.filter(m => m.roles.includes(roleId));
         for (const m of staff) {
           if (DATABASE_URL) {
+            const avatarUrl = m.user.avatar
+              ? `https://cdn.discordapp.com/avatars/${m.user.id}/${m.user.avatar}.png`
+              : `https://cdn.discordapp.com/embed/avatars/${(parseInt(m.user.id) % 5)}.png`;
             await query(`
-              INSERT INTO staff_members (guild_id, user_id, username, role)
-              VALUES ($1, $2, $3, $4)
-              ON CONFLICT (guild_id, user_id) DO UPDATE SET username = EXCLUDED.username
-            `, [id, m.user.id, m.user.global_name || m.user.username, 'Staff']);
+              INSERT INTO staff_members (guild_id, user_id, username, avatar, avatar_url, role)
+              VALUES ($1, $2, $3, $4, $5, $6)
+              ON CONFLICT (guild_id, user_id) DO UPDATE SET username = EXCLUDED.username, avatar = EXCLUDED.avatar, avatar_url = EXCLUDED.avatar_url
+            `, [id, m.user.id, m.user.global_name || m.user.username, m.user.avatar, avatarUrl, 'Staff']);
           }
         }
       }

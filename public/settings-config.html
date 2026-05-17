@@ -323,6 +323,15 @@
       <div class="settings-item" onclick="switchTab('branding')">
         <i class="fas fa-palette"></i> Branding
       </div>
+      <div class="settings-item" onclick="switchTab('applications')">
+        <i class="fas fa-file-alt"></i> Applications
+      </div>
+      <div class="settings-item" onclick="switchTab('permissions')">
+        <i class="fas fa-lock"></i> Permissions
+      </div>
+      <div class="settings-item" onclick="switchTab('automation')">
+        <i class="fas fa-robot"></i> Automation
+      </div>
     </div>
 
     <div class="settings-content">
@@ -559,6 +568,146 @@
           </button>
         </div>
       </div>
+
+      <!-- APPLICATIONS -->
+      <div id="applications" class="settings-section">
+        <h2><i class="fas fa-file-alt"></i> Applications Settings</h2>
+        
+        <div class="setting-group">
+          <label class="setting-label">
+            <div class="toggle-switch">
+              <label class="switch">
+                <input type="checkbox" id="app-enabled">
+                <span class="slider"></span>
+              </label>
+              <span>Enable Staff Applications</span>
+            </div>
+          </label>
+          <p class="setting-description">Allow staff to submit applications</p>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Application Review Channel</label>
+          <p class="setting-description">Where applications are posted for review</p>
+          <select id="app-channel" class="form-control">
+            <option value="">Select a channel...</option>
+          </select>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Application Approval Role</label>
+          <p class="setting-description">Role required to approve applications</p>
+          <select id="app-role" class="form-control">
+            <option value="">Select a role...</option>
+          </select>
+        </div>
+
+        <div class="save-section">
+          <button class="btn btn-primary" onclick="saveSettings('applications')">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </div>
+
+      <!-- PERMISSIONS -->
+      <div id="permissions" class="settings-section">
+        <h2><i class="fas fa-lock"></i> Permission Settings</h2>
+        
+        <div class="setting-group">
+          <label class="setting-label">Staff Can Edit Other Staff</label>
+          <p class="setting-description">Allow staff to modify other staff members' data</p>
+          <div class="toggle-switch">
+            <label class="switch">
+              <input type="checkbox" id="staff-edit-other">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Staff Can View Logs</label>
+          <p class="setting-description">Allow staff to access audit logs</p>
+          <div class="toggle-switch">
+            <label class="switch">
+              <input type="checkbox" id="staff-view-logs" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Public Profile Visibility</label>
+          <p class="setting-description">Allow public access to staff profiles</p>
+          <div class="toggle-switch">
+            <label class="switch">
+              <input type="checkbox" id="public-profiles" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="save-section">
+          <button class="btn btn-primary" onclick="saveSettings('permissions')">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </div>
+
+      <!-- AUTOMATION -->
+      <div id="automation" class="settings-section">
+        <h2><i class="fas fa-robot"></i> Automation Settings</h2>
+        
+        <div class="setting-group">
+          <label class="setting-label">
+            <div class="toggle-switch">
+              <label class="switch">
+                <input type="checkbox" id="auto-role-assignment">
+                <span class="slider"></span>
+              </label>
+              <span>Auto-assign Role on Promotion</span>
+            </div>
+          </label>
+          <p class="setting-description">Automatically assign roles when staff are promoted</p>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">
+            <div class="toggle-switch">
+              <label class="switch">
+                <input type="checkbox" id="auto-dm-notifications">
+                <span class="slider"></span>
+              </label>
+              <span>Send DM Notifications</span>
+            </div>
+          </label>
+          <p class="setting-description">Notify staff via DM on important events</p>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">
+            <div class="toggle-switch">
+              <label class="switch">
+                <input type="checkbox" id="auto-archive-inactive">
+                <span class="slider"></span>
+              </label>
+              <span>Auto-archive Inactive Staff</span>
+            </div>
+          </label>
+          <p class="setting-description">Automatically mark staff inactive after 30 days</p>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Inactivity Threshold (Days)</label>
+          <p class="setting-description">Days before staff marked as inactive</p>
+          <input type="number" id="inactivity-days" class="form-control" min="1" max="90" value="30">
+        </div>
+
+        <div class="save-section">
+          <button class="btn btn-primary" onclick="saveSettings('automation')">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -601,6 +750,19 @@
       settings.botName = document.getElementById('bot-name').value;
       settings.embedColor = document.getElementById('embed-color').value;
       settings.embedFooter = document.getElementById('embed-footer').value;
+    } else if (section === 'applications') {
+      settings.applicationsEnabled = document.getElementById('app-enabled').checked;
+      settings.applicationChannel = document.getElementById('app-channel').value;
+      settings.applicationRole = document.getElementById('app-role').value;
+    } else if (section === 'permissions') {
+      settings.staffCanEditOther = document.getElementById('staff-edit-other').checked;
+      settings.staffCanViewLogs = document.getElementById('staff-view-logs').checked;
+      settings.publicProfiles = document.getElementById('public-profiles').checked;
+    } else if (section === 'automation') {
+      settings.autoRoleAssignment = document.getElementById('auto-role-assignment').checked;
+      settings.autoDmNotifications = document.getElementById('auto-dm-notifications').checked;
+      settings.autoArchiveInactive = document.getElementById('auto-archive-inactive').checked;
+      settings.inactivityDays = parseInt(document.getElementById('inactivity-days').value);
     }
 
     try {

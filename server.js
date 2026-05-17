@@ -12,6 +12,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DISCORD_API = 'https://discord.com/api/v10';
 
+// Immediate health checks for Railway
+app.get('/healthz', (_req, res) => res.status(200).send('OK'));
+app.get('/health', (_req, res) => res.status(200).send('OK'));
+app.get('/ping', (_req, res) => res.status(200).send('pong'));
+
 const {
   DISCORD_CLIENT_ID,
   DISCORD_CLIENT_SECRET,

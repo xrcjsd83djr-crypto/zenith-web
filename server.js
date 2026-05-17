@@ -505,6 +505,7 @@ const publicPath = join(__dirname, 'public');
 app.use(express.static(publicPath));
 
 app.get('/select-server', (_req, res) => res.sendFile(join(publicPath, 'select-server.html')));
+app.get('/admin-portal', (_req, res) => res.sendFile(join(publicPath, 'admin-portal.html')));
 app.get('/dashboard', (_req, res) => res.sendFile(join(publicPath, 'dashboard.html')));
 app.get('/status', (_req, res) => res.sendFile(join(publicPath, 'status.html')));
 app.get('/premium', (_req, res) => res.sendFile(join(publicPath, 'premium.html')));

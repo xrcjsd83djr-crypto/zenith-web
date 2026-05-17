@@ -247,6 +247,7 @@ export async function initDb() {
       ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
       ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS hours INTEGER DEFAULT 0;
       ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+        ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
       ALTER TABLE server_config ADD COLUMN IF NOT EXISTS logs_channel_id TEXT;
       ALTER TABLE server_config ADD COLUMN IF NOT EXISTS applications_review_channel_id TEXT;
@@ -274,6 +275,17 @@ export async function initDb() {
       ALTER TABLE strikes ADD COLUMN IF NOT EXISTS appeal_reason TEXT;
       ALTER TABLE strikes ADD COLUMN IF NOT EXISTS removed_at TIMESTAMP;
       ALTER TABLE strikes ADD COLUMN IF NOT EXISTS removed_by TEXT;
+
+        -- loa_requests newer columns
+        ALTER TABLE loa_requests ADD COLUMN IF NOT EXISTS approved_by TEXT;
+        ALTER TABLE loa_requests ADD COLUMN IF NOT EXISTS approved_by_name TEXT;
+
+        -- activity_logs newer columns
+        ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'bot';
+
+        -- staff_members loa_status
+        ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS loa_status TEXT DEFAULT 'none';
+        ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS strikes INTEGER DEFAULT 0;
     `);
 
     console.log('[DB] Database initialized successfully');

@@ -514,14 +514,14 @@ app.get('/status', (_req, res) => res.sendFile(join(publicPath, 'status.html')))
 app.get('/premium', (_req, res) => res.sendFile(join(publicPath, 'premium.html')));
 app.get('/settings', (_req, res) => res.sendFile(join(publicPath, 'settings.html')));
 app.get('/server-settings', (_req, res) => res.sendFile(join(publicPath, 'settings-config.html')));
+app.get('/settings-config', (_req, res) => res.sendFile(join(publicPath, 'settings-config.html')));
 app.get('/staff-roster', (_req, res) => res.sendFile(join(publicPath, 'staff-roster.html')));
+app.get('/audit-logs', (_req, res) => res.sendFile(join(publicPath, 'audit-logs.html')));
+app.get('/applications-config', (_req, res) => res.sendFile(join(publicPath, 'applications-config.html')));
 app.get('/privacy', (_req, res) => res.sendFile(join(publicPath, 'privacy.html')));
 app.get('/tos', (_req, res) => res.sendFile(join(publicPath, 'tos.html')));
 
-// Catch-all → index.html
-app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
-
-// ── Start Server ─────────────────────────────────────────────────────────────
+// ── Additional API and admin routes ──────────────────────────────────────────
 
 // Global notifications storage
 let globalNotifications = [];
@@ -939,73 +939,86 @@ app.post('/api/guilds/:id/config', requireAuth, async (req, res) => {
 app.get('/api/guilds/:id/is-premium', requireAuth, async (req, res) => {
   const { id } = req.params;
   try {
+    if (!DATABASE_URL) return res.json({ premium: false, isPremium: false });
     const result = await query(
       `SELECT is_premium FROM servers WHERE id = $1`,
       [id]
     );
-    res.json({ isPremium: result.rows[0]?.is_premium || false });
+    const premium = !!result.rows[0]?.is_premium;
+    res.json({ premium, isPremium: premium });
   } catch (err) {
     console.error('[premium check]', err);
-    res.status(500).json({ error: 'Failed to check premium status' });
+    res.json({ premium: false, isPremium: false });
   }
+});
+
 // ── AUDIT LOGS API ────────────────────────────────────────────────────────
 app.get('/api/guilds/:id/audit-logs', requireAuth, async (req, res) => {
   const { id } = req.params;
   if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
-  
+
   try {
-    // 1. Fetch Discord Audit Logs
     const discordAuditRes = await fetch(`${DISCORD_API}/guilds/${id}/audit-logs?limit=50`, {
       headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
     });
-    const discordAuditData = discordAuditRes.ok ? await discordAuditRes.json() : { audit_log_entries: [] };
-    
-    // 2. Fetch Bot Internal Activity Logs (if you have an activity table)
-    // For now, we'll use the Discord logs and any bot-specific actions we've logged
-    const botLogsResult = await query(
-      `SELECT * FROM strikes WHERE guild_id = $1 UNION 
-       SELECT id, guild_id, user_id, username, reason, 'LOA Request' as evidence, 'System' as issued_by, 'System' as issued_by_name, TRUE as active, created_at, NULL as expires_at FROM loa_requests WHERE guild_id = $1
+    const discordAuditData = discordAuditRes.ok ? await discordAuditRes.json() : { audit_log_entries: [], users: [] };
+    const usersById = new Map((discordAuditData.users || []).map(u => [u.id, u]));
+
+    const botLogsResult = DATABASE_URL ? await query(
+      `SELECT id::text, guild_id, user_id, username, reason, evidence, issued_by, issued_by_name, created_at, 'Strike' AS source
+       FROM strikes WHERE guild_id = $1
+       UNION ALL
+       SELECT id::text, guild_id, user_id, username, reason, status AS evidence, approved_by AS issued_by, approved_by AS issued_by_name, created_at, 'LOA Request' AS source
+       FROM loa_requests WHERE guild_id = $1
        ORDER BY created_at DESC LIMIT 50`,
       [id]
-    );
-    
-    // 3. Combine and Format
+    ) : { rows: [] };
+
     const combinedLogs = [
-      ...discordAuditData.audit_log_entries.map(entry => ({
-        id: entry.id,
-        type: 'discord',
-        action: entry.action_type,
-        user: entry.user_id,
-        target: entry.target_id,
-        reason: entry.reason || 'No reason provided',
-        timestamp: new Date(parseInt(entry.id) / 4194304 + 1420070400000).toISOString()
-      })),
-      ...botLogsResult.rows.map(row => ({
-        id: row.id,
+      ...(discordAuditData.audit_log_entries || []).map(entry => {
+        const actor = usersById.get(entry.user_id);
+        return {
+          id: entry.id,
+          type: 'discord',
+          action: entry.action_type,
+          action_name: `Discord Action ${entry.action_type}`,
+          user: entry.user_id,
+          user_name: actor?.global_name || actor?.username || entry.user_id || 'Unknown',
+          target: entry.target_id,
+          target_name: entry.target_id || 'Unknown',
+          reason: entry.reason || 'No reason provided',
+          details: entry.changes || [],
+          timestamp: new Date(Number(BigInt(entry.id) / 4194304n) + 1420070400000).toISOString()
+        };
+      }),
+      ...(botLogsResult.rows || []).map(row => ({
+        id: `bot-${row.source}-${row.id}`,
         type: 'bot',
-        action: row.reason ? 'Strike/LOA' : 'Action',
-        user: row.issued_by || row.user_id,
+        action: row.source,
+        action_name: row.source,
+        user: row.issued_by || 'System',
+        user_name: row.issued_by_name || row.issued_by || 'System',
         target: row.user_id,
-        reason: row.reason || 'Bot Action',
+        target_name: row.username || row.user_id,
+        reason: row.reason || row.evidence || 'Bot Action',
+        details: row,
         timestamp: row.created_at
       }))
     ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    
+
     res.json(combinedLogs.slice(0, 100));
   } catch (err) {
     console.error('[audit-logs]', err);
     res.status(500).json({ error: 'Failed to fetch audit logs' });
   }
 });
-});
 
 // ── ACTIVITY LOGGING ────────────────────────────────────────────────────────
 app.post('/api/guilds/:id/activity', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { userId, action, details } = req.body;
-  
+
   try {
-    // Log to audit trail or activity table
     console.log(`[Activity] Guild: ${id}, User: ${userId}, Action: ${action}, Details: ${details}`);
     res.json({ success: true });
   } catch (err) {
@@ -1014,45 +1027,64 @@ app.post('/api/guilds/:id/activity', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/audit-logs', (_req, res) => res.sendFile(join(publicPath, 'audit-logs.html')));
-
-app.get('/api/guilds/:id/audit-logs', async (req, res) => {
+// ── APPLICATIONS CONFIG API ────────────────────────────────────────────────
+app.get('/api/guilds/:id/applications-config', requireAuth, async (req, res) => {
   const { id } = req.params;
   try {
-    const logs = await db.all(`
-      SELECT * FROM audit_logs 
-      WHERE guild_id = ? 
-      ORDER BY timestamp DESC 
-      LIMIT 100
-    `, [id]);
-    res.json(logs || []);
+    if (!DATABASE_URL) {
+      return res.json({ enabled: false, channel: '', title: '', questions: [], requireRecommendations: false, autoReject: false });
+    }
+    const result = await query(
+      `SELECT applications_enabled, applications_channel_id, applications_title, applications_questions, require_recommendations, auto_reject
+       FROM server_config WHERE guild_id = $1`,
+      [id]
+    );
+    const row = result.rows[0] || {};
+    res.json({
+      enabled: !!row.applications_enabled,
+      channel: row.applications_channel_id || '',
+      title: row.applications_title || '',
+      questions: Array.isArray(row.applications_questions) ? row.applications_questions : [],
+      requireRecommendations: !!row.require_recommendations,
+      autoReject: !!row.auto_reject,
+    });
   } catch (err) {
-    console.error('Error fetching audit logs:', err);
-    res.status(500).json({ error: 'Failed to fetch audit logs' });
+    console.error('[applications config get]', err);
+    res.status(500).json({ error: 'Failed to fetch applications config' });
   }
 });
-app.get('/applications-config', (_req, res) => res.sendFile(join(publicPath, 'applications-config.html')));
 
-app.post('/api/guilds/:id/applications-config', async (req, res) => {
+app.post('/api/guilds/:id/applications-config', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { enabled, channel, title, questions } = req.body;
+  const { enabled, channel, title, questions = [], requireRecommendations = false, autoReject = false } = req.body;
   try {
-    await db.run(`
-      UPDATE servers SET 
-        applications_enabled = ?,
-        applications_channel = ?,
-        applications_title = ?,
-        applications_questions = ?
-      WHERE guild_id = ?
-    `, [enabled ? 1 : 0, channel, title, JSON.stringify(questions), id]);
-    res.json({ success: true });
+    if (!DATABASE_URL) return res.status(400).json({ error: 'Database not configured' });
+
+    const premiumResult = await query(`SELECT is_premium FROM servers WHERE id = $1`, [id]);
+    const isPremium = !!premiumResult.rows[0]?.is_premium;
+    if (!isPremium && questions.length > 10) {
+      return res.status(403).json({ error: 'Free servers can save at most 10 questions. Upgrade to Premium for unlimited questions.' });
+    }
+
+    const result = await query(
+      `INSERT INTO server_config (guild_id, applications_enabled, applications_channel_id, applications_title, applications_questions, require_recommendations, auto_reject)
+       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
+       ON CONFLICT (guild_id) DO UPDATE SET
+         applications_enabled = EXCLUDED.applications_enabled,
+         applications_channel_id = EXCLUDED.applications_channel_id,
+         applications_title = EXCLUDED.applications_title,
+         applications_questions = EXCLUDED.applications_questions,
+         require_recommendations = EXCLUDED.require_recommendations,
+         auto_reject = EXCLUDED.auto_reject,
+         updated_at = CURRENT_TIMESTAMP
+       RETURNING *`,
+      [id, !!enabled, channel || null, title || null, JSON.stringify(questions), !!requireRecommendations, !!autoReject]
+    );
+    res.json({ success: true, config: result.rows[0] });
   } catch (err) {
-    console.error('Error saving applications config:', err);
-    res.status(500).json({ error: 'Failed to save config' });
+    console.error('[applications config save]', err);
+    res.status(500).json({ error: 'Failed to save applications config' });
   }
-});
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[Zenith] Server running on port ${PORT}`);
 });
 
 // Staff Dashboard API
@@ -1084,4 +1116,12 @@ app.get('/api/staff/profile/:username', async (req, res) => {
     console.error('[staff/profile]', err);
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
+});
+
+// Catch-all → index.html (must stay after every API/page route)
+app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
+
+// ── Start Server ─────────────────────────────────────────────────────────────
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[Zenith] Server running on port ${PORT}`);
 });

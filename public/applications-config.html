@@ -171,8 +171,9 @@
     try {
       const res = await fetch(`/api/guilds/${guildId}/is-premium`);
       const data = await res.json();
-      isPremium = data.premium;
+      isPremium = !!(data.premium ?? data.isPremium);
       updateUI();
+      await loadApplicationsConfig();
     } catch (err) {
       console.error('Error checking premium:', err);
     }
@@ -187,6 +188,24 @@
       document.getElementById('premiumSection').style.pointerEvents = 'none';
     }
   }
+
+  async function loadApplicationsConfig() {
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/applications-config?t=${Date.now()}`);
+      if (!res.ok) return;
+      const config = await res.json();
+      document.getElementById('enableApplications').checked = !!config.enabled;
+      document.getElementById('applicationsChannel').value = config.channel || '';
+      document.getElementById('appTitle').value = config.title || '';
+      document.getElementById('requireRecommendations').checked = !!config.requireRecommendations;
+      document.getElementById('autoReject').checked = !!config.autoReject;
+      questions = Array.isArray(config.questions) ? config.questions : [];
+      renderQuestions();
+    } catch (err) {
+      console.error('Error loading applications config:', err);
+    }
+  }
+
 
   function addQuestion() {
     const text = document.getElementById('newQuestion').value.trim();

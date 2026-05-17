@@ -180,6 +180,34 @@ export async function initDb() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Existing Railway databases keep old CREATE TABLE shapes. Add missing columns explicitly.
+    await query(`
+      ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS avatar TEXT;
+      ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+      ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS role TEXT;
+      ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS rank TEXT;
+      ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS position TEXT;
+      ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS hours INTEGER DEFAULT 0;
+      ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS discord_username TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS roblox_username TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS roblox_verified BOOLEAN DEFAULT FALSE;
+
+      ALTER TABLE servers ADD COLUMN IF NOT EXISTS icon_url TEXT;
+      ALTER TABLE servers ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE;
+      ALTER TABLE servers ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}';
+
+      ALTER TABLE server_config ADD COLUMN IF NOT EXISTS applications_enabled BOOLEAN DEFAULT FALSE;
+      ALTER TABLE server_config ADD COLUMN IF NOT EXISTS applications_channel_id TEXT;
+      ALTER TABLE server_config ADD COLUMN IF NOT EXISTS applications_title TEXT;
+      ALTER TABLE server_config ADD COLUMN IF NOT EXISTS applications_questions JSONB DEFAULT '[]'::jsonb;
+      ALTER TABLE server_config ADD COLUMN IF NOT EXISTS require_recommendations BOOLEAN DEFAULT FALSE;
+      ALTER TABLE server_config ADD COLUMN IF NOT EXISTS auto_reject BOOLEAN DEFAULT FALSE;
+      ALTER TABLE server_config ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    `);
     console.log('[DB] Database tables initialized');
   } catch (err) {
     console.error('[DB] Initialization error:', err);

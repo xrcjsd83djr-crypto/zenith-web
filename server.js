@@ -1031,6 +1031,26 @@ app.get('/api/guilds/:id/audit-logs', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch audit logs' });
   }
 });
+app.get('/applications-config', (_req, res) => res.sendFile(join(publicPath, 'applications-config.html')));
+
+app.post('/api/guilds/:id/applications-config', async (req, res) => {
+  const { id } = req.params;
+  const { enabled, channel, title, questions } = req.body;
+  try {
+    await db.run(`
+      UPDATE servers SET 
+        applications_enabled = ?,
+        applications_channel = ?,
+        applications_title = ?,
+        applications_questions = ?
+      WHERE guild_id = ?
+    `, [enabled ? 1 : 0, channel, title, JSON.stringify(questions), id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error saving applications config:', err);
+    res.status(500).json({ error: 'Failed to save config' });
+  }
+});
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);
 });

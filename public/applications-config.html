@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Applications Configuration — Zenith</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --surface2: #f0f2f5;
+      --border: #e0e0e0;
+      --primary: #d4af37;
+      --text: #2c3e50;
+      --muted: #7f8c8d;
+      --success: #27ae60;
+      --danger: #c0392b;
+    }
+    body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    a { color: inherit; text-decoration: none; }
+    nav { border-bottom: 2px solid var(--primary); background: var(--surface); padding: 16px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .nav-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; }
+    .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary), #ffd700); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-ghost { background: white; color: var(--text); border: 2px solid var(--primary); }
+    .btn-ghost:hover { background: var(--primary); color: white; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary), #ffd700); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: #a93226; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+    .header { margin-bottom: 32px; }
+    .header h1 { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
+    .header p { color: var(--muted); }
+    .config-group { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+    .config-group h3 { font-size: 16px; font-weight: 800; margin-bottom: 16px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+    .premium-badge { display: inline-block; background: linear-gradient(135deg, var(--primary), #ffd700); color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+    .config-item { margin-bottom: 20px; }
+    .config-item:last-child { margin-bottom: 0; }
+    .config-label { font-size: 14px; font-weight: 700; margin-bottom: 8px; display: block; }
+    .config-input, .config-select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; }
+    .config-input:focus, .config-select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1); }
+    textarea { resize: vertical; min-height: 100px; }
+    .config-description { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .question-list { background: var(--surface2); border-radius: 8px; padding: 16px; margin-top: 12px; }
+    .question-item { background: white; padding: 12px; border-radius: 6px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+    .question-item:last-child { margin-bottom: 0; }
+    .question-text { flex: 1; }
+    .question-type { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 700; }
+    .btn-small { padding: 6px 12px; font-size: 12px; }
+    .button-group { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+    .btn-save { background: var(--success); color: white; }
+    .btn-save:hover { background: #229954; }
+    .btn-reset { background: var(--surface2); color: var(--text); }
+    .btn-reset:hover { background: var(--border); }
+    .usage-bar { background: var(--surface2); border-radius: 8px; height: 8px; overflow: hidden; margin-top: 8px; }
+    .usage-fill { background: linear-gradient(90deg, var(--primary), #ffd700); height: 100%; transition: width 0.3s; }
+    .usage-text { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .premium-lock { opacity: 0.5; pointer-events: none; }
+    .premium-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--danger); font-size: 12px; font-weight: 700; }
+    @media (max-width: 768px) {
+      .header h1 { font-size: 20px; }
+      .button-group { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">
+      <div class="logo-icon">Z</div>
+      Zenith
+    </a>
+    <div class="nav-right">
+      <button class="btn btn-ghost" onclick="logout(); return false;">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="header">
+    <h1><i class="fas fa-file-alt"></i> Applications Configuration</h1>
+    <p>Set up staff applications with custom questions and channels</p>
+  </div>
+
+  <div class="config-group">
+    <h3><i class="fas fa-cog"></i> Basic Settings</h3>
+    <div class="config-item">
+      <label class="config-checkbox" style="display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="enableApplications">
+        <span>Enable Staff Applications</span>
+      </label>
+      <div class="config-description">Allow users to apply for staff positions</div>
+    </div>
+    <div class="config-item">
+      <label class="config-label">Applications Channel</label>
+      <input type="text" id="applicationsChannel" class="config-input" placeholder="Channel ID or name">
+      <div class="config-description">Where application submissions will be posted</div>
+    </div>
+    <div class="config-item">
+      <label class="config-label">Application Title</label>
+      <input type="text" id="appTitle" class="config-input" placeholder="e.g., Staff Application Form">
+      <div class="config-description">Title shown to applicants</div>
+    </div>
+  </div>
+
+  <div class="config-group">
+    <h3><i class="fas fa-list"></i> Application Questions <span class="premium-badge" id="questionLimit">Free: 10 max</span></h3>
+    <div class="config-item">
+      <label class="config-label">Add New Question</label>
+      <input type="text" id="newQuestion" class="config-input" placeholder="Enter your question">
+      <select id="questionType" class="config-select" style="margin-top: 8px;">
+        <option value="short">Short Answer</option>
+        <option value="long">Long Answer</option>
+        <option value="choice">Multiple Choice</option>
+      </select>
+      <button class="btn btn-primary btn-small" onclick="addQuestion(); return false;" style="margin-top: 12px;">
+        <i class="fas fa-plus"></i> Add Question
+      </button>
+    </div>
+    <div class="question-list" id="questionsList">
+      <p style="color: var(--muted); text-align: center; padding: 20px;">No questions added yet</p>
+    </div>
+  </div>
+
+  <div class="config-group">
+    <h3><i class="fas fa-crown"></i> Premium Features <span class="premium-badge">Premium Only</span></h3>
+    <div class="config-item" id="premiumSection" style="position: relative;">
+      <label class="config-checkbox" style="display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="requireRecommendations" disabled>
+        <span>Require Staff Recommendations</span>
+      </label>
+      <div class="config-description">Applicants must get recommendations from existing staff</div>
+    </div>
+    <div class="config-item">
+      <label class="config-checkbox" style="display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="autoReject" disabled>
+        <span>Auto-Reject After X Days</span>
+      </label>
+      <div class="config-description">Automatically reject applications if not reviewed</div>
+    </div>
+    <button class="btn btn-primary" onclick="upgradeToPremium(); return false;" style="margin-top: 16px;">
+      <i class="fas fa-crown"></i> Upgrade to Premium for Unlimited Questions & Apps
+    </button>
+  </div>
+
+  <div class="button-group">
+    <button class="btn btn-primary btn-save" onclick="saveApplications(); return false;"><i class="fas fa-save"></i> Save Configuration</button>
+    <button class="btn btn-reset" onclick="resetApplications(); return false;"><i class="fas fa-undo"></i> Reset</button>
+  </div>
+</div>
+
+<script>
+  const guildId = new URLSearchParams(window.location.search).get('id');
+  if (!guildId) { window.location.href = '/select-server'; }
+  
+  let questions = [];
+  let isPremium = false;
+  const FREE_QUESTION_LIMIT = 10;
+  const FREE_APP_LIMIT = 3;
+
+  async function checkPremium() {
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/is-premium`);
+      const data = await res.json();
+      isPremium = data.premium;
+      updateUI();
+    } catch (err) {
+      console.error('Error checking premium:', err);
+    }
+  }
+
+  function updateUI() {
+    const limit = isPremium ? 'Unlimited' : `Free: ${FREE_QUESTION_LIMIT} max`;
+    document.getElementById('questionLimit').textContent = limit;
+    
+    if (!isPremium) {
+      document.getElementById('premiumSection').style.opacity = '0.5';
+      document.getElementById('premiumSection').style.pointerEvents = 'none';
+    }
+  }
+
+  function addQuestion() {
+    const text = document.getElementById('newQuestion').value.trim();
+    const type = document.getElementById('questionType').value;
+    
+    if (!text) {
+      alert('Please enter a question');
+      return;
+    }
+    
+    const limit = isPremium ? 999 : FREE_QUESTION_LIMIT;
+    if (questions.length >= limit) {
+      alert(`Question limit reached (${limit}). ${!isPremium ? 'Upgrade to Premium for unlimited questions.' : ''}`);
+      return;
+    }
+    
+    questions.push({ text, type, id: Date.now() });
+    document.getElementById('newQuestion').value = '';
+    renderQuestions();
+  }
+
+  function removeQuestion(id) {
+    questions = questions.filter(q => q.id !== id);
+    renderQuestions();
+  }
+
+  function renderQuestions() {
+    const container = document.getElementById('questionsList');
+    if (questions.length === 0) {
+      container.innerHTML = '<p style="color: var(--muted); text-align: center; padding: 20px;">No questions added yet</p>';
+      return;
+    }
+    
+    container.innerHTML = questions.map(q => `
+      <div class="question-item">
+        <div class="question-text">
+          <div>${escapeHtml(q.text)}</div>
+          <div class="question-type">${q.type}</div>
+        </div>
+        <button class="btn btn-danger btn-small" onclick="removeQuestion(${q.id}); return false;">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    `).join('');
+  }
+
+  async function saveApplications() {
+    const config = {
+      enabled: document.getElementById('enableApplications').checked,
+      channel: document.getElementById('applicationsChannel').value,
+      title: document.getElementById('appTitle').value,
+      questions: questions,
+      requireRecommendations: document.getElementById('requireRecommendations').checked,
+      autoReject: document.getElementById('autoReject').checked,
+    };
+
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/applications-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      if (res.ok) {
+        alert('Applications configuration saved!');
+      } else {
+        alert('Failed to save configuration');
+      }
+    } catch (err) {
+      console.error('Error saving:', err);
+      alert('Error saving configuration');
+    }
+  }
+
+  function resetApplications() {
+    if (confirm('Reset all application settings?')) {
+      questions = [];
+      document.getElementById('enableApplications').checked = false;
+      document.getElementById('applicationsChannel').value = '';
+      document.getElementById('appTitle').value = '';
+      renderQuestions();
+    }
+  }
+
+  function upgradeToPremium() {
+    window.location.href = '/premium?from=applications&id=' + guildId;
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  async function logout() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Logout error:', err);
+      window.location.href = '/';
+    }
+  }
+
+  checkPremium();
+  renderQuestions();
+</script>
+
+</body>
+</html>

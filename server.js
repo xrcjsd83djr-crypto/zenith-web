@@ -564,7 +564,7 @@ app.get('/api/bot/stats', async (_req, res) => {
 });
 
 // ── Static Files ─────────────────────────────────────────────────────────────
-const publicPath = join(__dirname, 'public');
+const publicPath = join(__dirname, 'dist');
 app.use(express.static(publicPath));
 
 app.get('/select-server', (_req, res) => res.sendFile(join(publicPath, 'select-server.html')));

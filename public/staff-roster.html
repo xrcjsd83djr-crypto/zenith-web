@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Roster — Zenith</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --surface2: #f0f2f5;
+      --border: #e0e0e0;
+      --primary: #d4af37;
+      --text: #2c3e50;
+      --muted: #7f8c8d;
+      --success: #27ae60;
+      --danger: #c0392b;
+    }
+    body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    a { color: inherit; text-decoration: none; }
+    nav { border-bottom: 2px solid var(--primary); background: var(--surface); padding: 16px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .nav-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; }
+    .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary), #ffd700); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-ghost { background: white; color: var(--text); border: 2px solid var(--primary); }
+    .btn-ghost:hover { background: var(--primary); color: white; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary), #ffd700); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3); }
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
+    .header h1 { font-size: 28px; font-weight: 900; }
+    .controls { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    .search-box { flex: 1; min-width: 200px; padding: 10px 16px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+    .search-box:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1); }
+    .roster-table { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: var(--surface2); padding: 16px; text-align: left; font-weight: 800; font-size: 12px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 16px; border-bottom: 1px solid var(--border); font-size: 14px; }
+    tr:hover { background: var(--surface2); }
+    .staff-member { display: flex; align-items: center; gap: 12px; }
+    .member-avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; }
+    .member-info h4 { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+    .member-info p { font-size: 12px; color: var(--muted); }
+    .rank-badge { display: inline-block; padding: 4px 12px; background: rgba(212, 175, 55, 0.1); color: var(--primary); border-radius: 20px; font-size: 12px; font-weight: 700; }
+    .status-badge { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .status-badge.active { background: var(--success); }
+    .status-badge.inactive { background: var(--muted); }
+    .actions { display: flex; gap: 8px; }
+    .action-btn { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+    .action-btn.edit { background: #3498db; color: white; }
+    .action-btn.edit:hover { background: #2980b9; }
+    .action-btn.remove { background: var(--danger); color: white; }
+    .action-btn.remove:hover { background: #a93226; }
+    .empty-state { text-align: center; padding: 60px 24px; }
+    .empty-icon { font-size: 48px; color: var(--muted); margin-bottom: 16px; }
+    .empty-state h2 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .empty-state p { color: var(--muted); margin-bottom: 24px; }
+    .loader { text-align: center; padding: 40px; }
+    .loader i { font-size: 32px; color: var(--primary); }
+    @media (max-width: 768px) {
+      .header { flex-direction: column; align-items: flex-start; }
+      .controls { flex-direction: column; }
+      .search-box { min-width: 100%; }
+      table { font-size: 12px; }
+      th, td { padding: 12px; }
+      .member-avatar { width: 32px; height: 32px; }
+      .actions { flex-direction: column; gap: 4px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">
+      <div class="logo-icon">Z</div>
+      Zenith
+    </a>
+    <div class="nav-right">
+      <button class="btn btn-ghost" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="header">
+    <h1><i class="fas fa-users"></i> Staff Roster</h1>
+    <button class="btn btn-primary" onclick="addStaffMember()">
+      <i class="fas fa-plus"></i> Add Staff Member
+    </button>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="search" class="search-box" placeholder="Search by name, username, or role..." onkeyup="filterRoster()">
+    <select id="rank-filter" class="search-box" style="flex: 0 1 200px;" onchange="filterRoster()">
+      <option value="">All Ranks</option>
+      <option value="Owner">Owner</option>
+      <option value="Manager">Manager</option>
+      <option value="Moderator">Moderator</option>
+      <option value="Helper">Helper</option>
+    </select>
+  </div>
+
+  <div class="roster-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Rank</th>
+          <th>Joined</th>
+          <th>Hours</th>
+          <th>Strikes</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="roster-body">
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 40px;">
+            <div class="loader"><i class="fas fa-spinner fa-spin"></i> Loading staff roster...</div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const guildId = new URLSearchParams(window.location.search).get('id');
+  if (!guildId) window.location.href = '/select-server';
+  let allStaff = [];
+  async function loadRoster() {
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/staff?t=${Date.now()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      allStaff = await res.json();
+      renderRoster(allStaff);
+    } catch (err) {
+      console.error('Failed to load roster:', err);
+      document.getElementById('roster-body').innerHTML = `<tr><td colspan="7" style="text-align: center; color: #c0392b; padding: 40px;"><i class="fas fa-exclamation-circle"></i> Failed to load staff roster. Please refresh the page.</td></tr>`;
+    }
+  }
+  function renderRoster(staff) {
+    const tbody = document.getElementById('roster-body');
+    if (!staff || staff.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon"><i class="fas fa-inbox"></i></div><h2>No staff members yet</h2><p>Add your first staff member to get started</p></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = staff.map(member => `
+      <tr>
+        <td>
+          <div class="staff-member">
+            <img src="${member.avatar_url || 'https://via.placeholder.com/40'}" alt="${member.username}" class="member-avatar" onerror="this.src='https://via.placeholder.com/40'">
+            <div class="member-info">
+              <h4>${escapeHtml(member.username || 'Unknown')}</h4>
+              <p>${escapeHtml(member.discord_username || member.roblox_username || 'N/A')}</p>
+            </div>
+          </div>
+        </td>
+        <td><span class="rank-badge">${escapeHtml(member.rank || 'Staff')}</span></td>
+        <td>${member.joined_at ? new Date(member.joined_at).toLocaleDateString() : 'N/A'}</td>
+        <td>${member.hours || 0}h</td>
+        <td>${member.strikes || 0}</td>
+        <td><span class="status-badge ${member.is_active ? 'active' : 'inactive'}"></span>${member.is_active ? 'Active' : 'Inactive'}</td>
+        <td>
+          <div class="actions">
+            <button class="action-btn edit" onclick="editMember('${member.id}')"><i class="fas fa-edit"></i> Edit</button>
+            <button class="action-btn remove" onclick="removeMember('${member.id}')"><i class="fas fa-trash"></i> Remove</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+  function filterRoster() {
+    const search = document.getElementById('search').value.toLowerCase();
+    const rankFilter = document.getElementById('rank-filter').value;
+    const filtered = allStaff.filter(member => {
+      const matchesSearch = !search || (member.username && member.username.toLowerCase().includes(search)) || (member.discord_username && member.discord_username.toLowerCase().includes(search)) || (member.rank && member.rank.toLowerCase().includes(search));
+      const matchesRank = !rankFilter || member.rank === rankFilter;
+      return matchesSearch && matchesRank;
+    });
+    renderRoster(filtered);
+  }
+  function addStaffMember() { alert('Add staff member feature coming soon!'); }
+  function editMember(memberId) { alert('Edit member feature coming soon!'); }
+  function removeMember(memberId) { if (confirm('Are you sure you want to remove this staff member?')) { alert('Member removal feature coming soon!'); } }
+  function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+  async function logout() { await fetch('/api/auth/logout', { method: 'POST' }); window.location.href = '/'; }
+  loadRoster();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Server Configuration — Zenith</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --surface2: #f0f2f5;
+      --border: #e0e0e0;
+      --primary: #d4af37;
+      --text: #2c3e50;
+      --muted: #7f8c8d;
+      --success: #27ae60;
+      --danger: #c0392b;
+    }
+    body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    a { color: inherit; text-decoration: none; }
+    nav { border-bottom: 2px solid var(--primary); background: var(--surface); padding: 16px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .nav-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; }
+    .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary), #ffd700); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-ghost { background: white; color: var(--text); border: 2px solid var(--primary); }
+    .btn-ghost:hover { background: var(--primary); color: white; }
+    .btn-primary { background: linear-gradient(135deg, var(--primary), #ffd700); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3); }
+    .container { display: flex; max-width: 1400px; margin: 0 auto; }
+    .sidebar { width: 260px; background: var(--surface); border-right: 1px solid var(--border); padding: 24px 0; }
+    .sidebar-item { padding: 12px 24px; cursor: pointer; transition: all 0.2s; border-left: 4px solid transparent; }
+    .sidebar-item:hover, .sidebar-item.active { background: rgba(212, 175, 55, 0.1); color: var(--primary); border-left-color: var(--primary); }
+    .content { flex: 1; padding: 32px; }
+    .section { display: none; }
+    .section.active { display: block; }
+    .section-title { font-size: 24px; font-weight: 900; margin-bottom: 24px; }
+    .config-group { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+    .config-group h3 { font-size: 16px; font-weight: 800; margin-bottom: 16px; color: var(--primary); }
+    .config-item { margin-bottom: 20px; }
+    .config-item:last-child { margin-bottom: 0; }
+    .config-label { font-size: 14px; font-weight: 700; margin-bottom: 8px; display: block; }
+    .config-input, .config-select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; }
+    .config-input:focus, .config-select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1); }
+    .config-checkbox { display: flex; align-items: center; gap: 8px; }
+    .config-checkbox input { width: 18px; height: 18px; cursor: pointer; }
+    .config-description { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .button-group { display: flex; gap: 12px; margin-top: 24px; }
+    .btn-save { background: var(--success); color: white; }
+    .btn-save:hover { background: #229954; }
+    .btn-reset { background: var(--surface2); color: var(--text); }
+    .btn-reset:hover { background: var(--border); }
+    @media (max-width: 768px) {
+      .container { flex-direction: column; }
+      .sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); display: flex; overflow-x: auto; }
+      .sidebar-item { white-space: nowrap; padding: 12px 16px; }
+      .content { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">
+      <div class="logo-icon">Z</div>
+      Zenith
+    </a>
+    <div class="nav-right">
+      <button class="btn btn-ghost" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="sidebar">
+    <div class="sidebar-item active" onclick="switchSection('general')"><i class="fas fa-cog"></i> General</div>
+    <div class="sidebar-item" onclick="switchSection('channels')"><i class="fas fa-hashtag"></i> Channels</div>
+    <div class="sidebar-item" onclick="switchSection('roles')"><i class="fas fa-shield-alt"></i> Roles</div>
+    <div class="sidebar-item" onclick="switchSection('moderation')"><i class="fas fa-gavel"></i> Moderation</div>
+    <div class="sidebar-item" onclick="switchSection('automation')"><i class="fas fa-robot"></i> Automation</div>
+    <div class="sidebar-item" onclick="switchSection('logs')"><i class="fas fa-history"></i> Logging</div>
+  </div>
+
+  <div class="content">
+    <div id="general" class="section active">
+      <h2 class="section-title">General Settings</h2>
+      <div class="config-group">
+        <h3><i class="fas fa-info-circle"></i> Server Information</h3>
+        <div class="config-item">
+          <label class="config-label">Server Name</label>
+          <input type="text" id="serverName" class="config-input" placeholder="Enter server name">
+          <div class="config-description">The name of your server</div>
+        </div>
+        <div class="config-item">
+          <label class="config-label">Server Prefix</label>
+          <input type="text" id="serverPrefix" class="config-input" placeholder="e.g., !" maxlength="5">
+          <div class="config-description">Prefix for bot commands (if applicable)</div>
+        </div>
+      </div>
+      <div class="config-group">
+        <h3><i class="fas fa-toggle-on"></i> Features</h3>
+        <div class="config-item">
+          <label class="config-checkbox">
+            <input type="checkbox" id="enableStrikes">
+            <span>Enable Strike System</span>
+          </label>
+          <div class="config-description">Allow staff to issue strikes to members</div>
+        </div>
+        <div class="config-item">
+          <label class="config-checkbox">
+            <input type="checkbox" id="enableLOA">
+            <span>Enable LOA Requests</span>
+          </label>
+          <div class="config-description">Allow staff to submit Leave of Absence requests</div>
+        </div>
+        <div class="config-item">
+          <label class="config-checkbox">
+            <input type="checkbox" id="enableApplications">
+            <span>Enable Applications</span>
+          </label>
+          <div class="config-description">Allow users to apply for staff positions</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="channels" class="section">
+      <h2 class="section-title">Channel Configuration</h2>
+      <div class="config-group">
+        <h3><i class="fas fa-hashtag"></i> Important Channels</h3>
+        <div class="config-item">
+          <label class="config-label">LOA Request Channel</label>
+          <input type="text" id="loaChannel" class="config-input" placeholder="Channel ID or name">
+          <div class="config-description">Where LOA requests will be posted</div>
+        </div>
+        <div class="config-item">
+          <label class="config-label">Moderation Log Channel</label>
+          <input type="text" id="modLogChannel" class="config-input" placeholder="Channel ID or name">
+          <div class="config-description">Where moderation actions will be logged</div>
+        </div>
+        <div class="config-item">
+          <label class="config-label">Applications Channel</label>
+          <input type="text" id="applicationsChannel" class="config-input" placeholder="Channel ID or name">
+          <div class="config-description">Where staff applications will be posted</div>
+        </div>
+        <div class="config-item">
+          <label class="config-label">Announcements Channel</label>
+          <input type="text" id="announcementsChannel" class="config-input" placeholder="Channel ID or name">
+          <div class="config-description">Where important announcements will be sent</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="roles" class="section">
+      <h2 class="section-title">Role Configuration</h2>
+      <div class="config-group">
+        <h3><i class="fas fa-shield-alt"></i> Staff Roles</h3>
+        <div class="config-item">
+          <label class="config-label">Owner Role</label>
+          <input type="text" id="ownerRole" class="config-input" placeholder="Role ID or name">
+          <div class="config-description">Role for server owners</div>
+        </div>
+        <div class="config-item">
+          <label class="config-label">Manager Role</label>
+          <input type="text" id="managerRole" class="config-input" placeholder="Role ID or name">
+          <div class="config-description">Role for managers</div>
+        </div>
+        <div class="config-item">
+          <label class="config-label">Moderator Role</label>
+          <input type="text" id="moderatorRole" class="config-input" placeholder="Role ID or name">
+          <div class="config-description">Role for moderators</div>
+        </div>
+        <div class="config-item">
+          <label class="config-label">Helper Role</label>
+          <input type="text" id="helperRole" class="config-input" placeholder="Role ID or name">
+          <div class="config-description">Role for helpers</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="moderation" class="section">
+      <h2 class="section-title">Moderation Settings</h2>
+      <div class="config-group">
+        <h3><i class="fas fa-gavel"></i> Strike System</h3>
+        <div class="config-item">
+          <label class="config-label">Strikes Until Ban</label>
+          <input type="number" id="strikesUntilBan" class="config-input" placeholder="e.g., 5" min="1" max="20">
+          <div class="config-description">Number of strikes before automatic ban</div>
+        </div>
+        <div class="config-item">
+          <label class="config-label">Strike Expiration (Days)</label>
+          <input type="number" id="strikeExpiration" class="config-input" placeholder="e.g., 30" min="1" max="365">
+          <div class="config-description">Days before strikes expire</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="automation" class="section">
+      <h2 class="section-title">Automation Settings</h2>
+      <div class="config-group">
+        <h3><i class="fas fa-robot"></i> Automatic Actions</h3>
+        <div class="config-item">
+          <label class="config-checkbox">
+            <input type="checkbox" id="autoRole">
+            <span>Auto-assign Role on Join</span>
+          </label>
+          <div class="config-description">Automatically assign a role when users join</div>
+        </div>
+        <div class="config-item">
+          <label class="config-checkbox">
+            <input type="checkbox" id="autoWelcome">
+            <span>Send Welcome Message</span>
+          </label>
+          <div class="config-description">Send a welcome DM to new members</div>
+        </div>
+        <div class="config-item">
+          <label class="config-checkbox">
+            <input type="checkbox" id="autoNotify">
+            <span>Notify on Staff Actions</span>
+          </label>
+          <div class="config-description">Send notifications when staff actions occur</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="logs" class="section">
+      <h2 class="section-title">Logging Settings</h2>
+      <div class="config-group">
+        <h3><i class="fas fa-history"></i> Activity Logging</h3>
+        <div class="config-item">
+          <label class="config-checkbox">
+            <input type="checkbox" id="logStrikes">
+            <span>Log Strikes</span>
+          </label>
+          <div class="config-description">Log all strike actions</div>
+        </div>
+        <div class="config-item">
+          <label class="config-checkbox">
+            <input type="checkbox" id="logLOA">
+            <span>Log LOA Requests</span>
+          </label>
+          <div class="config-description">Log all LOA submissions</div>
+        </div>
+        <div class="config-item">
+          <label class="config-checkbox">
+            <input type="checkbox" id="logModerations">
+            <span>Log Moderation Actions</span>
+          </label>
+          <div class="config-description">Log kicks, bans, timeouts, etc.</div>
+        </div>
+        <div class="config-item">
+          <label class="config-label">Log Retention (Days)</label>
+          <input type="number" id="logRetention" class="config-input" placeholder="e.g., 90" min="1" max="365">
+          <div class="config-description">How long to keep logs before deletion</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="button-group">
+      <button class="btn btn-primary btn-save" onclick="saveSettings()"><i class="fas fa-save"></i> Save Settings</button>
+      <button class="btn btn-reset" onclick="resetSettings()"><i class="fas fa-undo"></i> Reset</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const guildId = new URLSearchParams(window.location.search).get('id');
+  if (!guildId) window.location.href = '/select-server';
+
+  function switchSection(section) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
+    document.getElementById(section).classList.add('active');
+    event.target.closest('.sidebar-item').classList.add('active');
+  }
+
+  async function saveSettings() {
+    const settings = {
+      general: {
+        serverName: document.getElementById('serverName').value,
+        serverPrefix: document.getElementById('serverPrefix').value,
+        enableStrikes: document.getElementById('enableStrikes').checked,
+        enableLOA: document.getElementById('enableLOA').checked,
+        enableApplications: document.getElementById('enableApplications').checked,
+      },
+      channels: {
+        loaChannel: document.getElementById('loaChannel').value,
+        modLogChannel: document.getElementById('modLogChannel').value,
+        applicationsChannel: document.getElementById('applicationsChannel').value,
+        announcementsChannel: document.getElementById('announcementsChannel').value,
+      },
+      roles: {
+        ownerRole: document.getElementById('ownerRole').value,
+        managerRole: document.getElementById('managerRole').value,
+        moderatorRole: document.getElementById('moderatorRole').value,
+        helperRole: document.getElementById('helperRole').value,
+      },
+      moderation: {
+        strikesUntilBan: parseInt(document.getElementById('strikesUntilBan').value) || 5,
+        strikeExpiration: parseInt(document.getElementById('strikeExpiration').value) || 30,
+      },
+      automation: {
+        autoRole: document.getElementById('autoRole').checked,
+        autoWelcome: document.getElementById('autoWelcome').checked,
+        autoNotify: document.getElementById('autoNotify').checked,
+      },
+      logs: {
+        logStrikes: document.getElementById('logStrikes').checked,
+        logLOA: document.getElementById('logLOA').checked,
+        logModerations: document.getElementById('logModerations').checked,
+        logRetention: parseInt(document.getElementById('logRetention').value) || 90,
+      },
+    };
+
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+      if (res.ok) {
+        alert('Settings saved successfully!');
+      } else {
+        alert('Failed to save settings. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      alert('Error saving settings. Please check the console.');
+    }
+  }
+
+  function resetSettings() {
+    if (confirm('Are you sure you want to reset all settings to defaults?')) {
+      location.reload();
+    }
+  }
+
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/';
+  }
+</script>
+
+</body>
+</html>

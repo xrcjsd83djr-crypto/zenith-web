@@ -383,6 +383,58 @@ app.get('/api/guilds/:id/member/:userId', requireAuth, async (req, res) => {
   }
 });
 
+// Get staff with real-time status
+app.get('/api/guilds/:id/staff-with-status', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
+  try {
+    // Get all members
+    const membersRes = await fetch(`${DISCORD_API}/guilds/${id}/members?limit=1000`, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+    const allMembers = membersRes.ok ? await membersRes.json() : [];
+    
+    // Get all roles
+    const rolesRes = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+    const allRoles = rolesRes.ok ? await rolesRes.json() : [];
+    
+    // Get staff from DB
+    const staffRows = DATABASE_URL ? await query('SELECT * FROM staff_members WHERE guild_id = $1', [id]) : [];
+    
+    // Enrich staff with real-time data
+    const enrichedStaff = staffRows.map(s => {
+      const member = allMembers.find(m => m.user.id === s.user_id);
+      if (!member) return null;
+      
+      const memberRoles = member.roles
+        .map(roleId => allRoles.find(r => r.id === roleId))
+        .filter(r => r && r.name !== '@everyone')
+        .sort((a, b) => b.position - a.position);
+      
+      const highestRole = memberRoles.length > 0 ? memberRoles[0].name : 'Member';
+      const isOnline = member.user.status === 'online' || member.user.status === 'dnd' || member.user.status === 'idle';
+      
+      return {
+        ...s,
+        highest_role: highestRole,
+        all_roles: memberRoles,
+        status: isOnline ? 'online' : 'offline',
+        avatar_url: member.user.avatar
+          ? `https://cdn.discordapp.com/avatars/${member.user.id}/${member.user.avatar}.png`
+          : `https://cdn.discordapp.com/embed/avatars/${(parseInt(member.user.id) % 5)}.png`
+      };
+    }).filter(s => s !== null);
+    
+    res.json(enrichedStaff);
+  } catch (err) {
+    console.error('[staff-status]', err);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+
 
 app.post('/api/guilds/:id/staff-roles', requireAuth, async (req, res) => {
   const { id } = req.params;

@@ -514,6 +514,7 @@ app.get('/status', (_req, res) => res.sendFile(join(publicPath, 'status.html')))
 app.get('/premium', (_req, res) => res.sendFile(join(publicPath, 'premium.html')));
 app.get('/settings', (_req, res) => res.sendFile(join(publicPath, 'settings.html')));
 app.get('/server-settings', (_req, res) => res.sendFile(join(publicPath, 'settings-config.html')));
+app.get('/staff-roster', (_req, res) => res.sendFile(join(publicPath, 'staff-roster.html')));
 app.get('/privacy', (_req, res) => res.sendFile(join(publicPath, 'privacy.html')));
 app.get('/tos', (_req, res) => res.sendFile(join(publicPath, 'tos.html')));
 
@@ -782,5 +783,22 @@ app.get('/api/guilds/:id/settings', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[settings]', err);
     res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+// Staff Roster API
+app.get('/api/guilds/:id/staff', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await query(
+      `SELECT id, user_id, username, avatar, avatar_url as avatarUrl, role as rank, strikes as strikeCount, 
+              joined_at as joinedAt, true as isActive, roblox_username as robloxUsername, discord_username as discordUsername
+       FROM staff_members WHERE guild_id = $1 ORDER BY joined_at DESC`,
+      [id]
+    );
+    res.json(result.rows || []);
+  } catch (err) {
+    console.error('[staff]', err);
+    res.status(500).json({ error: 'Failed to fetch staff' });
   }
 });

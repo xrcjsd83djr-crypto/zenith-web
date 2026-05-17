@@ -435,10 +435,11 @@ if (DATABASE_URL) {
     }
   });
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Zenith] Web server running on port ${PORT}`);
+  // Health check endpoint for Railway
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok' });
   });
-  
+
   app.get('/api/guilds/:id/shifts', requireAuth, async (req, res) => {
     const { id } = req.params;
     try {
@@ -585,3 +586,8 @@ if (DATABASE_URL) {
       res.status(500).json({ error: 'Internal server error' });
     }
   });
+
+// Start the server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[Zenith] Web server running on port ${PORT}`);
+});

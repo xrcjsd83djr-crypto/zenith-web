@@ -401,10 +401,7 @@ app.get('/api/guilds/:id/staff-with-status', requireAuth, async (req, res) => {
     const allRoles = rolesRes.ok ? await rolesRes.json() : [];
     
     // Get staff from DB
-    const staffRows = DATABASE_URL ? await query('SELECT * FROM staff_members WHERE guild_id = $1', [id]) : [];
-    const staffResult = DATABASE_URL ? await query("SELECT * FROM staff_members WHERE guild_id = $1", [id]) : { rows: [] };
-    const staffRows = staffResult.rows || [];
-    const staffResult = DATABASE_URL ? await query("SELECT * FROM staff_members WHERE guild_id = $1", [id]) : { rows: [] };
+    const staffResult = DATABASE_URL ? await query('SELECT * FROM staff_members WHERE guild_id = $1', [id]) : { rows: [] };
     const staffRows = staffResult.rows || [];
     const enrichedStaff = staffRows.map(s => {
       const member = allMembers.find(m => m.user.id === s.user_id);

@@ -9,6 +9,7 @@
   <title>Zenith Dashboard</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -21,6 +22,9 @@
       --text: #2c3e50;
       --muted: #7f8c8d;
       --danger: #c0392b;
+      --success: #27ae60;
+      --warning: #f39c12;
+      --info: #3498db;
     }
     html { scroll-behavior: smooth; }
     body { font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
@@ -73,6 +77,10 @@
     .stat-label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
     .stat-detail { font-size: 10px; color: var(--muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
     
+    .chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .chart-container { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+    .chart-container h3 { font-size: 16px; font-weight: 800; margin-bottom: 16px; }
+    
     .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 32px; }
     .info-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
     .info-card h3 { font-size: 13px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; letter-spacing: 0.5px; }
@@ -80,8 +88,11 @@
     .info-card .detail { font-size: 12px; color: var(--muted); margin-top: 8px; }
     
     .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-    .staff-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; transition: all 0.3s; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+    .staff-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; transition: all 0.3s; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.02); position: relative; }
     .staff-card:hover { transform: translateY(-6px); border-color: #d4af37; box-shadow: 0 12px 24px rgba(212, 175, 55, 0.15); }
+    .staff-status-badge { position: absolute; top: 12px; right: 12px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; }
+    .staff-status-badge.online { background: #27ae60; }
+    .staff-status-badge.offline { background: #95a5a6; }
     .staff-avatar { width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 16px; border: 3px solid #d4af37; overflow: hidden; background: var(--surface2); flex-shrink: 0; }
     .staff-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .staff-name { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
@@ -124,24 +135,28 @@
     .modal-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
     .btn-cancel { background: var(--surface2); color: var(--text); padding: 10px 24px; border-radius: 10px; font-weight: 800; border: none; cursor: pointer; }
     
-    .staff-detail-modal .modal-content { text-align: left; max-width: 700px; }
+    .staff-detail-modal .modal-content { text-align: left; max-width: 750px; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); }
     .staff-detail-header { display: flex; align-items: center; gap: 24px; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid var(--border); }
-    .staff-detail-avatar { width: 120px; height: 120px; border-radius: 50%; border: 3px solid #d4af37; overflow: hidden; background: var(--surface2); flex-shrink: 0; }
+    .staff-detail-avatar { width: 120px; height: 120px; border-radius: 50%; border: 4px solid #d4af37; overflow: hidden; background: var(--surface2); flex-shrink: 0; box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2); }
     .staff-detail-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .staff-detail-info h3 { font-size: 24px; font-weight: 900; margin-bottom: 4px; }
     .staff-detail-info p { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+    .staff-status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+    .staff-status-indicator.online { background: #27ae60; }
+    .staff-status-indicator.offline { background: #95a5a6; }
     .staff-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-    .staff-detail-section { background: var(--surface2); padding: 16px; border-radius: 12px; }
+    .staff-detail-section { background: linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0%, rgba(255, 215, 0, 0.04) 100%); padding: 16px; border-radius: 12px; border-left: 4px solid #d4af37; }
     .staff-detail-section h4 { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; letter-spacing: 0.5px; }
     .staff-detail-section p { font-size: 16px; font-weight: 700; color: var(--text); }
     .staff-detail-full { grid-column: 1 / -1; }
-    .roles-list { background: var(--surface2); padding: 16px; border-radius: 12px; margin-bottom: 16px; }
+    .roles-list { background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(52, 152, 219, 0.04) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px; border-left: 4px solid #3498db; }
     .roles-list h4 { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; letter-spacing: 0.5px; }
-    .role-badge { display: inline-block; padding: 6px 12px; background: white; border: 1px solid var(--border); border-radius: 20px; font-size: 11px; font-weight: 700; margin: 4px 4px 4px 0; }
-    .staff-history { background: var(--surface2); padding: 16px; border-radius: 12px; margin-bottom: 16px; }
+    .role-badge { display: inline-block; padding: 6px 12px; background: white; border: 2px solid #3498db; border-radius: 20px; font-size: 11px; font-weight: 700; margin: 4px 4px 4px 0; color: #3498db; }
+    .staff-history { background: linear-gradient(135deg, rgba(39, 174, 96, 0.08) 0%, rgba(39, 174, 96, 0.04) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px; border-left: 4px solid #27ae60; }
     .staff-history h4 { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; letter-spacing: 0.5px; }
-    .history-item { font-size: 13px; color: var(--text); padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .history-item { font-size: 13px; color: var(--text); padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
     .history-item:last-child { border-bottom: none; }
+    .history-icon { margin-right: 6px; }
     
     @media (max-width: 768px) {
       .sidebar { left: -260px; transition: left 0.3s; }
@@ -154,11 +169,12 @@
       .header-right { font-size: 11px; }
       .content { padding: 16px; }
       .section-header h1 { font-size: 20px; }
-      .stats-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
       .stat-card { padding: 16px; }
       .stat-icon { font-size: 24px; }
       .stat-value { font-size: 20px; }
       .stat-detail { display: none; }
+      .chart-row { grid-template-columns: 1fr; }
       .info-grid { grid-template-columns: 1fr; }
       .staff-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
       .staff-card { padding: 16px; }
@@ -203,40 +219,33 @@
       <div class="staff-detail-info">
         <h3 id="staffDetailName">Loading...</h3>
         <p id="staffDetailId"></p>
+        <p id="staffDetailStatus" style="font-size: 12px; color: var(--muted);"><span class="staff-status-indicator"></span><span id="staffStatusText">Loading...</span></p>
         <p id="staffDetailJoined" style="font-size: 12px; color: var(--muted);"></p>
       </div>
     </div>
     
     <div class="staff-detail-grid">
       <div class="staff-detail-section">
-        <h4>Highest Role</h4>
+        <h4><i class="fas fa-crown" style="margin-right: 6px; color: #d4af37;"></i> Highest Role</h4>
         <p id="staffDetailRole">Staff</p>
       </div>
       <div class="staff-detail-section">
-        <h4>Strikes</h4>
+        <h4><i class="fas fa-exclamation-triangle" style="margin-right: 6px; color: #f39c12;"></i> Strikes</h4>
         <p id="staffDetailStrikes">0</p>
-      </div>
-      <div class="staff-detail-section">
-        <h4>Status</h4>
-        <p id="staffDetailStatus">Active</p>
-      </div>
-      <div class="staff-detail-section">
-        <h4>LOA Status</h4>
-        <p id="staffDetailLOA">None</p>
       </div>
     </div>
 
     <div class="roles-list">
-      <h4>All Roles</h4>
+      <h4><i class="fas fa-list" style="margin-right: 6px; color: #3498db;"></i> All Roles</h4>
       <div id="staffRolesList">
         <span class="role-badge">Staff</span>
       </div>
     </div>
 
     <div class="staff-history">
-      <h4>Activity & History</h4>
+      <h4><i class="fas fa-history" style="margin-right: 6px; color: #27ae60;"></i> Activity & History</h4>
       <div id="staffHistory">
-        <div class="history-item">No activity recorded yet</div>
+        <div class="history-item"><i class="fas fa-circle-check history-icon" style="color: #27ae60;"></i>No activity recorded yet</div>
       </div>
     </div>
 
@@ -254,14 +263,14 @@
     </div>
 
     <ul class="sidebar-nav">
-      <li><a class="nav-link active" data-section="overview"><i class="fas fa-th-large"></i> Overview</a></li>
+      <li><a class="nav-link active" data-section="overview"><i class="fas fa-chart-line"></i> Overview</a></li>
       <li><a class="nav-link" data-section="staff"><i class="fas fa-users-cog"></i> Staff</a></li>
-      <li><a class="nav-link" data-section="shifts"><i class="fas fa-clock"></i> Shifts</a></li>
+      <li><a class="nav-link" data-section="shifts"><i class="fas fa-hourglass-start"></i> Shifts</a></li>
       <li><a class="nav-link" data-section="strikes"><i class="fas fa-gavel"></i> Strikes</a></li>
-      <li><a class="nav-link" data-section="performance"><i class="fas fa-star"></i> Performance</a></li>
-      <li><a class="nav-link" data-section="trainings"><i class="fas fa-graduation-cap"></i> Trainings</a></li>
-      <li><a class="nav-link" data-section="loa"><i class="fas fa-calendar-alt"></i> LOA</a></li>
-      <li><a class="nav-link" data-section="applications"><i class="fas fa-file-signature"></i> Applications</a></li>
+      <li><a class="nav-link" data-section="performance"><i class="fas fa-chart-bar"></i> Performance</a></li>
+      <li><a class="nav-link" data-section="trainings"><i class="fas fa-book"></i> Trainings</a></li>
+      <li><a class="nav-link" data-section="loa"><i class="fas fa-plane"></i> LOA</a></li>
+      <li><a class="nav-link" data-section="applications"><i class="fas fa-file-alt"></i> Applications</a></li>
     </ul>
 
     <div class="sidebar-section-label">Premium</div>
@@ -277,7 +286,7 @@
 
     <div class="sidebar-section-label">Account</div>
     <ul class="sidebar-nav">
-      <li><a class="nav-link" data-section="account"><i class="fas fa-user"></i> Profile</a></li>
+      <li><a class="nav-link" data-section="account"><i class="fas fa-user-circle"></i> Profile</a></li>
       <li><a href="/select-server"><i class="fas fa-exchange-alt"></i> Switch Server</a></li>
       <li><a onclick="openLogoutModal()"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
     </ul>
@@ -294,7 +303,7 @@
         </div>
       </div>
       <div class="header-right">
-        <i class="fas fa-circle"></i> Bot Status
+        <i class="fas fa-circle" style="color: #27ae60;"></i> Bot Online
       </div>
     </header>
 
@@ -303,7 +312,7 @@
       <div id="overview" class="section active">
         <div class="section-header">
           <h1>Server Overview</h1>
-          <p>Comprehensive server statistics and information.</p>
+          <p>Real-time analytics and server insights.</p>
         </div>
         <div class="stats-grid">
           <div class="stat-card">
@@ -313,7 +322,7 @@
             <div class="stat-detail" id="stat-members-detail"></div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-circle-dot"></i></div>
+            <div class="stat-icon"><i class="fas fa-circle"></i></div>
             <div class="stat-value" id="stat-online">0</div>
             <div class="stat-label">Online</div>
             <div class="stat-detail" id="stat-online-detail"></div>
@@ -331,7 +340,7 @@
             <div class="stat-detail" id="stat-channels-detail"></div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-shield"></i></div>
+            <div class="stat-icon"><i class="fas fa-shield-alt"></i></div>
             <div class="stat-value" id="stat-roles">0</div>
             <div class="stat-label">Roles</div>
             <div class="stat-detail" id="stat-roles-detail"></div>
@@ -343,36 +352,47 @@
             <div class="stat-detail" id="stat-plan-detail"></div>
           </div>
         </div>
+
+        <div class="chart-row">
+          <div class="chart-container">
+            <h3><i class="fas fa-chart-line" style="margin-right: 8px; color: #d4af37;"></i> Activity Trend</h3>
+            <canvas id="activityChart" style="max-height: 250px;"></canvas>
+          </div>
+          <div class="chart-container">
+            <h3><i class="fas fa-pie-chart" style="margin-right: 8px; color: #3498db;"></i> Member Status</h3>
+            <canvas id="statusChart" style="max-height: 250px;"></canvas>
+          </div>
+        </div>
+
         <div class="info-grid">
           <div class="info-card">
-            <h3>Server Name</h3>
+            <h3><i class="fas fa-info-circle" style="margin-right: 6px;"></i> Server Name</h3>
             <p id="info-name">Loading...</p>
-            <div class="detail" id="info-name-detail"></div>
           </div>
           <div class="info-card">
-            <h3>Members Online</h3>
-            <p id="info-online">0</p>
-            <div class="detail">Out of <span id="info-total">0</span> total</div>
+            <h3><i class="fas fa-users-slash" style="margin-right: 6px;"></i> Online Ratio</h3>
+            <p id="info-online">0%</p>
+            <div class="detail">Of total members</div>
           </div>
           <div class="info-card">
-            <h3>Roles</h3>
+            <h3><i class="fas fa-list" style="margin-right: 6px;"></i> Roles</h3>
             <p id="info-roles">0</p>
-            <div class="detail">Including @everyone</div>
+            <div class="detail">Including defaults</div>
           </div>
           <div class="info-card">
-            <h3>Emojis</h3>
+            <h3><i class="fas fa-smile" style="margin-right: 6px;"></i> Custom Emojis</h3>
             <p id="info-emojis">0</p>
-            <div class="detail">Custom emojis available</div>
+            <div class="detail">Available</div>
           </div>
           <div class="info-card">
-            <h3>Created</h3>
+            <h3><i class="fas fa-robot" style="margin-right: 6px;"></i> Bot Status</h3>
+            <p style="color: #27ae60;"><i class="fas fa-check-circle"></i> Online</p>
+            <div class="detail">Connected</div>
+          </div>
+          <div class="info-card">
+            <h3><i class="fas fa-calendar" style="margin-right: 6px;"></i> Server Created</h3>
             <p id="info-created">N/A</p>
             <div class="detail" id="info-created-detail"></div>
-          </div>
-          <div class="info-card">
-            <h3>Bot Status</h3>
-            <p style="color: #27ae60;"><i class="fas fa-circle"></i> Online</p>
-            <div class="detail">Connected & Monitoring</div>
           </div>
         </div>
       </div>
@@ -381,7 +401,7 @@
       <div id="staff" class="section">
         <div class="section-header">
           <h1>Staff Management</h1>
-          <p>Manage your entire staff team.</p>
+          <p>Manage your staff team with real-time data.</p>
         </div>
         <div id="staff-setup" style="display: none;">
           <div class="role-selector">
@@ -400,20 +420,20 @@
       <div id="shifts" class="section">
         <div class="section-header">
           <h1>Shift Management</h1>
-          <p>Track and manage staff shifts.</p>
+          <p>Coming soon with bot integration.</p>
         </div>
         <div class="table-container">
           <table>
             <thead>
               <tr>
-                <th>Staff Member</th>
-                <th>Start Time</th>
-                <th>End Time</th>
-                <th>Duration</th>
+                <th><i class="fas fa-user" style="margin-right: 6px;"></i> Staff Member</th>
+                <th><i class="fas fa-play" style="margin-right: 6px;"></i> Start</th>
+                <th><i class="fas fa-stop" style="margin-right: 6px;"></i> End</th>
+                <th><i class="fas fa-clock" style="margin-right: 6px;"></i> Duration</th>
               </tr>
             </thead>
             <tbody id="shifts-table">
-              <tr><td colspan="4" style="text-align: center; color: var(--muted);">No shifts recorded yet.</td></tr>
+              <tr><td colspan="4" style="text-align: center; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i> No shifts recorded yet.</td></tr>
             </tbody>
           </table>
         </div>
@@ -423,20 +443,20 @@
       <div id="strikes" class="section">
         <div class="section-header">
           <h1>Strike System</h1>
-          <p>Manage staff strikes and violations.</p>
+          <p>Coming soon with bot integration.</p>
         </div>
         <div class="table-container">
           <table>
             <thead>
               <tr>
-                <th>Staff Member</th>
-                <th>Strikes</th>
-                <th>Reason</th>
-                <th>Date</th>
+                <th><i class="fas fa-user" style="margin-right: 6px;"></i> Staff Member</th>
+                <th><i class="fas fa-exclamation-triangle" style="margin-right: 6px;"></i> Strikes</th>
+                <th><i class="fas fa-comment" style="margin-right: 6px;"></i> Reason</th>
+                <th><i class="fas fa-calendar-alt" style="margin-right: 6px;"></i> Date</th>
               </tr>
             </thead>
             <tbody id="strikes-table">
-              <tr><td colspan="4" style="text-align: center; color: var(--muted);">No strikes recorded yet.</td></tr>
+              <tr><td colspan="4" style="text-align: center; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i> No strikes recorded yet.</td></tr>
             </tbody>
           </table>
         </div>
@@ -446,20 +466,20 @@
       <div id="performance" class="section">
         <div class="section-header">
           <h1>Performance Reviews</h1>
-          <p>Track staff performance and ratings.</p>
+          <p>Coming soon with bot integration.</p>
         </div>
         <div class="table-container">
           <table>
             <thead>
               <tr>
-                <th>Staff Member</th>
-                <th>Rating</th>
-                <th>Comments</th>
-                <th>Date</th>
+                <th><i class="fas fa-user" style="margin-right: 6px;"></i> Staff Member</th>
+                <th><i class="fas fa-star" style="margin-right: 6px;"></i> Rating</th>
+                <th><i class="fas fa-comment" style="margin-right: 6px;"></i> Comments</th>
+                <th><i class="fas fa-calendar-alt" style="margin-right: 6px;"></i> Date</th>
               </tr>
             </thead>
             <tbody id="performance-table">
-              <tr><td colspan="4" style="text-align: center; color: var(--muted);">No reviews recorded yet.</td></tr>
+              <tr><td colspan="4" style="text-align: center; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i> No reviews recorded yet.</td></tr>
             </tbody>
           </table>
         </div>
@@ -469,20 +489,20 @@
       <div id="trainings" class="section">
         <div class="section-header">
           <h1>Training Logs</h1>
-          <p>Track staff training sessions.</p>
+          <p>Coming soon with bot integration.</p>
         </div>
         <div class="table-container">
           <table>
             <thead>
               <tr>
-                <th>Trainer</th>
-                <th>Trainee</th>
-                <th>Topic</th>
-                <th>Duration</th>
+                <th><i class="fas fa-chalkboard-user" style="margin-right: 6px;"></i> Trainer</th>
+                <th><i class="fas fa-user-graduate" style="margin-right: 6px;"></i> Trainee</th>
+                <th><i class="fas fa-book" style="margin-right: 6px;"></i> Topic</th>
+                <th><i class="fas fa-hourglass-half" style="margin-right: 6px;"></i> Duration</th>
               </tr>
             </thead>
             <tbody id="trainings-table">
-              <tr><td colspan="4" style="text-align: center; color: var(--muted);">No trainings recorded yet.</td></tr>
+              <tr><td colspan="4" style="text-align: center; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i> No trainings recorded yet.</td></tr>
             </tbody>
           </table>
         </div>
@@ -492,20 +512,20 @@
       <div id="loa" class="section">
         <div class="section-header">
           <h1>Leave of Absence</h1>
-          <p>Manage staff LOA requests.</p>
+          <p>Coming soon with bot integration.</p>
         </div>
         <div class="table-container">
           <table>
             <thead>
               <tr>
-                <th>Staff Member</th>
-                <th>Start Date</th>
-                <th>End Date</th>
-                <th>Status</th>
+                <th><i class="fas fa-user" style="margin-right: 6px;"></i> Staff Member</th>
+                <th><i class="fas fa-calendar-check" style="margin-right: 6px;"></i> Start</th>
+                <th><i class="fas fa-calendar-times" style="margin-right: 6px;"></i> End</th>
+                <th><i class="fas fa-info-circle" style="margin-right: 6px;"></i> Status</th>
               </tr>
             </thead>
             <tbody id="loa-table">
-              <tr><td colspan="4" style="text-align: center; color: var(--muted);">No LOA requests.</td></tr>
+              <tr><td colspan="4" style="text-align: center; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i> No LOA requests.</td></tr>
             </tbody>
           </table>
         </div>
@@ -515,20 +535,20 @@
       <div id="applications" class="section">
         <div class="section-header">
           <h1>Applications</h1>
-          <p>Manage staff applications.</p>
+          <p>Coming soon with bot integration.</p>
         </div>
         <div class="table-container">
           <table>
             <thead>
               <tr>
-                <th>Applicant</th>
-                <th>Position</th>
-                <th>Status</th>
-                <th>Date</th>
+                <th><i class="fas fa-user" style="margin-right: 6px;"></i> Applicant</th>
+                <th><i class="fas fa-briefcase" style="margin-right: 6px;"></i> Position</th>
+                <th><i class="fas fa-check-circle" style="margin-right: 6px;"></i> Status</th>
+                <th><i class="fas fa-calendar-alt" style="margin-right: 6px;"></i> Date</th>
               </tr>
             </thead>
             <tbody id="applications-table">
-              <tr><td colspan="4" style="text-align: center; color: var(--muted);">No applications.</td></tr>
+              <tr><td colspan="4" style="text-align: center; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i> No applications.</td></tr>
             </tbody>
           </table>
         </div>
@@ -542,12 +562,12 @@
         </div>
         <div class="info-grid">
           <div class="info-card">
-            <h3>Free Plan</h3>
+            <h3><i class="fas fa-gift" style="margin-right: 6px;"></i> Free Plan</h3>
             <p>Unlimited Staff</p>
             <div class="detail">Basic features included</div>
           </div>
           <div class="info-card">
-            <h3>Pro Plan</h3>
+            <h3><i class="fas fa-star" style="margin-right: 6px;"></i> Pro Plan</h3>
             <p>$9.99/month</p>
             <div class="detail">Advanced features and priority support</div>
           </div>
@@ -558,7 +578,7 @@
       <div id="account" class="section">
         <div class="section-header">
           <h1>Profile</h1>
-          <p>Manage your account settings.</p>
+          <p>Your account information.</p>
         </div>
         <div class="profile-card">
           <img src="" alt="" class="profile-avatar" id="profile-avatar">
@@ -580,6 +600,7 @@
   let selectedRoles = new Set();
   let staffData = [];
   let guildRoles = [];
+  let activityChart, statusChart;
 
   function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
@@ -618,33 +639,67 @@
       const emojis = server.emojis || 0;
       
       document.getElementById('stat-members').textContent = members;
-      document.getElementById('stat-members-detail').textContent = `${Math.round((members / (members + 1)) * 100)}% active`;
+      document.getElementById('stat-members-detail').textContent = `Total users`;
       
       document.getElementById('stat-online').textContent = online;
-      document.getElementById('stat-online-detail').textContent = `${Math.round((online / (members || 1)) * 100)}% online`;
+      const onlinePercent = members > 0 ? Math.round((online / members) * 100) : 0;
+      document.getElementById('stat-online-detail').textContent = `${onlinePercent}% online`;
       
       document.getElementById('stat-channels').textContent = channels;
       document.getElementById('stat-channels-detail').textContent = `Text & Voice`;
       
       document.getElementById('stat-roles').textContent = roles;
-      document.getElementById('stat-roles-detail').textContent = `Including defaults`;
+      document.getElementById('stat-roles-detail').textContent = `All roles`;
       
-      document.getElementById('info-online').textContent = online;
-      document.getElementById('info-total').textContent = members;
+      document.getElementById('info-online').textContent = `${onlinePercent}%`;
       document.getElementById('info-roles').textContent = roles;
       document.getElementById('info-emojis').textContent = emojis;
       
       if (server.icon) {
         document.getElementById('server-icon').innerHTML = `<img src="https://cdn.discordapp.com/icons/${serverId}/${server.icon}.png">`;
       }
+      
+      initCharts(online, members);
     } catch (err) {
       console.error('Error:', err);
     }
   }
 
+  function initCharts(online, total) {
+    const activityCtx = document.getElementById('activityChart').getContext('2d');
+    activityChart = new Chart(activityCtx, {
+      type: 'line',
+      data: {
+        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        datasets: [{
+          label: 'Messages',
+          data: [65, 78, 90, 81, 95, 88, 72],
+          borderColor: '#d4af37',
+          backgroundColor: 'rgba(212, 175, 55, 0.1)',
+          tension: 0.4,
+          fill: true
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: true } } }
+    });
+
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    statusChart = new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Online', 'Offline', 'Idle'],
+        datasets: [{
+          data: [online, Math.max(0, total - online - 5), 5],
+          backgroundColor: ['#27ae60', '#95a5a6', '#f39c12']
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: true } } }
+    });
+  }
+
   async function loadDashboardData() {
     try {
-      const staffRes = await fetch(`/api/guilds/${serverId}/staff`);
+      const staffRes = await fetch(`/api/guilds/${serverId}/staff-with-status`);
       const staff = staffRes.ok ? await staffRes.json() : [];
       staffData = staff;
       if (staff.length === 0) {
@@ -652,13 +707,13 @@
       } else {
         renderStaffList(staff);
         document.getElementById('stat-staff').textContent = staff.length;
-        document.getElementById('stat-staff-detail').textContent = `Active members`;
+        document.getElementById('stat-staff-detail').textContent = `Active`;
       }
 
       const premiumRes = await fetch(`/api/guilds/${serverId}/premium`);
       const premium = premiumRes.ok ? await premiumRes.json() : { isPremium: false };
       document.getElementById('stat-plan').textContent = premium.isPremium ? 'Pro' : 'Free';
-      document.getElementById('stat-plan-detail').textContent = premium.isPremium ? 'All features' : 'Basic plan';
+      document.getElementById('stat-plan-detail').textContent = premium.isPremium ? 'All features' : 'Basic';
     } catch (err) {
       console.error('Error:', err);
     }
@@ -672,7 +727,7 @@
       guildRoles = roles;
       const grid = document.getElementById('role-grid');
       if (roles.length === 0) {
-        grid.innerHTML = '<p style="grid-column: 1/-1; color: var(--muted);">No roles found.</p>';
+        grid.innerHTML = '<p style="grid-column: 1/-1; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i>No roles found.</p>';
         return;
       }
       grid.innerHTML = roles.sort((a,b) => b.position - a.position).map(role => `
@@ -697,20 +752,36 @@
   }
 
   async function saveStaffRoles() {
-    if (selectedRoles.size === 0) return alert('Select at least one role!');
+    if (selectedRoles.size === 0) {
+      alert('Please select at least one role!');
+      return;
+    }
+    
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
     try {
       const res = await fetch(`/api/guilds/${serverId}/staff-roles`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roleIds: Array.from(selectedRoles) })
       });
+      
+      const data = await res.json();
       if (res.ok) {
-        alert('Staff roles saved! Reloading...');
-        location.reload();
+        alert(`Success! Added ${data.added} staff members.`);
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        alert(`Error: ${data.error}`);
+        btn.disabled = false;
+        btn.textContent = 'Save Staff Roles';
       }
     } catch (err) {
       console.error('Error:', err);
       alert('Failed to save roles');
+      btn.disabled = false;
+      btn.textContent = 'Save Staff Roles';
     }
   }
 
@@ -720,12 +791,13 @@
     const container = document.querySelector('#staff-list .staff-grid');
     container.innerHTML = staff.map(s => `
       <div class="staff-card" onclick="openStaffDetailModal('${s.user_id}')">
+        <div class="staff-status-badge ${s.status || 'offline'}"></div>
         <div class="staff-avatar"><img src="${s.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" alt="${s.username}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'"></div>
         <div class="staff-name">${s.username}</div>
-        <div class="staff-role">${s.role || 'Staff'}</div>
+        <div class="staff-role">${s.highest_role || 'Staff'}</div>
         <div class="staff-meta">
-          <div class="staff-meta-item">⚠ Strikes: ${s.strikes || 0}</div>
-          <div class="staff-meta-item">📅 Joined: ${s.joined_at ? new Date(s.joined_at).toLocaleDateString() : 'N/A'}</div>
+          <div class="staff-meta-item"><i class="fas fa-circle" style="font-size: 6px; margin-right: 4px; color: ${s.status === 'online' ? '#27ae60' : '#95a5a6'};"></i> ${s.status === 'online' ? 'Online' : 'Offline'}</div>
+          <div class="staff-meta-item"><i class="fas fa-exclamation-triangle" style="margin-right: 4px; color: #f39c12;"></i> ${s.strikes || 0} strikes</div>
         </div>
       </div>
     `).join('');
@@ -737,6 +809,9 @@
       if (!res.ok) return alert('Failed to load member details');
       const member = await res.json();
       
+      const staffMember = staffData.find(s => s.user_id === userId);
+      const isOnline = staffMember?.status === 'online';
+      
       document.getElementById('staffDetailName').textContent = member.username;
       document.getElementById('staffDetailId').textContent = `ID: ${member.user_id}`;
       document.getElementById('staffDetailRole').textContent = member.highest_role;
@@ -744,20 +819,20 @@
       document.getElementById('staffDetailAvatar').src = member.avatar_url;
       document.getElementById('staffDetailAvatar').onerror = function() { this.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; };
       
-      // Find staff data for strikes
-      const staffMember = staffData.find(s => s.user_id === userId);
+      const statusIndicator = document.querySelector('.staff-status-indicator');
+      statusIndicator.className = `staff-status-indicator ${isOnline ? 'online' : 'offline'}`;
+      document.getElementById('staffStatusText').textContent = isOnline ? 'Online' : 'Offline';
+      
       document.getElementById('staffDetailStrikes').textContent = (staffMember?.strikes || 0);
       
-      // Build roles list
       const rolesList = member.all_roles.map(r => `<span class="role-badge">${r.name}</span>`).join('');
       document.getElementById('staffRolesList').innerHTML = rolesList || '<span class="role-badge">Staff</span>';
       
-      // Build history
       const historyHtml = `
-        <div class="history-item">✓ Added to staff team</div>
-        <div class="history-item">✓ Highest Role: ${member.highest_role}</div>
-        <div class="history-item">✓ Total Roles: ${member.all_roles.length}</div>
-        ${(staffMember?.strikes || 0) > 0 ? `<div class="history-item">⚠ ${staffMember.strikes} strike(s) recorded</div>` : ''}
+        <div class="history-item"><i class="fas fa-check-circle history-icon" style="color: #27ae60;"></i>Added to staff team</div>
+        <div class="history-item"><i class="fas fa-crown history-icon" style="color: #d4af37;"></i>Highest Role: ${member.highest_role}</div>
+        <div class="history-item"><i class="fas fa-list history-icon" style="color: #3498db;"></i>Total Roles: ${member.all_roles.length}</div>
+        ${(staffMember?.strikes || 0) > 0 ? `<div class="history-item"><i class="fas fa-exclamation-triangle history-icon" style="color: #f39c12;"></i>${staffMember.strikes} strike(s) recorded</div>` : ''}
       `;
       document.getElementById('staffHistory').innerHTML = historyHtml;
       
@@ -805,7 +880,6 @@
     }
   }
 
-  // Initialize
   window.addEventListener('load', () => {
     const loader = document.getElementById('loader');
     setTimeout(() => {

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Staff Portal — Zenith</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --surface2: #f0f2f5;
+      --border: #e0e0e0;
+      --primary: #d4af37;
+      --primary-hover: #ffd700;
+      --text: #2c3e50;
+      --muted: #7f8c8d;
+      --success: #27ae60;
+      --accent: #2196f3;
+      --error: #e74c3c;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    a { color: inherit; text-decoration: none; }
+    
+    #loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      opacity: 1;
+      transition: opacity 0.6s ease;
+    }
+    #loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loader-bar {
+      width: 60px;
+      height: 4px;
+      background: var(--surface);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .loader-bar::after {
+      content: '';
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #d4af37, #ffd700, #d4af37);
+      animation: loading 1.5s infinite;
+    }
+    @keyframes loading {
+      0% { width: 0%; }
+      50% { width: 100%; }
+      100% { width: 0%; }
+    }
+    
+    nav {
+      border-bottom: 2px solid #d4af37;
+      background: var(--surface);
+      padding: 16px 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 18px;
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #d4af37, #ffd700);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #1a1a1a;
+      font-weight: 900;
+    }
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid #d4af37;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+    .btn-ghost {
+      background: white;
+      color: var(--text);
+      border: 2px solid #d4af37;
+    }
+    .btn-ghost:hover {
+      background: #d4af37;
+      color: white;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+    .header {
+      margin-bottom: 40px;
+    }
+    .header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .header p {
+      color: var(--muted);
+      font-size: 16px;
+    }
+    
+    .guilds-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+    .guild-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+    }
+    .guild-card:hover {
+      border-color: #d4af37;
+      box-shadow: 0 8px 24px rgba(212,175,55,0.15);
+      transform: translateY(-2px);
+    }
+    .guild-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #d4af37, #ffd700);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      font-size: 24px;
+      color: #1a1a1a;
+    }
+    .guild-icon img {
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+      object-fit: cover;
+    }
+    .guild-name {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .guild-role {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    .guild-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: auto;
+    }
+    .guild-btn {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .guild-btn-primary {
+      background: linear-gradient(135deg, #d4af37, #ffd700);
+      color: #1a1a1a;
+    }
+    .guild-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(212,175,55,0.3);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px 24px;
+      background: var(--surface);
+      border-radius: 12px;
+      border: 1px dashed var(--border);
+    }
+    .empty-icon {
+      font-size: 48px;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+    .empty-state h2 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .empty-state p {
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+    
+    @media (max-width: 768px) {
+      .guilds-grid {
+        grid-template-columns: 1fr;
+      }
+      .container {
+        padding: 24px 16px;
+      }
+      .header h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="loader-bar"></div>
+</div>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">
+      <div class="logo-icon">Z</div>
+      Zenith
+    </a>
+    <div class="nav-right">
+      <div class="user-info">
+        <img id="user-avatar" class="user-avatar" src="" alt="Avatar">
+        <span id="user-name">Loading...</span>
+      </div>
+      <button class="btn btn-ghost" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="header">
+    <h1>Staff Portal</h1>
+    <p>Access the servers where you're a staff member</p>
+  </div>
+
+  <div id="loading-state" class="empty-state">
+    <div class="empty-icon"><i class="fas fa-spinner fa-spin"></i></div>
+    <h2>Loading Your Servers</h2>
+    <p>Fetching your staff positions...</p>
+  </div>
+
+  <div id="guilds-container" class="guilds-grid" style="display: none;"></div>
+
+  <div id="empty-state" class="empty-state" style="display: none;">
+    <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+    <h2>No Staff Positions Found</h2>
+    <p>You don't appear to be staff in any servers yet.</p>
+  </div>
+</div>
+
+<script>
+  window.addEventListener('load', () => {
+    const loader = document.getElementById('loader');
+    setTimeout(() => {
+      loader.classList.add('hidden');
+    }, 300);
+  });
+
+  async function fetchUserInfo() {
+    try {
+      const res = await fetch('/api/auth/user');
+      if (!res.ok) {
+        window.location.href = '/';
+        return;
+      }
+      const user = await res.json();
+      document.getElementById('user-name').textContent = user.username;
+      document.getElementById('user-avatar').src = user.avatarUrl;
+    } catch (err) {
+      console.error('Failed to fetch user:', err);
+      window.location.href = '/';
+    }
+  }
+
+  async function fetchStaffGuilds() {
+    try {
+      const res = await fetch('/api/staff/guilds?t=' + Date.now(), {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          window.location.href = '/';
+          return;
+        }
+        console.error('Failed to fetch staff guilds:', res.statusText);
+        return;
+      }
+      const guilds = await res.json();
+      renderGuilds(guilds);
+    } catch (err) {
+      console.error('Failed to fetch staff guilds:', err);
+    }
+  }
+
+  function renderGuilds(guilds) {
+    const container = document.getElementById('guilds-container');
+    const loadingState = document.getElementById('loading-state');
+    const emptyState = document.getElementById('empty-state');
+
+    loadingState.style.display = 'none';
+
+    if (!guilds || guilds.length === 0) {
+      emptyState.style.display = 'block';
+      return;
+    }
+
+    container.style.display = 'grid';
+    container.innerHTML = guilds.map(guild => `
+      <div class="guild-card">
+        <div class="guild-icon">
+          ${guild.iconUrl ? `<img src="${guild.iconUrl}" alt="${guild.name}">` : `<i class="fas fa-users"></i>`}
+        </div>
+        <div class="guild-name">${escapeHtml(guild.name)}</div>
+        <div class="guild-role">${guild.rank || 'Staff Member'}</div>
+        <div class="guild-actions">
+          <a href="/staff-dashboard?id=${guild.id}" class="guild-btn guild-btn-primary">
+            <i class="fas fa-arrow-right"></i> Open Portal
+          </a>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function logout() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  fetchUserInfo();
+  fetchStaffGuilds();
+</script>
+
+</body>
+</html>

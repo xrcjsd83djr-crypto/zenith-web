@@ -505,6 +505,7 @@ const publicPath = join(__dirname, 'public');
 app.use(express.static(publicPath));
 
 app.get('/select-server', (_req, res) => res.sendFile(join(publicPath, 'select-server.html')));
+app.get('/staff-portal', (_req, res) => res.sendFile(join(publicPath, 'staff-portal.html')));
 app.get('/admin-portal', (_req, res) => res.sendFile(join(publicPath, 'admin-portal.html')));
 app.get('/dashboard', (_req, res) => res.sendFile(join(publicPath, 'dashboard.html')));
 app.get('/status', (_req, res) => res.sendFile(join(publicPath, 'status.html')));
@@ -660,6 +661,97 @@ app.post('/api/admin/broadcast-message', (req, res) => {
   res.json({ success: true, broadcast });
 });
 
+
+// ── Staff Portal API ────────────────────────────────────────────────────────
+// Get servers where user is staff (from bot database)
+app.get('/api/staff/guilds', requireAuth, async (req, res) => {
+  const userId = req.session.user.id;
+  try {
+    // Query the bot database for staff positions
+    const result = await query(
+      `SELECT DISTINCT sm.guild_id, g.name, g.icon_url as iconUrl, sm.role as rank
+       FROM staff_members sm
+       JOIN servers g ON sm.guild_id = g.id
+       WHERE sm.user_id = $1 AND sm.role IS NOT NULL
+       ORDER BY g.name ASC`,
+      [userId]
+    );
+    res.json(result.rows || []);
+  } catch (err) {
+    console.error('[staff/guilds]', err);
+    res.status(500).json({ error: 'Failed to fetch staff guilds' });
+  }
+});
+
+// Set Roblox username for staff member
+app.post('/api/staff/verify-roblox', requireAuth, async (req, res) => {
+  const userId = req.session.user.id;
+  const { robloxUsername, guildId } = req.body;
+  
+  if (!robloxUsername || !guildId) {
+    return res.status(400).json({ error: 'Missing robloxUsername or guildId' });
+  }
+  
+  try {
+    // Update user's Roblox username
+    await query(
+      `UPDATE users SET roblox_username = $1, roblox_verified = TRUE WHERE id = $2`,
+      [robloxUsername, userId]
+    );
+    
+    // Record staff portal session
+    await query(
+      `INSERT INTO staff_portal_sessions (user_id, guild_id, roblox_verified_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (user_id, guild_id) DO UPDATE SET roblox_verified_at = NOW()`,
+      [userId, guildId]
+    );
+    
+    res.json({ success: true, robloxUsername });
+  } catch (err) {
+    console.error('[staff/verify-roblox]', err);
+    res.status(500).json({ error: 'Failed to verify Roblox username' });
+  }
+});
+
+// Get public staff profile
+app.get('/api/staff/profile/:robloxUsername', async (req, res) => {
+  const { robloxUsername } = req.params;
+  try {
+    // Get user by Roblox username
+    const userResult = await query(
+      `SELECT id, username, avatar, roblox_username FROM users WHERE roblox_username = $1`,
+      [robloxUsername]
+    );
+    
+    if (!userResult.rows[0]) {
+      return res.status(404).json({ error: 'Staff member not found' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Get staff positions across all servers
+    const staffResult = await query(
+      `SELECT sm.guild_id, g.name as guildName, g.icon_url as guildIcon, sm.role, sm.joined_at, sm.strikes
+       FROM staff_members sm
+       JOIN servers g ON sm.guild_id = g.id
+       WHERE sm.user_id = $1 AND sm.role IS NOT NULL
+       ORDER BY sm.joined_at DESC`,
+      [user.id]
+    );
+    
+    res.json({
+      username: user.username,
+      robloxUsername: user.roblox_username,
+      avatar: user.avatar,
+      staffPositions: staffResult.rows || [],
+      totalServers: (staffResult.rows || []).length,
+    });
+  } catch (err) {
+    console.error('[staff/profile]', err);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);

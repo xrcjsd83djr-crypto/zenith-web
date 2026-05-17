@@ -61,6 +61,9 @@ export async function initDb() {
         username TEXT NOT NULL,
         avatar TEXT,
         discord_id TEXT UNIQUE NOT NULL,
+        roblox_username TEXT,
+        roblox_id TEXT,
+        roblox_verified BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       
@@ -125,6 +128,15 @@ export async function initDb() {
         duration_minutes INTEGER,
         notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE TABLE IF NOT EXISTS staff_portal_sessions (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        guild_id TEXT NOT NULL,
+        roblox_verified_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, guild_id)
       );
     `);
     console.log('[DB] Database tables initialized');

@@ -271,6 +271,7 @@
       <li><a class="nav-link" data-section="trainings"><i class="fas fa-book"></i> Trainings</a></li>
       <li><a class="nav-link" data-section="loa"><i class="fas fa-plane"></i> LOA</a></li>
       <li><a class="nav-link" data-section="applications"><i class="fas fa-file-alt"></i> Applications</a></li>
+      <li><a class="nav-link" data-section="audit"><i class="fas fa-history"></i> Audit Logs</a></li>
     </ul>
 
     <div class="sidebar-section-label">Premium</div>
@@ -303,7 +304,15 @@
         </div>
       </div>
       <div class="header-right">
-        <i class="fas fa-circle" style="color: #27ae60;"></i> Bot Online
+        <div style="position: relative; cursor: pointer;" onclick="toggleNotifications()">
+          <i class="fas fa-bell" style="font-size: 18px; color: var(--text);"></i>
+          <span id="notificationBadge" style="position: absolute; top: -5px; right: -8px; background: #e74c3c; color: white; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;">0</span>
+        </div>
+        <i class="fas fa-circle" style="color: #27ae60; margin-left: 16px;"></i> Bot Online
+      </div>
+      <div id="notificationPanel" style="display: none; position: absolute; top: 60px; right: 20px; background: white; border: 1px solid var(--border); border-radius: 12px; width: 300px; max-height: 400px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,0.1); z-index: 100;">
+        <div style="padding: 16px; border-bottom: 1px solid var(--border);"><strong>Notifications</strong></div>
+        <div id="notificationsList" style="padding: 16px; text-align: center; color: var(--muted); font-size: 12px;">No new notifications</div>
       </div>
     </header>
 
@@ -402,6 +411,9 @@
         <div class="section-header">
           <h1>Staff Management</h1>
           <p>Manage your staff team with real-time data.</p>
+        </div>
+        <div style="margin-bottom: 24px;">
+          <input type="text" id="staffSearch" placeholder="Search by name, role, or status..." style="width: 100%; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; font-size: 14px; font-family: inherit;">
         </div>
         <div id="staff-setup" style="display: none;">
           <div class="role-selector">
@@ -587,6 +599,34 @@
           <div class="profile-actions">
             <button class="btn-danger" onclick="openLogoutModal()">Logout</button>
           </div>
+        </div>
+      </div>
+
+      <!-- AUDIT LOGS -->
+      <div id="audit" class="section">
+        <div class="section-header">
+          <h1>Audit Logs</h1>
+          <p>Track all server activities and staff actions.</p>
+        </div>
+        <div style="margin-bottom: 24px;">
+          <input type="text" id="auditSearch" placeholder="Search audit logs..." style="width: 100%; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; font-size: 14px; font-family: inherit;">
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Action</th>
+                <th>User</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="auditLogsTable">
+              <tr>
+                <td colspan="4" style="text-align: center; padding: 24px; color: var(--muted);">Audit logs will be available once the bot is connected</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

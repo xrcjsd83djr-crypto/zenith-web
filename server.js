@@ -671,13 +671,12 @@ app.post('/api/admin/broadcast-message', (req, res) => {
 app.get('/api/staff/guilds', requireAuth, async (req, res) => {
   const userId = req.session.user.id;
   try {
-    // Query the bot database for staff positions
     const result = await query(
-      `SELECT DISTINCT sm.guild_id, g.name, g.icon_url as iconUrl, sm.role as rank
+      `SELECT DISTINCT sm.guild_id, s.name, s.icon, sm.role as rank
        FROM staff_members sm
-       JOIN servers g ON sm.guild_id = g.id
-       WHERE sm.user_id = $1 AND sm.role IS NOT NULL
-       ORDER BY g.name ASC`,
+       LEFT JOIN servers s ON sm.guild_id = s.id
+       WHERE sm.user_id = $1
+       ORDER BY s.name ASC`,
       [userId]
     );
     res.json(result.rows || []);
@@ -786,22 +785,38 @@ app.get('/api/guilds/:id/settings', requireAuth, async (req, res) => {
 });
 
 // Staff Roster API
-app.get('/api/guilds/:id/staff', requireAuth, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const result = await query(
-      `SELECT id, user_id, username, avatar, avatar_url as avatarUrl, role as rank, strikes as strikeCount, 
-              joined_at as joinedAt, true as isActive, roblox_username as robloxUsername, discord_username as discordUsername
-       FROM staff_members WHERE guild_id = $1 ORDER BY joined_at DESC`,
-      [id]
-    );
-    res.json(result.rows || []);
-  } catch (err) {
-    console.error('[staff]', err);
-    res.status(500).json({ error: 'Failed to fetch staff' });
-  }
-});
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);
+});
+
+// Staff Dashboard API
+app.get('/api/staff/dashboard', requireAuth, async (req, res) => {
+  const userId = req.session.user.id;
+  const { guildId } = req.query;
+  try {
+    const result = await query(
+      `SELECT roblox_username, discord_username FROM users WHERE id = $1`,
+      [userId]
+    );
+    res.json(result.rows[0] || {});
+  } catch (err) {
+    console.error('[staff/dashboard]', err);
+    res.status(500).json({ error: 'Failed to fetch dashboard' });
+  }
+});
+
+// Public Staff Profile API
+app.get('/api/staff/profile/:username', async (req, res) => {
+  const { username } = req.params;
+  try {
+    const result = await query(
+      `SELECT id, roblox_username, discord_username FROM users WHERE roblox_username = $1`,
+      [username]
+    );
+    res.json(result.rows[0] || null);
+  } catch (err) {
+    console.error('[staff/profile]', err);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
 });

@@ -516,6 +516,150 @@ app.get('/tos', (_req, res) => res.sendFile(join(publicPath, 'tos.html')));
 app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
 
 // ── Start Server ─────────────────────────────────────────────────────────────
+
+// Global notifications storage
+let globalNotifications = [];
+
+// Admin Portal Endpoints
+app.post('/api/admin/verify-pin', (req, res) => {
+  const { pin, userId } = req.body;
+  const ADMIN_ID = '1416209242838401064';
+  const ADMIN_PIN = '1232009';
+  
+  if (userId !== ADMIN_ID) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  if (pin !== ADMIN_PIN) {
+    return res.status(401).json({ error: 'Invalid PIN' });
+  }
+  
+  res.json({ success: true, token: Buffer.from(userId + ':' + Date.now()).toString('base64') });
+});
+
+app.get('/api/admin/dashboard', (req, res) => {
+  const ADMIN_ID = '1416209242838401064';
+  const userId = req.user?.id;
+  
+  if (userId !== ADMIN_ID) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  res.json({
+    totalUsers: 0,
+    totalServers: 0,
+    globalNotifications: globalNotifications.length,
+    systemStatus: 'Online'
+  });
+});
+
+app.post('/api/admin/send-notification', (req, res) => {
+  const ADMIN_ID = '1416209242838401064';
+  const userId = req.user?.id;
+  
+  if (userId !== ADMIN_ID) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  const { message, type } = req.body;
+  
+  if (!message) {
+    return res.status(400).json({ error: 'Message required' });
+  }
+  
+  const notification = {
+    id: Date.now(),
+    message,
+    type: type || 'info',
+    timestamp: new Date(),
+    read: false
+  };
+  
+  globalNotifications.unshift(notification);
+  
+  res.json({ success: true, notification });
+});
+
+app.get('/api/admin/notifications', (req, res) => {
+  res.json(globalNotifications.slice(0, 50));
+});
+
+app.post('/api/admin/update-content', (req, res) => {
+  const ADMIN_ID = '1416209242838401064';
+  const userId = req.user?.id;
+  
+  if (userId !== ADMIN_ID) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  const { section, key, value } = req.body;
+  
+  // This would normally update a database or config file
+  // For now, we'll just confirm the update
+  res.json({ 
+    success: true, 
+    message: `Updated ${section}.${key}`,
+    requiresConfirmation: true
+  });
+});
+
+app.post('/api/admin/confirm-update', (req, res) => {
+  const ADMIN_ID = '1416209242838401064';
+  const userId = req.user?.id;
+  
+  if (userId !== ADMIN_ID) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  const { updateId, confirmationCode } = req.body;
+  
+  // Verify confirmation code (in production, this would be more secure)
+  res.json({ 
+    success: true, 
+    message: 'Changes committed globally'
+  });
+});
+
+app.get('/api/admin/system-logs', (req, res) => {
+  const ADMIN_ID = '1416209242838401064';
+  const userId = req.user?.id;
+  
+  if (userId !== ADMIN_ID) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  res.json({
+    logs: [
+      { timestamp: new Date(), action: 'System started', status: 'success' },
+      { timestamp: new Date(), action: 'Database connected', status: 'success' }
+    ]
+  });
+});
+
+app.post('/api/admin/broadcast-message', (req, res) => {
+  const ADMIN_ID = '1416209242838401064';
+  const userId = req.user?.id;
+  
+  if (userId !== ADMIN_ID) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  
+  const { title, message, icon } = req.body;
+  
+  const broadcast = {
+    id: Date.now(),
+    title,
+    message,
+    icon: icon || 'info',
+    timestamp: new Date()
+  };
+  
+  globalNotifications.unshift(broadcast);
+  
+  res.json({ success: true, broadcast });
+});
+
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);
 });

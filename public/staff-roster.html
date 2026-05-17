@@ -164,7 +164,7 @@
             </div>
           </div>
         </td>
-        <td><span class="rank-badge">${escapeHtml(member.rank || 'Staff')}</span></td>
+        <td><span class="rank-badge">${escapeHtml(member.rank || member.position || 'Staff')}</span></td>
         <td>${member.joined_at ? new Date(member.joined_at).toLocaleDateString() : 'N/A'}</td>
         <td>${member.hours || 0}h</td>
         <td>${member.strikes || 0}</td>

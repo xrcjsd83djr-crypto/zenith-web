@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard — Zenith</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Zenith Dashboard</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
@@ -17,134 +20,150 @@
       --primary-hover: #ffd700;
       --text: #2c3e50;
       --muted: #7f8c8d;
+      --danger: #c0392b;
     }
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
     a { color: inherit; text-decoration: none; }
-
-    #loader {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: var(--bg);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    }
-    #loader.hidden { display: none; }
+    
+    #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 1; transition: opacity 0.6s ease; }
+    #loader.hidden { opacity: 0; pointer-events: none; }
     .loader-bar { width: 60px; height: 4px; background: var(--surface); border-radius: 2px; overflow: hidden; }
     .loader-bar::after { content: ''; display: block; height: 100%; background: linear-gradient(90deg, #d4af37, #ffd700, #d4af37); animation: loading 1.5s infinite; }
     @keyframes loading { 0% { width: 0%; } 50% { width: 100%; } 100% { width: 0%; } }
-
+    
     .dashboard { display: flex; min-height: 100vh; }
-
-    .sidebar {
-      width: 260px;
-      background: var(--surface);
-      border-right: 2px solid #d4af37;
-      padding: 24px 0;
-      position: fixed;
-      height: 100vh;
-      overflow-y: auto;
-      z-index: 50;
-      box-shadow: 4px 0 12px rgba(0,0,0,0.03);
-    }
+    .sidebar { width: 260px; background: white; border-right: 1px solid var(--border); padding: 24px 0; position: fixed; height: 100vh; overflow-y: auto; z-index: 50; box-shadow: 4px 0 12px rgba(0,0,0,0.03); }
     .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 0 24px; margin-bottom: 32px; font-weight: 800; font-size: 20px; }
     .sidebar-logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 18px; color: white; }
-    
     .sidebar-nav { list-style: none; }
     .sidebar-nav a { display: flex; align-items: center; gap: 12px; padding: 12px 24px; color: var(--muted); font-size: 14px; font-weight: 600; transition: all 0.2s; border-left: 4px solid transparent; cursor: pointer; }
     .sidebar-nav a:hover { color: var(--text); background: rgba(212, 175, 55, 0.05); }
     .sidebar-nav a.active { color: #d4af37; background: rgba(212, 175, 55, 0.1); border-left-color: #d4af37; }
     .sidebar-nav i { width: 20px; text-align: center; font-size: 16px; }
-
     .sidebar-section-label { font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); padding: 24px 24px 12px; }
-    
     .premium-card { margin: 24px; padding: 20px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 16px; color: white; text-align: center; box-shadow: 0 8px 16px rgba(212, 175, 55, 0.2); }
     .premium-card h4 { font-size: 14px; font-weight: 800; margin-bottom: 8px; }
     .premium-card p { font-size: 11px; margin-bottom: 16px; opacity: 0.9; line-height: 1.4; }
     .premium-card .btn-white { background: white; color: #d4af37; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none; display: inline-block; }
-
+    
     .main { flex: 1; margin-left: 260px; }
-    .header { border-bottom: 2px solid #d4af37; background: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 40; }
-    .server-info { display: flex; align-items: center; gap: 12px; }
+    .header { border-bottom: 2px solid #d4af37; background: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 40; flex-wrap: wrap; gap: 12px; }
+    .server-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 200px; }
     .server-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden; }
     .server-icon img { width: 100%; height: 100%; object-fit: cover; }
-    .server-details h2 { font-size: 18px; font-weight: 800; margin-bottom: 2px; }
-    .server-details p { font-size: 12px; color: var(--muted); font-weight: 600; }
-
-    .content { padding: 40px; max-width: 1400px; margin: 0 auto; }
+    .server-details h2 { font-size: 16px; font-weight: 800; }
+    .server-details p { font-size: 12px; color: var(--muted); }
+    .header-right { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .header-right i { color: #27ae60; font-size: 6px; margin-right: 4px; }
+    .mobile-menu-btn { display: none; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text); }
+    
+    .content { padding: 32px; }
+    .section { display: none; }
+    .section.active { display: block; }
     .section-header { margin-bottom: 32px; }
-    .section-header h1 { font-size: 32px; font-weight: 900; letter-spacing: -1px; margin-bottom: 8px; }
-    .section-header p { color: var(--muted); font-size: 16px; }
-
+    .section-header h1 { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
+    .section-header p { color: var(--muted); }
+    
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 32px; }
     .stat-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: center; }
     .stat-icon { font-size: 28px; color: #d4af37; margin-bottom: 8px; }
     .stat-value { font-size: 24px; font-weight: 900; margin-bottom: 2px; }
     .stat-label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
-
+    
     .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 32px; }
     .info-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
     .info-card h3 { font-size: 13px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
     .info-card p { font-size: 16px; font-weight: 700; color: var(--text); }
     .info-card .detail { font-size: 12px; color: var(--muted); margin-top: 4px; }
-
-    .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+    
+    .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
     .staff-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: center; transition: all 0.3s; cursor: pointer; }
     .staff-card:hover { transform: translateY(-4px); border-color: #d4af37; box-shadow: 0 8px 16px rgba(0,0,0,0.05); }
     .staff-avatar { width: 60px; height: 60px; border-radius: 50%; margin: 0 auto 12px; border: 2px solid #d4af37; }
     .staff-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
     .staff-name { font-size: 14px; font-weight: 800; margin-bottom: 2px; }
     .staff-role { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
-
+    
     .role-selector { background: white; border: 2px dashed #d4af37; border-radius: 16px; padding: 40px; text-align: center; margin-bottom: 40px; }
     .role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 24px 0; text-align: left; }
     .role-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--bg); border-radius: 10px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
     .role-item:hover { border-color: #d4af37; }
     .role-item.selected { background: rgba(212, 175, 55, 0.1); border-color: #d4af37; }
     .role-dot { width: 10px; height: 10px; border-radius: 50%; }
-
+    
     .btn-gold { background: linear-gradient(135deg, #d4af37, #ffd700); color: white; padding: 10px 24px; border-radius: 10px; font-weight: 800; border: none; cursor: pointer; font-size: 13px; }
     .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(212, 175, 55, 0.3); }
-
-    .table-container { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 32px; }
-    .table-container table { width: 100%; border-collapse: collapse; }
+    .btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .table-container { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 32px; overflow-x: auto; }
+    .table-container table { width: 100%; border-collapse: collapse; min-width: 500px; }
     .table-container th { background: var(--surface2); padding: 12px 16px; text-align: left; font-weight: 800; font-size: 11px; text-transform: uppercase; color: var(--muted); }
     .table-container td { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 13px; }
     .table-container tr:hover { background: var(--surface2); }
-
+    
     .profile-card { background: white; border: 1px solid var(--border); border-radius: 20px; padding: 40px; text-align: center; margin-bottom: 32px; }
     .profile-avatar { width: 100px; height: 100px; border-radius: 50%; margin: 0 auto 20px; border: 3px solid #d4af37; }
     .profile-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
     .profile-name { font-size: 24px; font-weight: 900; margin-bottom: 4px; }
     .profile-id { font-size: 12px; color: var(--muted); margin-bottom: 24px; font-family: monospace; }
     .profile-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    
     .btn-danger { background: #c0392b; color: white; padding: 10px 24px; border-radius: 10px; font-weight: 800; border: none; cursor: pointer; font-size: 13px; }
     .btn-danger:hover { background: #a93226; }
-
-    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
     .modal.show { display: flex; }
-    .modal-content { background: white; border-radius: 16px; padding: 40px; text-align: center; max-width: 400px; }
+    .modal-content { background: white; border-radius: 16px; padding: 40px; text-align: center; max-width: 500px; max-height: 90vh; overflow-y: auto; }
     .modal-content h2 { margin-bottom: 16px; }
     .modal-content p { color: var(--muted); margin-bottom: 24px; }
-    .modal-actions { display: flex; gap: 12px; justify-content: center; }
+    .modal-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
     .btn-cancel { background: var(--surface2); color: var(--text); padding: 10px 24px; border-radius: 10px; font-weight: 800; border: none; cursor: pointer; }
-
-    @media (max-width: 768px) { .sidebar { left: -260px; } .main { margin-left: 0; } }
+    
+    .staff-detail-modal .modal-content { text-align: left; max-width: 600px; }
+    .staff-detail-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .staff-detail-avatar { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #d4af37; }
+    .staff-detail-info h3 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+    .staff-detail-info p { font-size: 12px; color: var(--muted); }
+    .staff-detail-section { margin-bottom: 20px; }
+    .staff-detail-section h4 { font-size: 13px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .staff-detail-section p { font-size: 14px; color: var(--text); }
+    
+    @media (max-width: 768px) {
+      .sidebar { left: -260px; transition: left 0.3s; }
+      .sidebar.open { left: 0; }
+      .main { margin-left: 0; }
+      .mobile-menu-btn { display: block; }
+      .header { padding: 12px 16px; }
+      .server-details h2 { font-size: 14px; }
+      .server-details p { font-size: 11px; }
+      .header-right { font-size: 11px; }
+      .content { padding: 16px; }
+      .section-header h1 { font-size: 20px; }
+      .stats-grid { grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; }
+      .stat-card { padding: 16px; }
+      .stat-value { font-size: 20px; }
+      .info-grid { grid-template-columns: 1fr; }
+      .staff-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+      .staff-card { padding: 16px; }
+      .staff-avatar { width: 50px; height: 50px; }
+      .staff-name { font-size: 12px; }
+      .staff-role { font-size: 10px; }
+      .role-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+      .profile-card { padding: 24px; }
+      .profile-avatar { width: 80px; height: 80px; }
+      .profile-name { font-size: 18px; }
+      .modal { padding: 10px; }
+      .modal-content { padding: 24px; }
+      .staff-detail-modal .modal-content { max-width: 90vw; }
+    }
   </style>
 </head>
 <body>
 
 <div id="loader"><div class="loader-bar"></div></div>
 
+<!-- LOGOUT MODAL -->
 <div id="logoutModal" class="modal">
   <div class="modal-content">
     <h2>Confirm Logout</h2>
@@ -152,6 +171,38 @@
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeLogoutModal()">Cancel</button>
       <button class="btn-danger" onclick="confirmLogout()">Logout</button>
+    </div>
+  </div>
+</div>
+
+<!-- STAFF DETAIL MODAL -->
+<div id="staffDetailModal" class="modal staff-detail-modal">
+  <div class="modal-content">
+    <div class="staff-detail-header">
+      <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="" class="staff-detail-avatar" id="staffDetailAvatar">
+      <div class="staff-detail-info">
+        <h3 id="staffDetailName">Loading...</h3>
+        <p id="staffDetailId"></p>
+      </div>
+    </div>
+    <div class="staff-detail-section">
+      <h4>Highest Role</h4>
+      <p id="staffDetailRole">Staff</p>
+    </div>
+    <div class="staff-detail-section">
+      <h4>Strikes</h4>
+      <p id="staffDetailStrikes">0</p>
+    </div>
+    <div class="staff-detail-section">
+      <h4>Status</h4>
+      <p id="staffDetailStatus">Active</p>
+    </div>
+    <div class="staff-detail-section">
+      <h4>Joined</h4>
+      <p id="staffDetailJoined">N/A</p>
+    </div>
+    <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
+      <button class="btn-cancel" onclick="closeStaffDetailModal()">Close</button>
     </div>
   </div>
 </div>
@@ -195,6 +246,7 @@
 
   <main class="main">
     <header class="header">
+      <button class="mobile-menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
       <div class="server-info">
         <div class="server-icon" id="server-icon"><i class="fas fa-server"></i></div>
         <div class="server-details">
@@ -202,212 +254,268 @@
           <p id="server-role">Server Administrator</p>
         </div>
       </div>
-      <a href="javascript:void(0);" onclick="navigateSection('status')" style="font-size: 12px; font-weight: 700; color: var(--muted); cursor: pointer;"><i class="fas fa-circle" style="color: #27ae60; font-size: 6px; margin-right: 4px;"></i> Bot Status</a>
+      <div class="header-right">
+        <i class="fas fa-circle"></i> Bot Status
+      </div>
     </header>
 
     <div class="content">
       <!-- OVERVIEW -->
-      <div id="overview" class="section">
+      <div id="overview" class="section active">
         <div class="section-header">
           <h1>Server Overview</h1>
           <p>Comprehensive server statistics and information.</p>
         </div>
-        
         <div class="stats-grid">
-          <div class="stat-card"><div class="stat-icon"><i class="fas fa-users"></i></div><div class="stat-value" id="stat-members">0</div><div class="stat-label">Members</div></div>
-          <div class="stat-card"><div class="stat-icon"><i class="fas fa-circle-dot"></i></div><div class="stat-value" id="stat-online">0</div><div class="stat-label">Online</div></div>
-          <div class="stat-card"><div class="stat-icon"><i class="fas fa-user-shield"></i></div><div class="stat-value" id="stat-staff">0</div><div class="stat-label">Staff</div></div>
-          <div class="stat-card"><div class="stat-icon"><i class="fas fa-hashtag"></i></div><div class="stat-value" id="stat-channels">0</div><div class="stat-label">Channels</div></div>
-          <div class="stat-card"><div class="stat-icon"><i class="fas fa-shield"></i></div><div class="stat-value" id="stat-roles">0</div><div class="stat-label">Roles</div></div>
-          <div class="stat-card"><div class="stat-icon"><i class="fas fa-crown"></i></div><div class="stat-value" id="stat-plan">Free</div><div class="stat-label">Plan</div></div>
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-users"></i></div>
+            <div class="stat-value" id="stat-members">0</div>
+            <div class="stat-label">Members</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-circle-dot"></i></div>
+            <div class="stat-value" id="stat-online">0</div>
+            <div class="stat-label">Online</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-user-shield"></i></div>
+            <div class="stat-value" id="stat-staff">0</div>
+            <div class="stat-label">Staff</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-hashtag"></i></div>
+            <div class="stat-value" id="stat-channels">0</div>
+            <div class="stat-label">Channels</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-shield"></i></div>
+            <div class="stat-value" id="stat-roles">0</div>
+            <div class="stat-label">Roles</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-crown"></i></div>
+            <div class="stat-value" id="stat-plan">Free</div>
+            <div class="stat-label">Plan</div>
+          </div>
         </div>
-
-        <div class="section-header" style="margin-top: 40px;">
-          <h1>Server Details</h1>
-          <p>In-depth information about your server.</p>
-        </div>
-
         <div class="info-grid">
           <div class="info-card">
-            <h3>Verification Level</h3>
-            <p id="info-verification">-</p>
+            <h3>Server Name</h3>
+            <p id="info-name">Loading...</p>
           </div>
           <div class="info-card">
-            <h3>Content Filter</h3>
-            <p id="info-filter">-</p>
+            <h3>Members Online</h3>
+            <p id="info-online">0</p>
           </div>
           <div class="info-card">
-            <h3>Boosts</h3>
-            <p id="info-boosts">0</p>
-            <div class="detail" id="info-tier">Free Tier</div>
+            <h3>Roles</h3>
+            <p id="info-roles">0</p>
           </div>
           <div class="info-card">
             <h3>Emojis</h3>
             <p id="info-emojis">0</p>
           </div>
           <div class="info-card">
-            <h3>Stickers</h3>
-            <p id="info-stickers">0</p>
+            <h3>Created</h3>
+            <p id="info-created">N/A</p>
           </div>
           <div class="info-card">
-            <h3>Created</h3>
-            <p id="info-created">-</p>
+            <h3>Bot Status</h3>
+            <p style="color: #27ae60;"><i class="fas fa-circle"></i> Online</p>
           </div>
         </div>
       </div>
 
-      <!-- STAFF OVERVIEW -->
-      <div id="staff" class="section" style="display: none;">
+      <!-- STAFF -->
+      <div id="staff" class="section">
         <div class="section-header">
           <h1>Staff Management</h1>
           <p>Manage your entire staff team.</p>
         </div>
-
-        <div id="staff-setup" class="role-selector" style="display: none;">
-          <i class="fas fa-user-shield" style="font-size: 40px; color: #d4af37; margin-bottom: 16px;"></i>
-          <h2 style="margin-bottom: 8px;">Configure Staff Roles</h2>
-          <p style="color: var(--muted); margin-bottom: 20px;">Select roles to mark as staff:</p>
-          <div id="role-grid" class="role-grid"></div>
-          <button class="btn-gold" onclick="saveStaffRoles()">Save Configuration</button>
+        <div id="staff-setup" style="display: none;">
+          <div class="role-selector">
+            <h3>Select Staff Roles</h3>
+            <p>Choose which roles should be considered as staff members.</p>
+            <div class="role-grid" id="role-grid"></div>
+            <button class="btn-gold" onclick="saveStaffRoles()" style="margin-top: 20px;">Save Staff Roles</button>
+          </div>
         </div>
-
-        <div id="staff-list" class="staff-grid" style="display: none;"></div>
+        <div id="staff-list" style="display: none;">
+          <div class="staff-grid"></div>
+        </div>
       </div>
 
       <!-- SHIFTS -->
-      <div id="shifts" class="section" style="display: none;">
-        <div class="section-header"><h1>Shift Tracking</h1><p>Monitor staff shift activity.</p></div>
+      <div id="shifts" class="section">
+        <div class="section-header">
+          <h1>Shift Management</h1>
+          <p>Track and manage staff shifts.</p>
+        </div>
         <div class="table-container">
           <table>
-            <thead><tr><th>Staff</th><th>Start</th><th>End</th><th>Duration</th></tr></thead>
-            <tbody id="shifts-table"><tr><td colspan="4" style="text-align: center; color: var(--muted);">No shifts recorded</td></tr></tbody>
+            <thead>
+              <tr>
+                <th>Staff Member</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody id="shifts-table">
+              <tr><td colspan="4" style="text-align: center; color: var(--muted);">No shifts recorded yet.</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
 
       <!-- STRIKES -->
-      <div id="strikes" class="section" style="display: none;">
-        <div class="section-header"><h1>Strike System</h1><p>Track staff violations.</p></div>
+      <div id="strikes" class="section">
+        <div class="section-header">
+          <h1>Strike System</h1>
+          <p>Manage staff strikes and violations.</p>
+        </div>
         <div class="table-container">
           <table>
-            <thead><tr><th>Staff</th><th>Strikes</th><th>Reason</th><th>Date</th></tr></thead>
-            <tbody id="strikes-table"><tr><td colspan="4" style="text-align: center; color: var(--muted);">No strikes recorded</td></tr></tbody>
+            <thead>
+              <tr>
+                <th>Staff Member</th>
+                <th>Strikes</th>
+                <th>Reason</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="strikes-table">
+              <tr><td colspan="4" style="text-align: center; color: var(--muted);">No strikes recorded yet.</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
 
       <!-- PERFORMANCE -->
-      <div id="performance" class="section" style="display: none;">
-        <div class="section-header"><h1>Performance Reviews</h1><p>Staff performance evaluations.</p></div>
+      <div id="performance" class="section">
+        <div class="section-header">
+          <h1>Performance Reviews</h1>
+          <p>Track staff performance and ratings.</p>
+        </div>
         <div class="table-container">
           <table>
-            <thead><tr><th>Staff</th><th>Rating</th><th>Reviewer</th><th>Date</th></tr></thead>
-            <tbody id="performance-table"><tr><td colspan="4" style="text-align: center; color: var(--muted);">No reviews yet</td></tr></tbody>
+            <thead>
+              <tr>
+                <th>Staff Member</th>
+                <th>Rating</th>
+                <th>Comments</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="performance-table">
+              <tr><td colspan="4" style="text-align: center; color: var(--muted);">No reviews recorded yet.</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
 
       <!-- TRAININGS -->
-      <div id="trainings" class="section" style="display: none;">
-        <div class="section-header"><h1>Training Logs</h1><p>Staff training records.</p></div>
+      <div id="trainings" class="section">
+        <div class="section-header">
+          <h1>Training Logs</h1>
+          <p>Track staff training sessions.</p>
+        </div>
         <div class="table-container">
           <table>
-            <thead><tr><th>Trainer</th><th>Trainee</th><th>Topic</th><th>Date</th></tr></thead>
-            <tbody id="trainings-table"><tr><td colspan="4" style="text-align: center; color: var(--muted);">No trainings recorded</td></tr></tbody>
+            <thead>
+              <tr>
+                <th>Trainer</th>
+                <th>Trainee</th>
+                <th>Topic</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody id="trainings-table">
+              <tr><td colspan="4" style="text-align: center; color: var(--muted);">No trainings recorded yet.</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
 
       <!-- LOA -->
-      <div id="loa" class="section" style="display: none;">
-        <div class="section-header"><h1>Leave of Absence</h1><p>Manage staff LOA requests.</p></div>
+      <div id="loa" class="section">
+        <div class="section-header">
+          <h1>Leave of Absence</h1>
+          <p>Manage staff LOA requests.</p>
+        </div>
         <div class="table-container">
           <table>
-            <thead><tr><th>Staff</th><th>Status</th><th>Start</th><th>End</th></tr></thead>
-            <tbody id="loa-table"><tr><td colspan="4" style="text-align: center; color: var(--muted);">No LOA requests</td></tr></tbody>
+            <thead>
+              <tr>
+                <th>Staff Member</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="loa-table">
+              <tr><td colspan="4" style="text-align: center; color: var(--muted);">No LOA requests.</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
 
       <!-- APPLICATIONS -->
-      <div id="applications" class="section" style="display: none;">
-        <div class="section-header"><h1>Applications</h1><p>Pending staff applications.</p></div>
+      <div id="applications" class="section">
+        <div class="section-header">
+          <h1>Applications</h1>
+          <p>Manage staff applications.</p>
+        </div>
         <div class="table-container">
           <table>
-            <thead><tr><th>Applicant</th><th>Position</th><th>Status</th><th>Date</th></tr></thead>
-            <tbody id="applications-table"><tr><td colspan="4" style="text-align: center; color: var(--muted);">No pending applications</td></tr></tbody>
+            <thead>
+              <tr>
+                <th>Applicant</th>
+                <th>Position</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="applications-table">
+              <tr><td colspan="4" style="text-align: center; color: var(--muted);">No applications.</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
 
       <!-- PREMIUM -->
-      <div id="premium" class="section" style="display: none;">
-        <div class="section-header"><h1>Manage Premium</h1><p>Your subscription details.</p></div>
-        <div style="background: white; padding: 32px; border-radius: 16px; border: 1px solid var(--border); text-align: center;">
-          <i class="fas fa-crown" style="font-size: 56px; color: #d4af37; margin-bottom: 20px;"></i>
-          <h2 id="premium-status-title" style="margin-bottom: 8px;">Free Plan</h2>
-          <p id="premium-status-desc" style="margin-bottom: 24px; color: var(--muted);">Upgrade to unlock all features.</p>
-          <a href="javascript:void(0);" class="btn-gold" onclick="navigateSection('premium')">Upgrade Now</a>
+      <div id="premium" class="section">
+        <div class="section-header">
+          <h1>Premium Plans</h1>
+          <p>Upgrade your server for advanced features.</p>
+        </div>
+        <div class="info-grid">
+          <div class="info-card">
+            <h3>Free Plan</h3>
+            <p>Unlimited Staff</p>
+            <div class="detail">Basic features included</div>
+          </div>
+          <div class="info-card">
+            <h3>Pro Plan</h3>
+            <p>$9.99/month</p>
+            <div class="detail">Advanced features and priority support</div>
+          </div>
         </div>
       </div>
 
-      <!-- ACCOUNT/PROFILE -->
-      <div id="account" class="section" style="display: none;">
+      <!-- ACCOUNT -->
+      <div id="account" class="section">
         <div class="section-header">
-          <h1>Account Profile</h1>
-          <p>Your Discord account information.</p>
+          <h1>Profile</h1>
+          <p>Manage your account settings.</p>
         </div>
-
         <div class="profile-card">
-          <div class="profile-avatar"><img id="profile-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="You"></div>
-          <div class="profile-name" id="profile-name">Loading...</div>
-          <div class="profile-id" id="profile-id">ID: -</div>
+          <img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="" class="profile-avatar" id="profile-avatar">
+          <h2 class="profile-name" id="profile-name">Loading...</h2>
+          <p class="profile-id" id="profile-id"></p>
           <div class="profile-actions">
-            <button class="btn-gold" onclick="navigateSection('overview')">Back to Dashboard</button>
             <button class="btn-danger" onclick="openLogoutModal()">Logout</button>
           </div>
-        </div>
-      </div>
-
-      <!-- STATUS PAGE (Embedded) -->
-      <div id="status" class="section" style="display: none;">
-        <div class="section-header">
-          <h1>Bot Status</h1>
-          <p>Real-time status and performance metrics.</p>
-        </div>
-
-        <div class="stats-grid">
-          <div class="stat-card"><div class="stat-icon"><i class="fas fa-server"></i></div><div class="stat-value" id="status-guilds">...</div><div class="stat-label">Active Servers</div></div>
-          <div class="stat-card"><div class="stat-icon"><i class="fas fa-users"></i></div><div class="stat-value" id="status-users">...</div><div class="stat-label">Users Managed</div></div>
-          <div class="stat-card"><div class="stat-icon"><i class="fas fa-clock"></i></div><div class="stat-value" id="status-uptime">...</div><div class="stat-label">Uptime</div></div>
-          <div class="stat-card"><div class="stat-icon"><i class="fas fa-tachometer-alt"></i></div><div class="stat-value" id="status-response">...</div><div class="stat-label">Response Time</div></div>
-        </div>
-
-        <div class="section-header" style="margin-top: 40px;">
-          <h1>Service Status</h1>
-        </div>
-
-        <div class="info-grid">
-          <div class="info-card" style="border-left: 4px solid #27ae60;">
-            <h3><i class="fas fa-robot"></i> Discord Bot</h3>
-            <p style="color: #27ae60;">Operational</p>
-          </div>
-          <div class="info-card" style="border-left: 4px solid #27ae60;">
-            <h3><i class="fas fa-database"></i> Database</h3>
-            <p style="color: #27ae60;">Operational</p>
-          </div>
-          <div class="info-card" style="border-left: 4px solid #27ae60;">
-            <h3><i class="fas fa-globe"></i> Web Dashboard</h3>
-            <p style="color: #27ae60;">Operational</p>
-          </div>
-          <div class="info-card" style="border-left: 4px solid #27ae60;">
-            <h3><i class="fas fa-cloud"></i> API Gateway</h3>
-            <p style="color: #27ae60;">Operational</p>
-          </div>
-        </div>
-
-        <div style="text-align: center; margin-top: 32px;">
-          <button class="btn-gold" onclick="navigateSection('overview')">Back to Dashboard</button>
         </div>
       </div>
     </div>
@@ -415,66 +523,49 @@
 </div>
 
 <script>
-  const urlParams = new URLSearchParams(window.location.search);
-  const serverId = urlParams.get('id');
+  const serverId = new URLSearchParams(window.location.search).get('id');
+  if (!serverId) window.location.href = '/select-server';
+  
   let selectedRoles = new Set();
-  let currentUser = null;
+  let staffData = [];
+  let guildRoles = [];
 
-  window.addEventListener('load', () => {
-    document.getElementById('loader').classList.add('hidden');
-    if (!serverId) window.location.href = '/select-server';
-    init();
-  });
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+  }
 
-  async function init() {
-    await fetchUserProfile();
-    await fetchServerInfo();
-    await loadDashboardData();
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
   }
 
   async function fetchUserProfile() {
     try {
       const res = await fetch('/api/user');
-      currentUser = await res.json();
-      if (currentUser && currentUser.username) {
-        document.getElementById('profile-name').textContent = currentUser.username;
-        document.getElementById('profile-id').textContent = `ID: ${currentUser.id}`;
-        if (currentUser.avatar) {
-          document.getElementById('profile-avatar').src = `https://cdn.discordapp.com/avatars/${currentUser.id}/${currentUser.avatar}.png`;
-        }
-      }
+      if (!res.ok) { window.location.href = '/'; return; }
+      const user = await res.json();
+      document.getElementById('profile-name').textContent = user.username;
+      document.getElementById('profile-id').textContent = `ID: ${user.id}`;
+      document.getElementById('profile-avatar').src = user.avatarUrl;
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Error fetching user:', err);
+      window.location.href = '/';
     }
   }
 
   async function fetchServerInfo() {
     try {
       const res = await fetch(`/api/guilds/${serverId}/detailed`);
+      if (!res.ok) return;
       const server = await res.json();
-      document.getElementById('server-name').textContent = server.name || 'Server';
-      document.getElementById('stat-members').textContent = server.member_count || '0';
-      document.getElementById('stat-online').textContent = server.online_count || '0';
-      document.getElementById('stat-channels').textContent = server.channels || '0';
-      document.getElementById('stat-roles').textContent = server.roles || '0';
-      document.getElementById('info-boosts').textContent = server.premium_subscription_count || '0';
-      document.getElementById('info-emojis').textContent = server.emojis || '0';
-      document.getElementById('info-stickers').textContent = server.stickers || '0';
-      
-      const verificationLevels = ['None', 'Low', 'Medium', 'High', 'Very High'];
-      document.getElementById('info-verification').textContent = verificationLevels[server.verification_level] || '-';
-      
-      const filterLevels = ['Disabled', 'Members Without Roles', 'All Members'];
-      document.getElementById('info-filter').textContent = filterLevels[server.explicit_content_filter] || '-';
-      
-      const tiers = ['None', 'Tier 1', 'Tier 2', 'Tier 3'];
-      document.getElementById('info-tier').textContent = tiers[server.premium_tier] || 'Free Tier';
-
-      if (server.created_at) {
-        const date = new Date(server.created_at);
-        document.getElementById('info-created').textContent = date.toLocaleDateString();
-      }
-
+      document.getElementById('server-name').textContent = server.name;
+      document.getElementById('info-name').textContent = server.name;
+      document.getElementById('stat-members').textContent = server.member_count || 0;
+      document.getElementById('stat-online').textContent = server.online_count || 0;
+      document.getElementById('info-online').textContent = server.online_count || 0;
+      document.getElementById('stat-channels').textContent = server.channels || 0;
+      document.getElementById('stat-roles').textContent = server.roles || 0;
+      document.getElementById('info-roles').textContent = server.roles || 0;
+      document.getElementById('info-emojis').textContent = server.emojis || 0;
       if (server.icon) {
         document.getElementById('server-icon').innerHTML = `<img src="https://cdn.discordapp.com/icons/${serverId}/${server.icon}.png">`;
       }
@@ -487,7 +578,7 @@
     try {
       const staffRes = await fetch(`/api/guilds/${serverId}/staff`);
       const staff = staffRes.ok ? await staffRes.json() : [];
-      
+      staffData = staff;
       if (staff.length === 0) {
         showRoleSelector();
       } else {
@@ -498,15 +589,6 @@
       const premiumRes = await fetch(`/api/guilds/${serverId}/premium`);
       const premium = premiumRes.ok ? await premiumRes.json() : { isPremium: false };
       document.getElementById('stat-plan').textContent = premium.isPremium ? 'Pro' : 'Free';
-
-      // Load status data
-      const statsRes = await fetch('/api/bot/stats');
-      const stats = await statsRes.json();
-      document.getElementById('status-guilds').textContent = stats.guilds || '0';
-      document.getElementById('status-users').textContent = stats.users || '0';
-      const uptimeHours = Math.floor(stats.uptime / 3600);
-      document.getElementById('status-uptime').textContent = `${uptimeHours}h`;
-      document.getElementById('status-response').textContent = Math.floor(Math.random() * 50 + 10) + 'ms';
     } catch (err) {
       console.error('Error:', err);
     }
@@ -517,13 +599,12 @@
     try {
       const res = await fetch(`/api/guilds/${serverId}/roles`);
       const roles = res.ok ? await res.json() : [];
+      guildRoles = roles;
       const grid = document.getElementById('role-grid');
-      
       if (roles.length === 0) {
         grid.innerHTML = '<p style="grid-column: 1/-1; color: var(--muted);">No roles found.</p>';
         return;
       }
-
       grid.innerHTML = roles.sort((a,b) => b.position - a.position).map(role => `
         <div class="role-item" onclick="toggleRole(this, '${role.id}')">
           <div class="role-dot" style="background: #${(role.color || 0).toString(16).padStart(6, '0')}"></div>
@@ -564,9 +645,11 @@
   }
 
   function renderStaffList(staff) {
-    document.getElementById('staff-list').style.display = 'grid';
-    document.getElementById('staff-list').innerHTML = staff.map(s => `
-      <div class="staff-card">
+    document.getElementById('staff-setup').style.display = 'none';
+    document.getElementById('staff-list').style.display = 'block';
+    const container = document.querySelector('#staff-list .staff-grid');
+    container.innerHTML = staff.map(s => `
+      <div class="staff-card" onclick="openStaffDetailModal('${s.user_id}', '${s.username}', '${s.role}', ${s.strikes || 0})">
         <div class="staff-avatar"><img src="https://cdn.discordapp.com/embed/avatars/0.png" alt="${s.username}"></div>
         <div class="staff-name">${s.username}</div>
         <div class="staff-role">${s.role || 'Staff'}</div>
@@ -575,11 +658,26 @@
     `).join('');
   }
 
+  function openStaffDetailModal(userId, username, role, strikes) {
+    document.getElementById('staffDetailName').textContent = username;
+    document.getElementById('staffDetailId').textContent = `ID: ${userId}`;
+    document.getElementById('staffDetailRole').textContent = role || 'Staff';
+    document.getElementById('staffDetailStrikes').textContent = strikes || 0;
+    document.getElementById('staffDetailStatus').textContent = 'Active';
+    document.getElementById('staffDetailJoined').textContent = new Date().toLocaleDateString();
+    document.getElementById('staffDetailModal').classList.add('show');
+  }
+
+  function closeStaffDetailModal() {
+    document.getElementById('staffDetailModal').classList.remove('show');
+  }
+
   function navigateSection(section) {
+    closeSidebar();
     document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelector(`[data-section="${section}"]`).classList.add('active');
-    document.getElementById(section).style.display = 'block';
+    document.getElementById(section).classList.add('active');
   }
 
   document.querySelectorAll('.nav-link').forEach(link => {
@@ -606,6 +704,18 @@
       console.error('Error:', err);
     }
   }
+
+  // Initialize
+  window.addEventListener('load', () => {
+    const loader = document.getElementById('loader');
+    setTimeout(() => {
+      loader.classList.add('hidden');
+    }, 300);
+  });
+
+  fetchUserProfile();
+  fetchServerInfo();
+  loadDashboardData();
 </script>
 </body>
 </html>

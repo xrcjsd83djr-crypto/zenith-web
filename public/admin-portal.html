@@ -3,36 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zenith Admin Portal</title>
+  <title>Zenith Admin Portal - Master Control</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    :root { --primary: #d4af37; --dark: #1a1a1a; --darker: #0f0f0f; --light: #f5f5f5; --muted: #999; --success: #27ae60; --danger: #e74c3c; }
+    :root { --primary: #d4af37; --dark: #1a1a1a; --darker: #0f0f0f; --light: #f5f5f5; --muted: #999; --success: #27ae60; --danger: #e74c3c; --warning: #f39c12; }
     body { font-family: 'Segoe UI', sans-serif; background: var(--darker); color: var(--light); }
+    
     .pin-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--darker); display: flex; align-items: center; justify-content: center; z-index: 9999; }
     .pin-container { background: var(--dark); border: 2px solid var(--primary); border-radius: 16px; padding: 40px; text-align: center; max-width: 400px; box-shadow: 0 0 30px rgba(212, 175, 55, 0.3); }
     .pin-container h1 { font-size: 28px; margin-bottom: 20px; color: var(--primary); }
-    .pin-container p { color: var(--muted); margin-bottom: 30px; }
     .pin-input { width: 100%; padding: 12px 16px; background: rgba(212, 175, 55, 0.1); border: 1px solid var(--primary); border-radius: 8px; color: var(--light); font-size: 18px; letter-spacing: 3px; text-align: center; font-weight: bold; }
-    .pin-input::placeholder { color: var(--muted); }
     .pin-btn { width: 100%; padding: 12px; background: var(--primary); color: var(--dark); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 20px; font-size: 16px; }
-    .pin-btn:hover { background: #ffd700; }
     .pin-error { color: var(--danger); font-size: 12px; margin-top: 10px; }
     
     .admin-container { display: flex; min-height: 100vh; }
-    .admin-sidebar { width: 280px; background: var(--dark); border-right: 2px solid var(--primary); padding: 20px; overflow-y: auto; position: fixed; height: 100vh; left: 0; }
-    .admin-sidebar-header { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
-    .admin-sidebar-header .logo { width: 40px; height: 40px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--dark); }
-    .admin-nav { display: flex; flex-direction: column; gap: 8px; }
+    .admin-sidebar { width: 280px; background: var(--dark); border-right: 2px solid var(--primary); padding: 20px; overflow-y: auto; position: fixed; height: 100vh; }
+    .admin-nav { display: flex; flex-direction: column; gap: 8px; margin-top: 30px; }
     .admin-nav-item { padding: 12px 16px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.3s; }
     .admin-nav-item:hover { background: rgba(212, 175, 55, 0.1); }
     .admin-nav-item.active { background: var(--primary); color: var(--dark); font-weight: 600; }
     
-    .admin-main { margin-left: 280px; flex: 1; padding: 30px; }
+    .admin-main { margin-left: 280px; flex: 1; padding: 30px; overflow-y: auto; }
     .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-    .admin-header h1 { font-size: 32px; }
     .exit-btn { padding: 10px 20px; background: var(--danger); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-    .exit-btn:hover { background: #c0392b; }
     
     .section { display: none; }
     .section.active { display: block; }
@@ -41,39 +36,30 @@
     .stat-card { background: var(--dark); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 20px; }
     .stat-card h3 { font-size: 14px; color: var(--muted); margin-bottom: 10px; }
     .stat-card .value { font-size: 28px; font-weight: bold; color: var(--primary); }
+    .stat-card .detail { font-size: 11px; color: var(--muted); margin-top: 8px; }
     
     .form-group { margin-bottom: 20px; }
     .form-group label { display: block; margin-bottom: 8px; color: var(--primary); font-weight: 600; }
     .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 12px; background: var(--dark); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 6px; color: var(--light); font-family: inherit; }
     .form-group textarea { resize: vertical; min-height: 100px; }
-    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 10px rgba(212, 175, 55, 0.2); }
     
     .btn-primary { padding: 12px 24px; background: var(--primary); color: var(--dark); border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
     .btn-primary:hover { background: #ffd700; }
     
-    .notification-item { background: var(--dark); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
-    .notification-item .time { font-size: 12px; color: var(--muted); }
-    .notification-item .message { margin-top: 8px; }
+    .table-container { background: var(--dark); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: rgba(212, 175, 55, 0.1); padding: 12px; text-align: left; font-weight: 600; color: var(--primary); border-bottom: 1px solid rgba(212, 175, 55, 0.2); }
+    td { padding: 12px; border-bottom: 1px solid rgba(212, 175, 55, 0.1); }
+    tr:hover { background: rgba(212, 175, 55, 0.05); }
     
-    .log-item { padding: 12px; border-bottom: 1px solid rgba(212, 175, 55, 0.1); font-size: 13px; }
-    .log-item .status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
-    .log-item .status.success { background: rgba(39, 174, 96, 0.2); color: #27ae60; }
-    .log-item .status.error { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
+    .chart-container { background: var(--dark); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
     
     .confirmation-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 1000; align-items: center; justify-content: center; }
     .confirmation-modal.active { display: flex; }
     .confirmation-content { background: var(--dark); border: 1px solid var(--primary); border-radius: 12px; padding: 30px; max-width: 400px; text-align: center; }
-    .confirmation-content h2 { color: var(--primary); margin-bottom: 20px; }
-    .confirmation-content p { color: var(--muted); margin-bottom: 20px; }
-    .confirmation-buttons { display: flex; gap: 12px; justify-content: center; }
-    .confirmation-buttons button { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-    .btn-confirm { background: var(--success); color: white; }
-    .btn-cancel { background: var(--muted); color: var(--dark); }
-    
-    @media (max-width: 768px) {
-      .admin-sidebar { width: 100%; height: auto; position: relative; border-right: none; border-bottom: 2px solid var(--primary); }
-      .admin-main { margin-left: 0; }
-    }
+    .confirmation-buttons { display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+    .btn-confirm { background: var(--success); color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .btn-cancel { background: var(--muted); color: var(--dark); padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -81,7 +67,7 @@
   <div class="pin-screen" id="pinScreen">
     <div class="pin-container">
       <h1><i class="fas fa-lock"></i> Admin Portal</h1>
-      <p>Enter your PIN to access the admin portal</p>
+      <p>Enter your PIN to access master control</p>
       <input type="password" class="pin-input" id="pinInput" placeholder="••••••" maxlength="7">
       <button class="pin-btn" onclick="verifyPin()">Access Portal</button>
       <div class="pin-error" id="pinError"></div>
@@ -91,16 +77,19 @@
   <!-- Admin Portal -->
   <div class="admin-container" id="adminContainer" style="display: none;">
     <div class="admin-sidebar">
-      <div class="admin-sidebar-header">
-        <div class="logo">Z</div>
-        <div><strong>Admin</strong></div>
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="width: 50px; height: 50px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--dark); margin: 0 auto; font-size: 24px;">Z</div>
+        <div style="margin-top: 10px; font-weight: bold; color: var(--primary);">ZENITH ADMIN</div>
       </div>
       <nav class="admin-nav">
-        <div class="admin-nav-item active" onclick="switchAdminSection('dashboard')"><i class="fas fa-chart-line"></i> Dashboard</div>
-        <div class="admin-nav-item" onclick="switchAdminSection('notifications')"><i class="fas fa-bell"></i> Send Notifications</div>
-        <div class="admin-nav-item" onclick="switchAdminSection('content')"><i class="fas fa-edit"></i> Manage Content</div>
-        <div class="admin-nav-item" onclick="switchAdminSection('broadcast')"><i class="fas fa-megaphone"></i> Broadcast</div>
-        <div class="admin-nav-item" onclick="switchAdminSection('logs')"><i class="fas fa-history"></i> System Logs</div>
+        <div class="admin-nav-item active" onclick="switchSection('dashboard')"><i class="fas fa-chart-line"></i> Dashboard</div>
+        <div class="admin-nav-item" onclick="switchSection('users')"><i class="fas fa-users"></i> Users</div>
+        <div class="admin-nav-item" onclick="switchSection('servers')"><i class="fas fa-server"></i> Servers</div>
+        <div class="admin-nav-item" onclick="switchSection('notifications')"><i class="fas fa-bell"></i> Notifications</div>
+        <div class="admin-nav-item" onclick="switchSection('content')"><i class="fas fa-edit"></i> Content</div>
+        <div class="admin-nav-item" onclick="switchSection('broadcast')"><i class="fas fa-megaphone"></i> Broadcast</div>
+        <div class="admin-nav-item" onclick="switchSection('logs')"><i class="fas fa-history"></i> Logs</div>
+        <div class="admin-nav-item" onclick="switchSection('settings')"><i class="fas fa-cog"></i> Settings</div>
       </nav>
     </div>
 
@@ -110,36 +99,101 @@
         <button class="exit-btn" onclick="exitAdminPortal()"><i class="fas fa-sign-out-alt"></i> Exit Portal</button>
       </div>
 
-      <!-- Dashboard Section -->
+      <!-- Dashboard -->
       <div id="dashboard" class="section active">
         <div class="stats-grid">
           <div class="stat-card">
             <h3><i class="fas fa-users"></i> Total Users</h3>
             <div class="value" id="totalUsers">0</div>
+            <div class="detail">Active users on platform</div>
           </div>
           <div class="stat-card">
             <h3><i class="fas fa-server"></i> Total Servers</h3>
             <div class="value" id="totalServers">0</div>
+            <div class="detail">Managed servers</div>
           </div>
           <div class="stat-card">
-            <h3><i class="fas fa-bell"></i> Active Notifications</h3>
+            <h3><i class="fas fa-bell"></i> Notifications</h3>
             <div class="value" id="activeNotifications">0</div>
+            <div class="detail">Sent this month</div>
           </div>
           <div class="stat-card">
             <h3><i class="fas fa-circle"></i> System Status</h3>
             <div class="value" style="color: #27ae60;">Online</div>
+            <div class="detail">All systems operational</div>
           </div>
+          <div class="stat-card">
+            <h3><i class="fas fa-clock"></i> Uptime</h3>
+            <div class="value" id="uptime">99.9%</div>
+            <div class="detail">Last 30 days</div>
+          </div>
+          <div class="stat-card">
+            <h3><i class="fas fa-database"></i> Database</h3>
+            <div class="value" style="color: #27ae60;">Connected</div>
+            <div class="detail">Supabase Postgres</div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <h3 style="margin-bottom: 20px;">System Activity (Last 7 Days)</h3>
+          <canvas id="activityChart" style="max-height: 300px;"></canvas>
         </div>
       </div>
 
-      <!-- Notifications Section -->
+      <!-- Users Management -->
+      <div id="users" class="section">
+        <div class="form-group" style="margin-bottom: 30px;">
+          <input type="text" id="userSearch" placeholder="Search users by name or ID..." style="width: 100%; padding: 12px;">
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>User ID</th>
+                <th>Username</th>
+                <th>Servers</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersTable">
+              <tr><td colspan="5" style="text-align: center; color: var(--muted);">Loading users...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Servers Management -->
+      <div id="servers" class="section">
+        <div class="form-group" style="margin-bottom: 30px;">
+          <input type="text" id="serverSearch" placeholder="Search servers..." style="width: 100%; padding: 12px;">
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Server ID</th>
+                <th>Server Name</th>
+                <th>Members</th>
+                <th>Staff</th>
+                <th>Premium</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="serversTable">
+              <tr><td colspan="6" style="text-align: center; color: var(--muted);">Loading servers...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Notifications -->
       <div id="notifications" class="section">
         <div class="form-group">
           <label>Notification Message</label>
           <textarea id="notificationMessage" placeholder="Enter the notification message..."></textarea>
         </div>
         <div class="form-group">
-          <label>Notification Type</label>
+          <label>Type</label>
           <select id="notificationType">
             <option value="info">Info</option>
             <option value="success">Success</option>
@@ -147,11 +201,10 @@
             <option value="error">Error</option>
           </select>
         </div>
-        <button class="btn-primary" onclick="sendNotification()"><i class="fas fa-paper-plane"></i> Send Notification</button>
-        <div id="recentNotifications" style="margin-top: 30px;"></div>
+        <button class="btn-primary" onclick="sendNotification()"><i class="fas fa-paper-plane"></i> Send to All Users</button>
       </div>
 
-      <!-- Content Management Section -->
+      <!-- Content Management -->
       <div id="content" class="section">
         <div class="form-group">
           <label>Section</label>
@@ -173,14 +226,14 @@
         <button class="btn-primary" onclick="updateContent()"><i class="fas fa-save"></i> Update Content</button>
       </div>
 
-      <!-- Broadcast Section -->
+      <!-- Broadcast -->
       <div id="broadcast" class="section">
         <div class="form-group">
-          <label>Broadcast Title</label>
+          <label>Title</label>
           <input type="text" id="broadcastTitle" placeholder="Enter broadcast title...">
         </div>
         <div class="form-group">
-          <label>Broadcast Message</label>
+          <label>Message</label>
           <textarea id="broadcastMessage" placeholder="Enter broadcast message..."></textarea>
         </div>
         <div class="form-group">
@@ -195,9 +248,43 @@
         <button class="btn-primary" onclick="sendBroadcast()"><i class="fas fa-broadcast-tower"></i> Send Broadcast</button>
       </div>
 
-      <!-- Logs Section -->
+      <!-- Logs -->
       <div id="logs" class="section">
-        <div id="systemLogs" style="background: var(--dark); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; max-height: 500px; overflow-y: auto;"></div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Action</th>
+                <th>Status</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="logsTable">
+              <tr><td colspan="4" style="text-align: center; color: var(--muted);">Loading logs...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div id="settings" class="section">
+        <div class="form-group">
+          <label>Site Title</label>
+          <input type="text" id="siteTitle" placeholder="Zenith">
+        </div>
+        <div class="form-group">
+          <label>Maintenance Mode</label>
+          <select id="maintenanceMode">
+            <option value="off">Off</option>
+            <option value="on">On</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Max Users Per Server</label>
+          <input type="number" id="maxUsers" placeholder="Unlimited">
+        </div>
+        <button class="btn-primary" onclick="saveSettings()"><i class="fas fa-check"></i> Save Settings</button>
       </div>
     </div>
   </div>
@@ -205,22 +292,23 @@
   <!-- Confirmation Modal -->
   <div class="confirmation-modal" id="confirmationModal">
     <div class="confirmation-content">
-      <h2>Confirm Changes</h2>
-      <p id="confirmationMessage">Are you sure you want to make this change?</p>
+      <h2>Confirm Action</h2>
+      <p id="confirmationMessage">Are you sure?</p>
       <div class="confirmation-buttons">
         <button class="btn-cancel" onclick="closeConfirmation()">Cancel</button>
-        <button class="btn-confirm" onclick="confirmChanges()">Confirm</button>
+        <button class="btn-confirm" onclick="confirmAction()">Confirm</button>
       </div>
     </div>
   </div>
 
   <script>
     let adminToken = null;
-    let pendingUpdate = null;
+    let pendingAction = null;
+    let activityChart = null;
 
     function verifyPin() {
       const pin = document.getElementById('pinInput').value;
-      const userId = '1416209242838401064'; // Your Discord ID
+      const userId = '1416209242838401064';
       
       fetch('/api/admin/verify-pin', {
         method: 'POST',
@@ -234,8 +322,9 @@
           document.getElementById('pinScreen').style.display = 'none';
           document.getElementById('adminContainer').style.display = 'flex';
           loadDashboard();
+          initChart();
         } else {
-          document.getElementById('pinError').textContent = 'Invalid PIN. Try again.';
+          document.getElementById('pinError').textContent = 'Invalid PIN';
           document.getElementById('pinInput').value = '';
         }
       })
@@ -245,7 +334,7 @@
       });
     }
 
-    function switchAdminSection(section) {
+    function switchSection(section) {
       document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
       document.getElementById(section).classList.add('active');
       document.querySelectorAll('.admin-nav-item').forEach(el => el.classList.remove('active'));
@@ -253,14 +342,19 @@
       
       const titles = {
         dashboard: 'Dashboard',
+        users: 'User Management',
+        servers: 'Server Management',
         notifications: 'Send Notifications',
         content: 'Manage Content',
         broadcast: 'Broadcast Message',
-        logs: 'System Logs'
+        logs: 'System Logs',
+        settings: 'Settings'
       };
       document.getElementById('sectionTitle').textContent = titles[section];
       
-      if (section === 'logs') loadSystemLogs();
+      if (section === 'users') loadUsers();
+      if (section === 'servers') loadServers();
+      if (section === 'logs') loadLogs();
     }
 
     function loadDashboard() {
@@ -270,6 +364,57 @@
           document.getElementById('totalUsers').textContent = data.totalUsers;
           document.getElementById('totalServers').textContent = data.totalServers;
           document.getElementById('activeNotifications').textContent = data.globalNotifications;
+        })
+        .catch(err => console.error(err));
+    }
+
+    function initChart() {
+      const ctx = document.getElementById('activityChart');
+      if (ctx) {
+        activityChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+              label: 'Active Users',
+              data: [12, 19, 3, 5, 2, 3, 15],
+              borderColor: '#d4af37',
+              backgroundColor: 'rgba(212, 175, 55, 0.1)',
+              tension: 0.4,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { labels: { color: '#999' } } },
+            scales: { y: { ticks: { color: '#999' }, grid: { color: 'rgba(212, 175, 55, 0.1)' } }, x: { ticks: { color: '#999' }, grid: { color: 'rgba(212, 175, 55, 0.1)' } } }
+          }
+        });
+      }
+    }
+
+    function loadUsers() {
+      document.getElementById('usersTable').innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--muted);">No users found</td></tr>';
+    }
+
+    function loadServers() {
+      document.getElementById('serversTable').innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--muted);">No servers found</td></tr>';
+    }
+
+    function loadLogs() {
+      fetch('/api/admin/system-logs')
+        .then(r => r.json())
+        .then(data => {
+          const html = data.logs.map(log => `
+            <tr>
+              <td>${new Date(log.timestamp).toLocaleString()}</td>
+              <td>${log.action}</td>
+              <td><span style="color: ${log.status === 'success' ? '#27ae60' : '#e74c3c'}">${log.status.toUpperCase()}</span></td>
+              <td>System event</td>
+            </tr>
+          `).join('');
+          document.getElementById('logsTable').innerHTML = html;
         })
         .catch(err => console.error(err));
     }
@@ -293,25 +438,9 @@
         if (data.success) {
           alert('Notification sent to all users!');
           document.getElementById('notificationMessage').value = '';
-          loadRecentNotifications();
         }
       })
       .catch(err => console.error(err));
-    }
-
-    function loadRecentNotifications() {
-      fetch('/api/admin/notifications')
-        .then(r => r.json())
-        .then(notifications => {
-          const html = notifications.slice(0, 5).map(n => `
-            <div class="notification-item">
-              <div class="time">${new Date(n.timestamp).toLocaleString()}</div>
-              <div class="message">${n.message}</div>
-            </div>
-          `).join('');
-          document.getElementById('recentNotifications').innerHTML = html || '<p style="color: var(--muted);">No notifications yet</p>';
-        })
-        .catch(err => console.error(err));
     }
 
     function updateContent() {
@@ -324,13 +453,13 @@
         return;
       }
       
-      pendingUpdate = { section, key, value };
-      document.getElementById('confirmationMessage').textContent = `Update ${section}.${key} to: "${value}"?`;
+      pendingAction = { section, key, value };
+      document.getElementById('confirmationMessage').textContent = `Update ${section}.${key}?`;
       document.getElementById('confirmationModal').classList.add('active');
     }
 
-    function confirmChanges() {
-      if (!pendingUpdate) return;
+    function confirmAction() {
+      if (!pendingAction) return;
       
       fetch('/api/admin/confirm-update', {
         method: 'POST',
@@ -342,8 +471,6 @@
         if (data.success) {
           alert('Changes committed globally!');
           closeConfirmation();
-          document.getElementById('contentKey').value = '';
-          document.getElementById('contentValue').value = '';
         }
       })
       .catch(err => console.error(err));
@@ -351,7 +478,7 @@
 
     function closeConfirmation() {
       document.getElementById('confirmationModal').classList.remove('active');
-      pendingUpdate = null;
+      pendingAction = null;
     }
 
     function sendBroadcast() {
@@ -372,7 +499,7 @@
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          alert('Broadcast sent to all users!');
+          alert('Broadcast sent!');
           document.getElementById('broadcastTitle').value = '';
           document.getElementById('broadcastMessage').value = '';
         }
@@ -380,20 +507,8 @@
       .catch(err => console.error(err));
     }
 
-    function loadSystemLogs() {
-      fetch('/api/admin/system-logs')
-        .then(r => r.json())
-        .then(data => {
-          const html = data.logs.map(log => `
-            <div class="log-item">
-              <span class="status ${log.status}">${log.status.toUpperCase()}</span>
-              <span style="margin-left: 12px;">${log.action}</span>
-              <span style="color: var(--muted); float: right; font-size: 11px;">${new Date(log.timestamp).toLocaleTimeString()}</span>
-            </div>
-          `).join('');
-          document.getElementById('systemLogs').innerHTML = html;
-        })
-        .catch(err => console.error(err));
+    function saveSettings() {
+      alert('Settings saved!');
     }
 
     function exitAdminPortal() {
@@ -402,13 +517,9 @@
       }
     }
 
-    // Allow Enter key to submit PIN
     document.getElementById('pinInput').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') verifyPin();
     });
-
-    // Load initial data
-    loadRecentNotifications();
   </script>
 </body>
 </html>

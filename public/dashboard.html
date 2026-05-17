@@ -3,893 +3,304 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
   <title>Zenith Dashboard</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #f8f9fa;
-      --surface: #ffffff;
-      --surface2: #f0f2f5;
-      --border: #e0e0e0;
-      --primary: #d4af37;
-      --primary-hover: #ffd700;
-      --text: #2c3e50;
-      --muted: #7f8c8d;
-      --danger: #c0392b;
-      --success: #27ae60;
-      --warning: #f39c12;
-      --info: #3498db;
-    }
-    html { scroll-behavior: smooth; }
-    body { font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
-    a { color: inherit; text-decoration: none; }
-    
-    #loader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 9999; opacity: 1; transition: opacity 0.6s ease; }
-    #loader.hidden { opacity: 0; pointer-events: none; }
-    .loader-bar { width: 60px; height: 4px; background: var(--surface); border-radius: 2px; overflow: hidden; }
-    .loader-bar::after { content: ''; display: block; height: 100%; background: linear-gradient(90deg, #d4af37, #ffd700, #d4af37); animation: loading 1.5s infinite; }
-    @keyframes loading { 0% { width: 0%; } 50% { width: 100%; } 100% { width: 0%; } }
-    
-    .dashboard { display: flex; min-height: 100vh; }
-    .sidebar { width: 260px; background: white; border-right: 1px solid var(--border); padding: 24px 0; position: fixed; height: 100vh; overflow-y: auto; z-index: 50; box-shadow: 4px 0 12px rgba(0,0,0,0.03); }
-    .sidebar-logo { display: flex; align-items: center; gap: 10px; padding: 0 24px; margin-bottom: 32px; font-weight: 800; font-size: 20px; }
-    .sidebar-logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 18px; color: white; }
-    .sidebar-nav { list-style: none; }
-    .sidebar-nav a { display: flex; align-items: center; gap: 12px; padding: 12px 24px; color: var(--muted); font-size: 14px; font-weight: 600; transition: all 0.2s; border-left: 4px solid transparent; cursor: pointer; }
-    .sidebar-nav a:hover { color: var(--text); background: rgba(212, 175, 55, 0.05); }
-    .sidebar-nav a.active { color: #d4af37; background: rgba(212, 175, 55, 0.1); border-left-color: #d4af37; }
-    .sidebar-nav i { width: 20px; text-align: center; font-size: 16px; }
-    .sidebar-section-label { font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); padding: 24px 24px 12px; }
-    .premium-card { margin: 24px; padding: 20px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 16px; color: white; text-align: center; box-shadow: 0 8px 16px rgba(212, 175, 55, 0.2); }
-    .premium-card h4 { font-size: 14px; font-weight: 800; margin-bottom: 8px; }
-    .premium-card p { font-size: 11px; margin-bottom: 16px; opacity: 0.9; line-height: 1.4; }
-    .premium-card .btn-white { background: white; color: #d4af37; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none; display: inline-block; }
-    
-    .main { flex: 1; margin-left: 260px; }
-    .header { border-bottom: 2px solid #d4af37; background: white; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 40; flex-wrap: wrap; gap: 12px; }
-    .server-info { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 200px; }
-    .server-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden; }
-    .server-icon img { width: 100%; height: 100%; object-fit: cover; }
-    .server-details h2 { font-size: 16px; font-weight: 800; }
-    .server-details p { font-size: 12px; color: var(--muted); }
-    .header-right { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--muted); white-space: nowrap; }
-    .header-right i { color: #27ae60; font-size: 6px; margin-right: 4px; }
-    .mobile-menu-btn { display: none; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text); }
-    
-    .content { padding: 32px; }
-    .section { display: none; }
-    .section.active { display: block; }
-    .section-header { margin-bottom: 32px; }
-    .section-header h1 { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
-    .section-header p { color: var(--muted); }
-    
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 32px; }
-    .stat-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: all 0.3s; }
-    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
-    .stat-icon { font-size: 32px; color: #d4af37; margin-bottom: 12px; }
-    .stat-value { font-size: 28px; font-weight: 900; margin-bottom: 4px; }
-    .stat-label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-    .stat-detail { font-size: 10px; color: var(--muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
-    
-    .chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 16px; margin-bottom: 32px; }
-    .chart-container { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-    .chart-container h3 { font-size: 16px; font-weight: 800; margin-bottom: 16px; }
-    
-    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 32px; }
-    .info-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-    .info-card h3 { font-size: 13px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; letter-spacing: 0.5px; }
-    .info-card p { font-size: 18px; font-weight: 700; color: var(--text); }
-    .info-card .detail { font-size: 12px; color: var(--muted); margin-top: 8px; }
-    
-    .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-    .staff-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; transition: all 0.3s; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.02); position: relative; }
-    .staff-card:hover { transform: translateY(-6px); border-color: #d4af37; box-shadow: 0 12px 24px rgba(212, 175, 55, 0.15); }
-    .staff-status-badge { position: absolute; top: 12px; right: 12px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; }
-    .staff-status-badge.online { background: #27ae60; }
-    .staff-status-badge.offline { background: #95a5a6; }
-    .staff-avatar { width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 16px; border: 3px solid #d4af37; overflow: hidden; background: var(--surface2); flex-shrink: 0; }
-    .staff-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .staff-name { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
-    .staff-role { font-size: 12px; color: #d4af37; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; }
-    .staff-meta { font-size: 11px; color: var(--muted); padding-top: 12px; border-top: 1px solid var(--border); }
-    .staff-meta-item { margin: 6px 0; }
-    
-    .role-selector { background: white; border: 2px dashed #d4af37; border-radius: 16px; padding: 40px; text-align: center; margin-bottom: 40px; }
-    .role-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 24px 0; text-align: left; }
-    .role-item { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--bg); border-radius: 10px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
-    .role-item:hover { border-color: #d4af37; }
-    .role-item.selected { background: rgba(212, 175, 55, 0.1); border-color: #d4af37; }
-    .role-dot { width: 10px; height: 10px; border-radius: 50%; }
-    
-    .btn-gold { background: linear-gradient(135deg, #d4af37, #ffd700); color: white; padding: 10px 24px; border-radius: 10px; font-weight: 800; border: none; cursor: pointer; font-size: 13px; }
-    .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(212, 175, 55, 0.3); }
-    .btn-gold:disabled { opacity: 0.5; cursor: not-allowed; }
-    
-    .table-container { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 32px; overflow-x: auto; }
-    .table-container table { width: 100%; border-collapse: collapse; min-width: 500px; }
-    .table-container th { background: var(--surface2); padding: 12px 16px; text-align: left; font-weight: 800; font-size: 11px; text-transform: uppercase; color: var(--muted); }
-    .table-container td { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 13px; }
-    .table-container tr:hover { background: var(--surface2); }
-    
-    .profile-card { background: white; border: 1px solid var(--border); border-radius: 20px; padding: 40px; text-align: center; margin-bottom: 32px; }
-    .profile-avatar { width: 100px; height: 100px; border-radius: 50%; margin: 0 auto 20px; border: 3px solid #d4af37; overflow: hidden; background: var(--surface2); }
-    .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .profile-name { font-size: 24px; font-weight: 900; margin-bottom: 4px; }
-    .profile-id { font-size: 12px; color: var(--muted); margin-bottom: 24px; font-family: monospace; }
-    .profile-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-    
-    .btn-danger { background: #c0392b; color: white; padding: 10px 24px; border-radius: 10px; font-weight: 800; border: none; cursor: pointer; font-size: 13px; }
-    .btn-danger:hover { background: #a93226; }
-    
-    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
-    .modal.show { display: flex; }
-    .modal-content { background: white; border-radius: 16px; padding: 40px; text-align: center; max-width: 500px; max-height: 90vh; overflow-y: auto; }
-    .modal-content h2 { margin-bottom: 16px; }
-    .modal-content p { color: var(--muted); margin-bottom: 24px; }
-    .modal-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-    .btn-cancel { background: var(--surface2); color: var(--text); padding: 10px 24px; border-radius: 10px; font-weight: 800; border: none; cursor: pointer; }
-    
-    .staff-detail-modal .modal-content { text-align: left; max-width: 750px; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); }
-    .staff-detail-header { display: flex; align-items: center; gap: 24px; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid var(--border); }
-    .staff-detail-avatar { width: 120px; height: 120px; border-radius: 50%; border: 4px solid #d4af37; overflow: hidden; background: var(--surface2); flex-shrink: 0; box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2); }
-    .staff-detail-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .staff-detail-info h3 { font-size: 24px; font-weight: 900; margin-bottom: 4px; }
-    .staff-detail-info p { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
-    .staff-status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
-    .staff-status-indicator.online { background: #27ae60; }
-    .staff-status-indicator.offline { background: #95a5a6; }
-    .staff-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-    .staff-detail-section { background: linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0%, rgba(255, 215, 0, 0.04) 100%); padding: 16px; border-radius: 12px; border-left: 4px solid #d4af37; }
-    .staff-detail-section h4 { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; letter-spacing: 0.5px; }
-    .staff-detail-section p { font-size: 16px; font-weight: 700; color: var(--text); }
-    .staff-detail-full { grid-column: 1 / -1; }
-    .roles-list { background: linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(52, 152, 219, 0.04) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px; border-left: 4px solid #3498db; }
-    .roles-list h4 { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; letter-spacing: 0.5px; }
-    .role-badge { display: inline-block; padding: 6px 12px; background: white; border: 2px solid #3498db; border-radius: 20px; font-size: 11px; font-weight: 700; margin: 4px 4px 4px 0; color: #3498db; }
-    .staff-history { background: linear-gradient(135deg, rgba(39, 174, 96, 0.08) 0%, rgba(39, 174, 96, 0.04) 100%); padding: 16px; border-radius: 12px; margin-bottom: 16px; border-left: 4px solid #27ae60; }
-    .staff-history h4 { font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; letter-spacing: 0.5px; }
-    .history-item { font-size: 13px; color: var(--text); padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.05); }
-    .history-item:last-child { border-bottom: none; }
-    .history-icon { margin-right: 6px; }
-    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --primary: #d4af37; --dark: #1a1a1a; --darker: #0f0f0f; --light: #f5f5f5; --muted: #999; --success: #27ae60; --danger: #e74c3c; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--darker); color: var(--light); }
+    .container { display: flex; min-height: 100vh; }
+    .sidebar { width: 280px; background: var(--dark); border-right: 2px solid var(--primary); padding: 20px; overflow-y: auto; position: fixed; height: 100vh; left: 0; }
+    .sidebar-header { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
+    .sidebar-header .logo { width: 40px; height: 40px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--dark); }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 8px; }
+    .nav-item { padding: 12px 16px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.3s; }
+    .nav-item:hover { background: rgba(212, 175, 55, 0.1); }
+    .nav-item.active { background: var(--primary); color: var(--dark); font-weight: 600; }
+    .main { margin-left: 280px; flex: 1; padding: 30px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; flex-wrap: wrap; gap: 20px; }
+    .header h1 { font-size: 32px; }
+    .bot-status { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(39, 174, 96, 0.2); border-radius: 6px; cursor: pointer; }
+    .status-dot { width: 8px; height: 8px; background: #27ae60; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+    .stat-card { background: var(--dark); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 20px; }
+    .stat-card h3 { font-size: 14px; color: var(--muted); margin-bottom: 10px; }
+    .stat-card .value { font-size: 28px; font-weight: bold; color: var(--primary); }
+    .search-box { width: 100%; padding: 12px 16px; background: var(--dark); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 6px; color: var(--light); margin-bottom: 20px; }
+    .search-box:focus { outline: none; border-color: var(--primary); }
+    .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px; }
+    .staff-card { background: var(--dark); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.3s; position: relative; }
+    .staff-card:hover { border-color: var(--primary); box-shadow: 0 0 15px rgba(212, 175, 55, 0.2); }
+    .staff-card .avatar { width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 12px; border: 2px solid var(--primary); object-fit: cover; }
+    .staff-card .name { font-weight: 600; margin-bottom: 8px; }
+    .staff-card .role { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .staff-card .status { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; }
+    .status-indicator { width: 6px; height: 6px; border-radius: 50%; }
+    .status-indicator.online { background: #27ae60; }
+    .status-indicator.offline { background: #95a5a6; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 1000; align-items: center; justify-content: center; }
+    .modal.active { display: flex; }
+    .modal-content { background: var(--dark); border: 1px solid var(--primary); border-radius: 12px; padding: 30px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-header h2 { color: var(--primary); }
+    .close-btn { background: none; border: none; color: var(--light); font-size: 24px; cursor: pointer; }
+    .modal-section { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid rgba(212, 175, 55, 0.2); }
+    .modal-section h3 { color: var(--primary); font-size: 14px; margin-bottom: 10px; }
+    .role-badge { display: inline-block; background: rgba(212, 175, 55, 0.2); color: var(--primary); padding: 4px 8px; border-radius: 4px; font-size: 12px; margin-right: 6px; margin-bottom: 6px; }
+    .chart-container { background: var(--dark); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
     @media (max-width: 768px) {
-      .sidebar { left: -260px; transition: left 0.3s; }
-      .sidebar.open { left: 0; }
+      .sidebar { width: 100%; height: auto; position: relative; border-right: none; border-bottom: 2px solid var(--primary); margin-bottom: 20px; }
       .main { margin-left: 0; }
-      .mobile-menu-btn { display: block; }
-      .header { padding: 12px 16px; }
-      .server-details h2 { font-size: 14px; }
-      .server-details p { font-size: 11px; }
-      .header-right { font-size: 11px; }
-      .content { padding: 16px; }
-      .section-header h1 { font-size: 20px; }
-      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-      .stat-card { padding: 16px; }
-      .stat-icon { font-size: 24px; }
-      .stat-value { font-size: 20px; }
-      .stat-detail { display: none; }
-      .chart-row { grid-template-columns: 1fr; }
-      .info-grid { grid-template-columns: 1fr; }
-      .staff-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
-      .staff-card { padding: 16px; }
-      .staff-avatar { width: 60px; height: 60px; margin-bottom: 12px; }
-      .staff-name { font-size: 14px; }
-      .staff-role { font-size: 11px; }
-      .staff-meta { font-size: 10px; }
-      .role-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-      .profile-card { padding: 24px; }
-      .profile-avatar { width: 80px; height: 80px; }
-      .profile-name { font-size: 18px; }
-      .modal { padding: 10px; }
-      .modal-content { padding: 24px; }
-      .staff-detail-modal .modal-content { max-width: 90vw; }
-      .staff-detail-header { flex-direction: column; text-align: center; }
-      .staff-detail-avatar { width: 100px; height: 100px; }
-      .staff-detail-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .staff-grid { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
 </head>
 <body>
-
-<div id="loader"><div class="loader-bar"></div></div>
-
-<!-- LOGOUT MODAL -->
-<div id="logoutModal" class="modal">
-  <div class="modal-content">
-    <h2>Confirm Logout</h2>
-    <p>Are you sure you want to log out?</p>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeLogoutModal()">Cancel</button>
-      <button class="btn-danger" onclick="confirmLogout()">Logout</button>
-    </div>
-  </div>
-</div>
-
-<!-- STAFF DETAIL MODAL -->
-<div id="staffDetailModal" class="modal staff-detail-modal">
-  <div class="modal-content">
-    <div class="staff-detail-header">
-      <img src="" alt="" class="staff-detail-avatar" id="staffDetailAvatar">
-      <div class="staff-detail-info">
-        <h3 id="staffDetailName">Loading...</h3>
-        <p id="staffDetailId"></p>
-        <p id="staffDetailStatus" style="font-size: 12px; color: var(--muted);"><span class="staff-status-indicator"></span><span id="staffStatusText">Loading...</span></p>
-        <p id="staffDetailJoined" style="font-size: 12px; color: var(--muted);"></p>
+  <div class="container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">Z</div>
+        <div><strong>Zenith</strong></div>
       </div>
-    </div>
-    
-    <div class="staff-detail-grid">
-      <div class="staff-detail-section">
-        <h4><i class="fas fa-crown" style="margin-right: 6px; color: #d4af37;"></i> Highest Role</h4>
-        <p id="staffDetailRole">Staff</p>
-      </div>
-      <div class="staff-detail-section">
-        <h4><i class="fas fa-exclamation-triangle" style="margin-right: 6px; color: #f39c12;"></i> Strikes</h4>
-        <p id="staffDetailStrikes">0</p>
-      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-item active" onclick="switchTab('overview')"><i class="fas fa-chart-line"></i> Overview</div>
+        <div class="nav-item" onclick="switchTab('staff')"><i class="fas fa-users"></i> Staff</div>
+        <div class="nav-item" onclick="switchTab('audit')"><i class="fas fa-history"></i> Audit Logs</div>
+        <div class="nav-item" onclick="switchTab('settings')"><i class="fas fa-cog"></i> Settings</div>
+      </nav>
     </div>
 
-    <div class="roles-list">
-      <h4><i class="fas fa-list" style="margin-right: 6px; color: #3498db;"></i> All Roles</h4>
-      <div id="staffRolesList">
-        <span class="role-badge">Staff</span>
-      </div>
-    </div>
-
-    <div class="staff-history">
-      <h4><i class="fas fa-history" style="margin-right: 6px; color: #27ae60;"></i> Activity & History</h4>
-      <div id="staffHistory">
-        <div class="history-item"><i class="fas fa-circle-check history-icon" style="color: #27ae60;"></i>No activity recorded yet</div>
-      </div>
-    </div>
-
-    <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
-      <button class="btn-cancel" onclick="closeStaffDetailModal()">Close</button>
-    </div>
-  </div>
-</div>
-
-<div class="dashboard">
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-logo">
-      <div class="sidebar-logo-icon">Z</div>
-      Zenith
-    </div>
-
-    <ul class="sidebar-nav">
-      <li><a class="nav-link active" data-section="overview"><i class="fas fa-chart-line"></i> Overview</a></li>
-      <li><a class="nav-link" data-section="staff"><i class="fas fa-users-cog"></i> Staff</a></li>
-      <li><a class="nav-link" data-section="shifts"><i class="fas fa-hourglass-start"></i> Shifts</a></li>
-      <li><a class="nav-link" data-section="strikes"><i class="fas fa-gavel"></i> Strikes</a></li>
-      <li><a class="nav-link" data-section="performance"><i class="fas fa-chart-bar"></i> Performance</a></li>
-      <li><a class="nav-link" data-section="trainings"><i class="fas fa-book"></i> Trainings</a></li>
-      <li><a class="nav-link" data-section="loa"><i class="fas fa-plane"></i> LOA</a></li>
-      <li><a class="nav-link" data-section="applications"><i class="fas fa-file-alt"></i> Applications</a></li>
-    </ul>
-
-    <div class="sidebar-section-label">Premium</div>
-    <ul class="sidebar-nav">
-      <li><a class="nav-link" data-section="premium"><i class="fas fa-crown"></i> Manage Premium</a></li>
-    </ul>
-
-    <div class="premium-card">
-      <h4>Upgrade to Pro</h4>
-      <p>Unlimited staff, advanced logs, and custom branding.</p>
-      <a href="javascript:void(0);" class="btn-white" onclick="navigateSection('premium')">View Plans</a>
-    </div>
-
-    <div class="sidebar-section-label">Account</div>
-    <ul class="sidebar-nav">
-      <li><a class="nav-link" data-section="account"><i class="fas fa-user-circle"></i> Profile</a></li>
-      <li><a href="/select-server"><i class="fas fa-exchange-alt"></i> Switch Server</a></li>
-      <li><a onclick="openLogoutModal()"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-    </ul>
-  </aside>
-
-  <main class="main">
-    <header class="header">
-      <button class="mobile-menu-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
-      <div class="server-info">
-        <div class="server-icon" id="server-icon"><i class="fas fa-server"></i></div>
-        <div class="server-details">
-          <h2 id="server-name">Loading...</h2>
-          <p id="server-role">Server Administrator</p>
+    <div class="main">
+      <div class="header">
+        <div>
+          <h1 id="pageTitle">Overview</h1>
+          <p style="color: var(--muted); margin-top: 5px;" id="serverName">Loading...</p>
+        </div>
+        <div class="bot-status" onclick="window.location.href='/status'" style="cursor: pointer;">
+          <div class="status-dot"></div>
+          <span>Bot Status</span>
         </div>
       </div>
-      <div class="header-right">
-        <i class="fas fa-circle" style="color: #27ae60;"></i> Bot Online
-      </div>
-    </header>
 
-    <div class="content">
-      <!-- OVERVIEW -->
-      <div id="overview" class="section active">
-        <div class="section-header">
-          <h1>Server Overview</h1>
-          <p>Real-time analytics and server insights.</p>
-        </div>
+      <!-- Overview Tab -->
+      <div id="overview-tab" class="tab-content active">
         <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-users"></i></div>
-            <div class="stat-value" id="stat-members">0</div>
-            <div class="stat-label">Members</div>
-            <div class="stat-detail" id="stat-members-detail"></div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-circle"></i></div>
-            <div class="stat-value" id="stat-online">0</div>
-            <div class="stat-label">Online</div>
-            <div class="stat-detail" id="stat-online-detail"></div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-user-shield"></i></div>
-            <div class="stat-value" id="stat-staff">0</div>
-            <div class="stat-label">Staff</div>
-            <div class="stat-detail" id="stat-staff-detail"></div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-hashtag"></i></div>
-            <div class="stat-value" id="stat-channels">0</div>
-            <div class="stat-label">Channels</div>
-            <div class="stat-detail" id="stat-channels-detail"></div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-shield-alt"></i></div>
-            <div class="stat-value" id="stat-roles">0</div>
-            <div class="stat-label">Roles</div>
-            <div class="stat-detail" id="stat-roles-detail"></div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-crown"></i></div>
-            <div class="stat-value" id="stat-plan">Free</div>
-            <div class="stat-label">Plan</div>
-            <div class="stat-detail" id="stat-plan-detail"></div>
-          </div>
+          <div class="stat-card"><h3><i class="fas fa-users"></i> Total Members</h3><div class="value" id="totalMembers">0</div></div>
+          <div class="stat-card"><h3><i class="fas fa-circle"></i> Online Now</h3><div class="value" id="onlineMembers">0</div></div>
+          <div class="stat-card"><h3><i class="fas fa-comments"></i> Total Channels</h3><div class="value" id="totalChannels">0</div></div>
+          <div class="stat-card"><h3><i class="fas fa-shield"></i> Total Roles</h3><div class="value" id="totalRoles">0</div></div>
+          <div class="stat-card"><h3><i class="fas fa-smile"></i> Emojis</h3><div class="value" id="totalEmojis">0</div></div>
+          <div class="stat-card"><h3><i class="fas fa-calendar"></i> Server Age</h3><div class="value" id="serverAge">0</div></div>
+          <div class="stat-card"><h3><i class="fas fa-users-cog"></i> Staff Members</h3><div class="value" id="staffCount">0</div></div>
+          <div class="stat-card"><h3><i class="fas fa-exclamation-triangle"></i> Total Strikes</h3><div class="value" id="totalStrikes">0</div></div>
+          <div class="stat-card"><h3><i class="fas fa-crown"></i> Premium Status</h3><div class="value" id="premiumStatus">Free</div></div>
+          <div class="stat-card"><h3><i class="fas fa-bolt"></i> Bot Uptime</h3><div class="value" id="botUptime">100%</div></div>
         </div>
+        <div class="chart-container"><h3 style="margin-bottom: 20px; color: var(--primary);"><i class="fas fa-chart-bar"></i> Member Activity</h3><canvas id="activityChart"></canvas></div>
+        <div class="chart-container"><h3 style="margin-bottom: 20px; color: var(--primary);"><i class="fas fa-circle-notch"></i> Online Distribution</h3><canvas id="statusChart"></canvas></div>
+      </div>
 
-        <div class="chart-row">
-          <div class="chart-container">
-            <h3><i class="fas fa-chart-line" style="margin-right: 8px; color: #d4af37;"></i> Activity Trend</h3>
-            <canvas id="activityChart" style="max-height: 250px;"></canvas>
-          </div>
-          <div class="chart-container">
-            <h3><i class="fas fa-pie-chart" style="margin-right: 8px; color: #3498db;"></i> Member Status</h3>
-            <canvas id="statusChart" style="max-height: 250px;"></canvas>
-          </div>
-        </div>
+      <!-- Staff Tab -->
+      <div id="staff-tab" class="tab-content">
+        <input type="text" class="search-box" id="staffSearch" placeholder="Search by name, role, or status...">
+        <div class="staff-grid" id="staffGrid"><p style="grid-column: 1/-1; text-align: center; color: var(--muted);">Loading staff members...</p></div>
+      </div>
 
-        <div class="info-grid">
-          <div class="info-card">
-            <h3><i class="fas fa-info-circle" style="margin-right: 6px;"></i> Server Name</h3>
-            <p id="info-name">Loading...</p>
-          </div>
-          <div class="info-card">
-            <h3><i class="fas fa-users-slash" style="margin-right: 6px;"></i> Online Ratio</h3>
-            <p id="info-online">0%</p>
-            <div class="detail">Of total members</div>
-          </div>
-          <div class="info-card">
-            <h3><i class="fas fa-list" style="margin-right: 6px;"></i> Roles</h3>
-            <p id="info-roles">0</p>
-            <div class="detail">Including defaults</div>
-          </div>
-          <div class="info-card">
-            <h3><i class="fas fa-smile" style="margin-right: 6px;"></i> Custom Emojis</h3>
-            <p id="info-emojis">0</p>
-            <div class="detail">Available</div>
-          </div>
-          <div class="info-card">
-            <h3><i class="fas fa-robot" style="margin-right: 6px;"></i> Bot Status</h3>
-            <p style="color: #27ae60;"><i class="fas fa-check-circle"></i> Online</p>
-            <div class="detail">Connected</div>
-          </div>
-          <div class="info-card">
-            <h3><i class="fas fa-calendar" style="margin-right: 6px;"></i> Server Created</h3>
-            <p id="info-created">N/A</p>
-            <div class="detail" id="info-created-detail"></div>
-          </div>
+      <!-- Audit Logs Tab -->
+      <div id="audit-tab" class="tab-content">
+        <div style="background: var(--dark); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 20px; text-align: center; color: var(--muted);">
+          <i class="fas fa-info-circle" style="font-size: 24px; margin-bottom: 10px;"></i>
+          <p>Audit logs will be available once the bot is connected</p>
         </div>
       </div>
 
-      <!-- STAFF -->
-      <div id="staff" class="section">
-        <div class="section-header">
-          <h1>Staff Management</h1>
-          <p>Manage your staff team with real-time data.</p>
-        </div>
-        <div id="staff-setup" style="display: none;">
-          <div class="role-selector">
-            <h3>Select Staff Roles</h3>
-            <p>Choose which roles should be considered as staff members.</p>
-            <div class="role-grid" id="role-grid"></div>
-            <button class="btn-gold" onclick="saveStaffRoles()" style="margin-top: 20px;">Save Staff Roles</button>
-          </div>
-        </div>
-        <div id="staff-list" style="display: none;">
-          <div class="staff-grid"></div>
-        </div>
-      </div>
-
-      <!-- SHIFTS -->
-      <div id="shifts" class="section">
-        <div class="section-header">
-          <h1>Shift Management</h1>
-          <p>Coming soon with bot integration.</p>
-        </div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th><i class="fas fa-user" style="margin-right: 6px;"></i> Staff Member</th>
-                <th><i class="fas fa-play" style="margin-right: 6px;"></i> Start</th>
-                <th><i class="fas fa-stop" style="margin-right: 6px;"></i> End</th>
-                <th><i class="fas fa-clock" style="margin-right: 6px;"></i> Duration</th>
-              </tr>
-            </thead>
-            <tbody id="shifts-table">
-              <tr><td colspan="4" style="text-align: center; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i> No shifts recorded yet.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- STRIKES -->
-      <div id="strikes" class="section">
-        <div class="section-header">
-          <h1>Strike System</h1>
-          <p>Coming soon with bot integration.</p>
-        </div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th><i class="fas fa-user" style="margin-right: 6px;"></i> Staff Member</th>
-                <th><i class="fas fa-exclamation-triangle" style="margin-right: 6px;"></i> Strikes</th>
-                <th><i class="fas fa-comment" style="margin-right: 6px;"></i> Reason</th>
-                <th><i class="fas fa-calendar-alt" style="margin-right: 6px;"></i> Date</th>
-              </tr>
-            </thead>
-            <tbody id="strikes-table">
-              <tr><td colspan="4" style="text-align: center; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i> No strikes recorded yet.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- PERFORMANCE -->
-      <div id="performance" class="section">
-        <div class="section-header">
-          <h1>Performance Reviews</h1>
-          <p>Coming soon with bot integration.</p>
-        </div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th><i class="fas fa-user" style="margin-right: 6px;"></i> Staff Member</th>
-                <th><i class="fas fa-star" style="margin-right: 6px;"></i> Rating</th>
-                <th><i class="fas fa-comment" style="margin-right: 6px;"></i> Comments</th>
-                <th><i class="fas fa-calendar-alt" style="margin-right: 6px;"></i> Date</th>
-              </tr>
-            </thead>
-            <tbody id="performance-table">
-              <tr><td colspan="4" style="text-align: center; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i> No reviews recorded yet.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- TRAININGS -->
-      <div id="trainings" class="section">
-        <div class="section-header">
-          <h1>Training Logs</h1>
-          <p>Coming soon with bot integration.</p>
-        </div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th><i class="fas fa-chalkboard-user" style="margin-right: 6px;"></i> Trainer</th>
-                <th><i class="fas fa-user-graduate" style="margin-right: 6px;"></i> Trainee</th>
-                <th><i class="fas fa-book" style="margin-right: 6px;"></i> Topic</th>
-                <th><i class="fas fa-hourglass-half" style="margin-right: 6px;"></i> Duration</th>
-              </tr>
-            </thead>
-            <tbody id="trainings-table">
-              <tr><td colspan="4" style="text-align: center; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i> No trainings recorded yet.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- LOA -->
-      <div id="loa" class="section">
-        <div class="section-header">
-          <h1>Leave of Absence</h1>
-          <p>Coming soon with bot integration.</p>
-        </div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th><i class="fas fa-user" style="margin-right: 6px;"></i> Staff Member</th>
-                <th><i class="fas fa-calendar-check" style="margin-right: 6px;"></i> Start</th>
-                <th><i class="fas fa-calendar-times" style="margin-right: 6px;"></i> End</th>
-                <th><i class="fas fa-info-circle" style="margin-right: 6px;"></i> Status</th>
-              </tr>
-            </thead>
-            <tbody id="loa-table">
-              <tr><td colspan="4" style="text-align: center; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i> No LOA requests.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- APPLICATIONS -->
-      <div id="applications" class="section">
-        <div class="section-header">
-          <h1>Applications</h1>
-          <p>Coming soon with bot integration.</p>
-        </div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th><i class="fas fa-user" style="margin-right: 6px;"></i> Applicant</th>
-                <th><i class="fas fa-briefcase" style="margin-right: 6px;"></i> Position</th>
-                <th><i class="fas fa-check-circle" style="margin-right: 6px;"></i> Status</th>
-                <th><i class="fas fa-calendar-alt" style="margin-right: 6px;"></i> Date</th>
-              </tr>
-            </thead>
-            <tbody id="applications-table">
-              <tr><td colspan="4" style="text-align: center; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i> No applications.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- PREMIUM -->
-      <div id="premium" class="section">
-        <div class="section-header">
-          <h1>Premium Plans</h1>
-          <p>Upgrade your server for advanced features.</p>
-        </div>
-        <div class="info-grid">
-          <div class="info-card">
-            <h3><i class="fas fa-gift" style="margin-right: 6px;"></i> Free Plan</h3>
-            <p>Unlimited Staff</p>
-            <div class="detail">Basic features included</div>
-          </div>
-          <div class="info-card">
-            <h3><i class="fas fa-star" style="margin-right: 6px;"></i> Pro Plan</h3>
-            <p>$9.99/month</p>
-            <div class="detail">Advanced features and priority support</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ACCOUNT -->
-      <div id="account" class="section">
-        <div class="section-header">
-          <h1>Profile</h1>
-          <p>Your account information.</p>
-        </div>
-        <div class="profile-card">
-          <img src="" alt="" class="profile-avatar" id="profile-avatar">
-          <h2 class="profile-name" id="profile-name">Loading...</h2>
-          <p class="profile-id" id="profile-id"></p>
-          <div class="profile-actions">
-            <button class="btn-danger" onclick="openLogoutModal()">Logout</button>
-          </div>
+      <!-- Settings Tab -->
+      <div id="settings-tab" class="tab-content">
+        <div style="background: var(--dark); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 20px;">
+          <h3 style="color: var(--primary); margin-bottom: 20px;">Server Settings</h3>
+          <p style="color: var(--muted); margin-bottom: 20px;">Settings will be available once the bot is connected</p>
         </div>
       </div>
     </div>
-  </main>
-</div>
+  </div>
 
-<script>
-  const serverId = new URLSearchParams(window.location.search).get('id');
-  if (!serverId) window.location.href = '/select-server';
-  
-  let selectedRoles = new Set();
-  let staffData = [];
-  let guildRoles = [];
-  let activityChart, statusChart;
+  <!-- Staff Detail Modal -->
+  <div class="modal" id="staffModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Staff Member Details</h2>
+        <button class="close-btn" onclick="closeModal()">&times;</button>
+      </div>
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img id="modalAvatar" src="" alt="Avatar" style="width: 100px; height: 100px; border-radius: 50%; border: 2px solid var(--primary);">
+        <h3 id="modalName" style="margin-top: 12px; font-size: 20px;"></h3>
+        <p id="modalId" style="color: var(--muted); font-size: 12px;"></p>
+      </div>
+      <div class="modal-section">
+        <h3><i class="fas fa-shield"></i> Roles</h3>
+        <div id="modalRoles"></div>
+      </div>
+      <div class="modal-section">
+        <h3><i class="fas fa-circle"></i> Status</h3>
+        <p id="modalStatus"></p>
+      </div>
+      <div class="modal-section">
+        <h3><i class="fas fa-exclamation-triangle"></i> Strikes</h3>
+        <p id="modalStrikes" style="font-size: 24px; color: var(--primary); font-weight: bold;"></p>
+      </div>
+      <div class="modal-section">
+        <h3><i class="fas fa-calendar"></i> Joined</h3>
+        <p id="modalJoined"></p>
+      </div>
+      <div class="modal-section">
+        <h3><i class="fas fa-history"></i> Activity</h3>
+        <p id="modalActivity" style="font-size: 13px;"></p>
+      </div>
+    </div>
+  </div>
 
-  function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('open');
-  }
+  <script>
+    const guildId = new URLSearchParams(window.location.search).get('id');
+    let staffMembers = [];
+    let allStaffMembers = [];
 
-  function closeSidebar() {
-    document.getElementById('sidebar').classList.remove('open');
-  }
+    async function loadData() {
+      try {
+        const [detailed, staff, user] = await Promise.all([
+          fetch(`/api/guilds/${guildId}/detailed`).then(r => r.json()),
+          fetch(`/api/guilds/${guildId}/staff-with-status`).then(r => r.json()),
+          fetch(`/api/user`).then(r => r.json())
+        ]);
 
-  async function fetchUserProfile() {
-    try {
-      const res = await fetch('/api/user');
-      if (!res.ok) { window.location.href = '/'; return; }
-      const user = await res.json();
-      document.getElementById('profile-name').textContent = user.username;
-      document.getElementById('profile-id').textContent = `ID: ${user.id}`;
-      document.getElementById('profile-avatar').src = user.avatarUrl;
-    } catch (err) {
-      console.error('Error fetching user:', err);
-      window.location.href = '/';
-    }
-  }
+        document.getElementById('serverName').textContent = detailed.name;
+        document.getElementById('totalMembers').textContent = detailed.memberCount || 0;
+        document.getElementById('totalChannels').textContent = (detailed.channels || []).length;
+        document.getElementById('totalRoles').textContent = (detailed.roles || []).filter(r => r.name !== '@everyone').length;
+        document.getElementById('totalEmojis').textContent = (detailed.emojis || []).length;
+        document.getElementById('staffCount').textContent = staff.length;
+        
+        const serverAge = Math.floor((Date.now() - new Date(detailed.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+        document.getElementById('serverAge').textContent = serverAge;
 
-  async function fetchServerInfo() {
-    try {
-      const res = await fetch(`/api/guilds/${serverId}/detailed`);
-      if (!res.ok) return;
-      const server = await res.json();
-      document.getElementById('server-name').textContent = server.name;
-      document.getElementById('info-name').textContent = server.name;
-      
-      const members = server.member_count || 0;
-      const online = server.online_count || 0;
-      const channels = server.channels || 0;
-      const roles = server.roles || 0;
-      const emojis = server.emojis || 0;
-      
-      document.getElementById('stat-members').textContent = members;
-      document.getElementById('stat-members-detail').textContent = `Total users`;
-      
-      document.getElementById('stat-online').textContent = online;
-      const onlinePercent = members > 0 ? Math.round((online / members) * 100) : 0;
-      document.getElementById('stat-online-detail').textContent = `${onlinePercent}% online`;
-      
-      document.getElementById('stat-channels').textContent = channels;
-      document.getElementById('stat-channels-detail').textContent = `Text & Voice`;
-      
-      document.getElementById('stat-roles').textContent = roles;
-      document.getElementById('stat-roles-detail').textContent = `All roles`;
-      
-      document.getElementById('info-online').textContent = `${onlinePercent}%`;
-      document.getElementById('info-roles').textContent = roles;
-      document.getElementById('info-emojis').textContent = emojis;
-      
-      if (server.icon) {
-        document.getElementById('server-icon').innerHTML = `<img src="https://cdn.discordapp.com/icons/${serverId}/${server.icon}.png">`;
+        allStaffMembers = staff;
+        staffMembers = staff;
+        renderStaff();
+        initCharts(detailed, staff);
+      } catch (err) {
+        console.error('Error loading data:', err);
       }
+    }
+
+    function renderStaff(filtered = null) {
+      const list = filtered || staffMembers;
+      const grid = document.getElementById('staffGrid');
       
-      initCharts(online, members);
-    } catch (err) {
-      console.error('Error:', err);
-    }
-  }
-
-  function initCharts(online, total) {
-    const activityCtx = document.getElementById('activityChart').getContext('2d');
-    activityChart = new Chart(activityCtx, {
-      type: 'line',
-      data: {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-        datasets: [{
-          label: 'Messages',
-          data: [65, 78, 90, 81, 95, 88, 72],
-          borderColor: '#d4af37',
-          backgroundColor: 'rgba(212, 175, 55, 0.1)',
-          tension: 0.4,
-          fill: true
-        }]
-      },
-      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: true } } }
-    });
-
-    const statusCtx = document.getElementById('statusChart').getContext('2d');
-    statusChart = new Chart(statusCtx, {
-      type: 'doughnut',
-      data: {
-        labels: ['Online', 'Offline', 'Idle'],
-        datasets: [{
-          data: [online, Math.max(0, total - online - 5), 5],
-          backgroundColor: ['#27ae60', '#95a5a6', '#f39c12']
-        }]
-      },
-      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: true } } }
-    });
-  }
-
-  async function loadDashboardData() {
-    try {
-      const staffRes = await fetch(`/api/guilds/${serverId}/staff-with-status`);
-      const staff = staffRes.ok ? await staffRes.json() : [];
-      staffData = staff;
-      if (staff.length === 0) {
-        showRoleSelector();
-      } else {
-        renderStaffList(staff);
-        document.getElementById('stat-staff').textContent = staff.length;
-        document.getElementById('stat-staff-detail').textContent = `Active`;
-      }
-
-      const premiumRes = await fetch(`/api/guilds/${serverId}/premium`);
-      const premium = premiumRes.ok ? await premiumRes.json() : { isPremium: false };
-      document.getElementById('stat-plan').textContent = premium.isPremium ? 'Pro' : 'Free';
-      document.getElementById('stat-plan-detail').textContent = premium.isPremium ? 'All features' : 'Basic';
-    } catch (err) {
-      console.error('Error:', err);
-    }
-  }
-
-  async function showRoleSelector() {
-    document.getElementById('staff-setup').style.display = 'block';
-    try {
-      const res = await fetch(`/api/guilds/${serverId}/roles`);
-      const roles = res.ok ? await res.json() : [];
-      guildRoles = roles;
-      const grid = document.getElementById('role-grid');
-      if (roles.length === 0) {
-        grid.innerHTML = '<p style="grid-column: 1/-1; color: var(--muted);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i>No roles found.</p>';
+      if (list.length === 0) {
+        grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--muted);">No staff members found</p>';
         return;
       }
-      grid.innerHTML = roles.sort((a,b) => b.position - a.position).map(role => `
-        <div class="role-item" onclick="toggleRole(this, '${role.id}')">
-          <div class="role-dot" style="background: #${(role.color || 0).toString(16).padStart(6, '0')}"></div>
-          <span style="font-size: 12px; font-weight: 600;">${role.name}</span>
+
+      grid.innerHTML = list.map(s => `
+        <div class="staff-card" onclick="openModal('${s.user_id}')">
+          <img src="${s.avatar_url}" alt="${s.username}" class="avatar">
+          <div class="name">${s.username}</div>
+          <div class="role">${s.highest_role}</div>
+          <div class="status">
+            <div class="status-indicator ${s.status === 'online' ? 'online' : 'offline'}"></div>
+            <span>${s.status === 'online' ? 'Online' : 'Offline'}</span>
+          </div>
         </div>
       `).join('');
-    } catch (err) {
-      console.error('Error:', err);
     }
-  }
 
-  function toggleRole(el, id) {
-    if (selectedRoles.has(id)) {
-      selectedRoles.delete(id);
-      el.classList.remove('selected');
-    } else {
-      selectedRoles.add(id);
-      el.classList.add('selected');
-    }
-  }
-
-  async function saveStaffRoles() {
-    if (selectedRoles.size === 0) {
-      alert('Please select at least one role!');
-      return;
-    }
-    
-    const btn = event.target;
-    btn.disabled = true;
-    btn.textContent = 'Saving...';
-    
-    try {
-      const res = await fetch(`/api/guilds/${serverId}/staff-roles`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roleIds: Array.from(selectedRoles) })
-      });
-      
-      const data = await res.json();
-      if (res.ok) {
-        alert(`Success! Added ${data.added} staff members.`);
-        setTimeout(() => location.reload(), 1000);
-      } else {
-        alert(`Error: ${data.error}`);
-        btn.disabled = false;
-        btn.textContent = 'Save Staff Roles';
-      }
-    } catch (err) {
-      console.error('Error:', err);
-      alert('Failed to save roles');
-      btn.disabled = false;
-      btn.textContent = 'Save Staff Roles';
-    }
-  }
-
-  function renderStaffList(staff) {
-    document.getElementById('staff-setup').style.display = 'none';
-    document.getElementById('staff-list').style.display = 'block';
-    const container = document.querySelector('#staff-list .staff-grid');
-    container.innerHTML = staff.map(s => `
-      <div class="staff-card" onclick="openStaffDetailModal('${s.user_id}')">
-        <div class="staff-status-badge ${s.status || 'offline'}"></div>
-        <div class="staff-avatar"><img src="${s.avatar_url || 'https://cdn.discordapp.com/embed/avatars/0.png'}" alt="${s.username}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'"></div>
-        <div class="staff-name">${s.username}</div>
-        <div class="staff-role">${s.highest_role || 'Staff'}</div>
-        <div class="staff-meta">
-          <div class="staff-meta-item"><i class="fas fa-circle" style="font-size: 6px; margin-right: 4px; color: ${s.status === 'online' ? '#27ae60' : '#95a5a6'};"></i> ${s.status === 'online' ? 'Online' : 'Offline'}</div>
-          <div class="staff-meta-item"><i class="fas fa-exclamation-triangle" style="margin-right: 4px; color: #f39c12;"></i> ${s.strikes || 0} strikes</div>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  async function openStaffDetailModal(userId) {
-    try {
-      const res = await fetch(`/api/guilds/${serverId}/member/${userId}`);
-      if (!res.ok) return alert('Failed to load member details');
-      const member = await res.json();
-      
-      const staffMember = staffData.find(s => s.user_id === userId);
-      const isOnline = staffMember?.status === 'online';
-      
-      document.getElementById('staffDetailName').textContent = member.username;
-      document.getElementById('staffDetailId').textContent = `ID: ${member.user_id}`;
-      document.getElementById('staffDetailRole').textContent = member.highest_role;
-      document.getElementById('staffDetailJoined').textContent = `Joined: ${new Date(member.joined_at).toLocaleDateString()}`;
-      document.getElementById('staffDetailAvatar').src = member.avatar_url;
-      document.getElementById('staffDetailAvatar').onerror = function() { this.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; };
-      
-      const statusIndicator = document.querySelector('.staff-status-indicator');
-      statusIndicator.className = `staff-status-indicator ${isOnline ? 'online' : 'offline'}`;
-      document.getElementById('staffStatusText').textContent = isOnline ? 'Online' : 'Offline';
-      
-      document.getElementById('staffDetailStrikes').textContent = (staffMember?.strikes || 0);
-      
-      const rolesList = member.all_roles.map(r => `<span class="role-badge">${r.name}</span>`).join('');
-      document.getElementById('staffRolesList').innerHTML = rolesList || '<span class="role-badge">Staff</span>';
-      
-      const historyHtml = `
-        <div class="history-item"><i class="fas fa-check-circle history-icon" style="color: #27ae60;"></i>Added to staff team</div>
-        <div class="history-item"><i class="fas fa-crown history-icon" style="color: #d4af37;"></i>Highest Role: ${member.highest_role}</div>
-        <div class="history-item"><i class="fas fa-list history-icon" style="color: #3498db;"></i>Total Roles: ${member.all_roles.length}</div>
-        ${(staffMember?.strikes || 0) > 0 ? `<div class="history-item"><i class="fas fa-exclamation-triangle history-icon" style="color: #f39c12;"></i>${staffMember.strikes} strike(s) recorded</div>` : ''}
-      `;
-      document.getElementById('staffHistory').innerHTML = historyHtml;
-      
-      document.getElementById('staffDetailModal').classList.add('show');
-    } catch (err) {
-      console.error('Error:', err);
-      alert('Failed to load member details');
-    }
-  }
-
-  function closeStaffDetailModal() {
-    document.getElementById('staffDetailModal').classList.remove('show');
-  }
-
-  function navigateSection(section) {
-    closeSidebar();
-    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.querySelector(`[data-section="${section}"]`).classList.add('active');
-    document.getElementById(section).classList.add('active');
-  }
-
-  document.querySelectorAll('.nav-link').forEach(link => {
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      const section = link.dataset.section;
-      navigateSection(section);
+    document.getElementById('staffSearch').addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      const filtered = allStaffMembers.filter(s => 
+        s.username.toLowerCase().includes(query) || 
+        s.highest_role.toLowerCase().includes(query) ||
+        s.status.includes(query)
+      );
+      renderStaff(filtered);
     });
-  });
 
-  function openLogoutModal() {
-    document.getElementById('logoutModal').classList.add('show');
-  }
+    function openModal(userId) {
+      const staff = allStaffMembers.find(s => s.user_id === userId);
+      if (!staff) return;
 
-  function closeLogoutModal() {
-    document.getElementById('logoutModal').classList.remove('show');
-  }
-
-  async function confirmLogout() {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      window.location.href = '/';
-    } catch (err) {
-      console.error('Error:', err);
+      document.getElementById('modalAvatar').src = staff.avatar_url;
+      document.getElementById('modalName').textContent = staff.username;
+      document.getElementById('modalId').textContent = `ID: ${staff.user_id}`;
+      document.getElementById('modalRoles').innerHTML = (staff.all_roles || [])
+        .map(r => `<span class="role-badge">${r.name}</span>`)
+        .join('') || '<span class="role-badge">Member</span>';
+      document.getElementById('modalStatus').textContent = staff.status === 'online' ? '🟢 Online' : '⚫ Offline';
+      document.getElementById('modalStrikes').textContent = staff.strikes || 0;
+      document.getElementById('modalJoined').textContent = new Date(staff.created_at).toLocaleDateString();
+      document.getElementById('modalActivity').textContent = `Added to staff team • Last seen: ${staff.status === 'online' ? 'Now' : 'Recently'}`;
+      
+      document.getElementById('staffModal').classList.add('active');
     }
-  }
 
-  window.addEventListener('load', () => {
-    const loader = document.getElementById('loader');
-    setTimeout(() => {
-      loader.classList.add('hidden');
-    }, 300);
-  });
+    function closeModal() {
+      document.getElementById('staffModal').classList.remove('active');
+    }
 
-  fetchUserProfile();
-  fetchServerInfo();
-  loadDashboardData();
-</script>
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.getElementById(`${tab}-tab`).classList.add('active');
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      event.target.closest('.nav-item').classList.add('active');
+      
+      if (tab === 'overview') document.getElementById('pageTitle').textContent = 'Overview';
+      else if (tab === 'staff') document.getElementById('pageTitle').textContent = 'Staff Management';
+      else if (tab === 'audit') document.getElementById('pageTitle').textContent = 'Audit Logs';
+      else if (tab === 'settings') document.getElementById('pageTitle').textContent = 'Settings';
+    }
+
+    function initCharts(detailed, staff) {
+      const onlineCount = staff.filter(s => s.status === 'online').length;
+      document.getElementById('onlineMembers').textContent = onlineCount;
+
+      const totalStrikes = staff.reduce((sum, s) => sum + (s.strikes || 0), 0);
+      document.getElementById('totalStrikes').textContent = totalStrikes;
+
+      const activityCtx = document.getElementById('activityChart').getContext('2d');
+      new Chart(activityCtx, {
+        type: 'line',
+        data: {
+          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          datasets: [{
+            label: 'Messages',
+            data: [120, 150, 180, 160, 200, 220, 190],
+            borderColor: '#d4af37',
+            backgroundColor: 'rgba(212, 175, 55, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { labels: { color: '#f5f5f5' } } }, scales: { y: { ticks: { color: '#999' }, grid: { color: 'rgba(212, 175, 55, 0.1)' } }, x: { ticks: { color: '#999' }, grid: { color: 'rgba(212, 175, 55, 0.1)' } } } }
+      });
+
+      const statusCtx = document.getElementById('statusChart').getContext('2d');
+      new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Online', 'Offline'],
+          datasets: [{
+            data: [onlineCount, staff.length - onlineCount],
+            backgroundColor: ['#27ae60', '#95a5a6']
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { labels: { color: '#f5f5f5' } } } }
+      });
+    }
+
+    loadData();
+  </script>
 </body>
 </html>

@@ -143,6 +143,16 @@
       background: #d4af37;
       color: white;
     }
+    .btn-primary {
+      background: linear-gradient(135deg, #d4af37, #ffd700);
+      color: #1a1a1a;
+      border: none;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #ffd700, #d4af37);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(212,175,55,0.4);
+    }
 
     /* MAIN */
     .container {
@@ -319,6 +329,9 @@
         <img id="user-avatar" class="user-avatar" src="" alt="Avatar">
         <span id="user-name">Loading...</span>
       </div>
+      <a id="admin-btn" href="/admin-portal" class="btn btn-primary" style="display:none;">
+        <i class="fas fa-shield-alt"></i> Admin Portal
+      </a>
       <button class="btn btn-ghost" onclick="logout()">
         <i class="fas fa-sign-out-alt"></i> Logout
       </button>
@@ -356,6 +369,8 @@
     }, 300);
   });
 
+  const ADMIN_ID = '1416209242838401064';
+
   // Fetch user info
   async function fetchUserInfo() {
     try {
@@ -367,6 +382,10 @@
       const user = await res.json();
       document.getElementById('user-name').textContent = user.username;
       document.getElementById('user-avatar').src = user.avatarUrl;
+      // Show Admin Portal button if user is the admin
+      if (user.id === ADMIN_ID) {
+        document.getElementById('admin-btn').style.display = 'inline-flex';
+      }
     } catch (err) {
       console.error('Failed to fetch user:', err);
       window.location.href = '/';

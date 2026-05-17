@@ -337,6 +337,53 @@ app.get('/api/guilds/:id/staff', requireAuth, async (req, res) => {
   }
 });
 
+// Get member details with all roles and avatar
+app.get('/api/guilds/:id/member/:userId', requireAuth, async (req, res) => {
+  const { id, userId } = req.params;
+  if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
+  try {
+    const memberRes = await fetch(`${DISCORD_API}/guilds/${id}/members/${userId}`, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+    if (!memberRes.ok) return res.status(404).json({ error: 'Member not found' });
+    const member = await memberRes.json();
+    
+    // Get all roles for this member
+    const rolesRes = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+    const allRoles = rolesRes.ok ? await rolesRes.json() : [];
+    
+    // Map member role IDs to role objects
+    const memberRoles = member.roles
+      .map(roleId => allRoles.find(r => r.id === roleId))
+      .filter(r => r && r.name !== '@everyone')
+      .sort((a, b) => b.position - a.position);
+    
+    // Get highest role
+    const highestRole = memberRoles.length > 0 ? memberRoles[0].name : 'Member';
+    
+    // Get avatar URL
+    const avatarUrl = member.user.avatar
+      ? `https://cdn.discordapp.com/avatars/${member.user.id}/${member.user.avatar}.png`
+      : `https://cdn.discordapp.com/embed/avatars/${(parseInt(member.user.id) % 5)}.png`;
+    
+    res.json({
+      user_id: member.user.id,
+      username: member.user.global_name || member.user.username,
+      avatar_url: avatarUrl,
+      highest_role: highestRole,
+      all_roles: memberRoles.map(r => ({ id: r.id, name: r.name, color: r.color })),
+      joined_at: member.joined_at,
+      nick: member.nick
+    });
+  } catch (err) {
+    console.error('[member-details]', err);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+
 app.post('/api/guilds/:id/staff-roles', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { roleIds } = req.body;

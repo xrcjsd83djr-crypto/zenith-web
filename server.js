@@ -506,6 +506,8 @@ app.use(express.static(publicPath));
 
 app.get('/select-server', (_req, res) => res.sendFile(join(publicPath, 'select-server.html')));
 app.get('/staff-portal', (_req, res) => res.sendFile(join(publicPath, 'staff-portal.html')));
+app.get('/staff-dashboard', (_req, res) => res.sendFile(join(publicPath, 'staff-dashboard.html')));
+app.get('/profile/:username', (_req, res) => res.sendFile(join(publicPath, 'profile.html')));
 app.get('/admin-portal', (_req, res) => res.sendFile(join(publicPath, 'admin-portal.html')));
 app.get('/dashboard', (_req, res) => res.sendFile(join(publicPath, 'dashboard.html')));
 app.get('/status', (_req, res) => res.sendFile(join(publicPath, 'status.html')));
@@ -754,5 +756,3 @@ app.get('/api/staff/profile/:robloxUsername', async (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`[Zenith] Server running on port ${PORT}`);
-});

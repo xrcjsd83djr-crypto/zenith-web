@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Staff Dashboard — Zenith</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --surface2: #f0f2f5;
+      --border: #e0e0e0;
+      --primary: #d4af37;
+      --primary-hover: #ffd700;
+      --text: #2c3e50;
+      --muted: #7f8c8d;
+      --success: #27ae60;
+      --accent: #2196f3;
+      --error: #e74c3c;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    a { color: inherit; text-decoration: none; }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+    
+    nav {
+      border-bottom: 2px solid #d4af37;
+      background: var(--surface);
+      padding: 16px 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 18px;
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #d4af37, #ffd700);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #1a1a1a;
+      font-weight: 900;
+    }
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid #d4af37;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+    .btn-ghost {
+      background: white;
+      color: var(--text);
+      border: 2px solid #d4af37;
+    }
+    .btn-ghost:hover {
+      background: #d4af37;
+      color: white;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #d4af37, #ffd700);
+      color: #1a1a1a;
+      border: none;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #ffd700, #d4af37);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(212,175,55,0.4);
+    }
+    
+    .header {
+      margin-bottom: 40px;
+    }
+    .header h1 {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .header p {
+      color: var(--muted);
+      font-size: 16px;
+    }
+    
+    .verification-screen {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 40px;
+      max-width: 500px;
+      margin: 60px auto;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .verification-icon {
+      font-size: 48px;
+      color: #d4af37;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .verification-screen h2 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .verification-screen p {
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: #d4af37;
+      box-shadow: 0 0 0 3px rgba(212,175,55,0.1);
+    }
+    .error-msg {
+      color: var(--error);
+      font-size: 13px;
+      margin-top: 6px;
+    }
+    .success-msg {
+      color: var(--success);
+      font-size: 13px;
+      margin-top: 6px;
+    }
+    
+    .dashboard {
+      display: none;
+    }
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .stat-label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: #d4af37;
+    }
+    
+    .profile-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .profile-section h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .profile-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--surface2);
+    }
+    .profile-row:last-child {
+      border-bottom: none;
+    }
+    .profile-label {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .profile-value {
+      font-weight: 600;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .action-buttons .btn {
+      flex: 1;
+    }
+    
+    @media (max-width: 768px) {
+      .verification-screen {
+        padding: 24px;
+      }
+      .container {
+        padding: 24px 16px;
+      }
+      .header h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">
+      <div class="logo-icon">Z</div>
+      Zenith
+    </a>
+    <div class="nav-right">
+      <div class="user-info">
+        <img id="user-avatar" class="user-avatar" src="" alt="Avatar">
+        <span id="user-name">Loading...</span>
+      </div>
+      <button class="btn btn-ghost" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <div id="verification-screen" class="verification-screen">
+    <div class="verification-icon"><i class="fas fa-gamepad"></i></div>
+    <h2>Verify Your Roblox Account</h2>
+    <p>Enter your Roblox username to complete your staff profile setup.</p>
+    <form onsubmit="verifyRoblox(event)">
+      <div class="form-group">
+        <label for="roblox-username">Roblox Username</label>
+        <input type="text" id="roblox-username" placeholder="Enter your Roblox username" required>
+        <div id="roblox-error" class="error-msg"></div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width: 100%;">
+        <i class="fas fa-check"></i> Verify & Continue
+      </button>
+    </form>
+  </div>
+
+  <div id="dashboard" class="dashboard">
+    <div class="header">
+      <h1>Staff Dashboard</h1>
+      <p>Welcome to your personal staff management portal</p>
+    </div>
+
+    <div class="dashboard-grid">
+      <div class="stat-card">
+        <div class="stat-label">Servers You Manage</div>
+        <div class="stat-value" id="servers-count">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Active Strikes</div>
+        <div class="stat-value" id="strikes-count">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Hours</div>
+        <div class="stat-value" id="hours-count">0</div>
+      </div>
+    </div>
+
+    <div class="profile-section">
+      <h3>Your Profile</h3>
+      <div class="profile-row">
+        <span class="profile-label">Discord Username</span>
+        <span class="profile-value" id="discord-username">-</span>
+      </div>
+      <div class="profile-row">
+        <span class="profile-label">Roblox Username</span>
+        <span class="profile-value" id="roblox-username-display">-</span>
+      </div>
+      <div class="profile-row">
+        <span class="profile-label">Public Profile</span>
+        <span class="profile-value"><a id="profile-link" href="#" target="_blank" style="color: #d4af37;">View Profile</a></span>
+      </div>
+      <div class="action-buttons">
+        <button class="btn btn-primary" onclick="generateStaffCard()">
+          <i class="fas fa-card"></i> Get Staff Card
+        </button>
+        <button class="btn btn-ghost" onclick="editProfile()">
+          <i class="fas fa-edit"></i> Edit Profile
+        </button>
+      </div>
+    </div>
+
+    <div class="profile-section">
+      <h3>Your Staff Positions</h3>
+      <div id="staff-positions">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const guildId = new URLSearchParams(window.location.search).get('id');
+  
+  async function fetchUserInfo() {
+    try {
+      const res = await fetch('/api/auth/user');
+      if (!res.ok) {
+        window.location.href = '/';
+        return;
+      }
+      const user = await res.json();
+      document.getElementById('user-name').textContent = user.username;
+      document.getElementById('user-avatar').src = user.avatarUrl;
+      document.getElementById('discord-username').textContent = user.username;
+      
+      if (user.roblox_username) {
+        showDashboard(user);
+      } else {
+        showVerification();
+      }
+    } catch (err) {
+      console.error('Failed to fetch user:', err);
+      window.location.href = '/';
+    }
+  }
+
+  function showVerification() {
+    document.getElementById('verification-screen').style.display = 'block';
+    document.getElementById('dashboard').style.display = 'none';
+  }
+
+  function showDashboard(user) {
+    document.getElementById('verification-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('roblox-username-display').textContent = user.roblox_username;
+    document.getElementById('profile-link').href = `/profile/${user.roblox_username}`;
+    loadDashboardData(user.id);
+  }
+
+  async function verifyRoblox(event) {
+    event.preventDefault();
+    const robloxUsername = document.getElementById('roblox-username').value.trim();
+    const errorEl = document.getElementById('roblox-error');
+    
+    if (!robloxUsername) {
+      errorEl.textContent = 'Please enter your Roblox username';
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/staff/verify-roblox', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ robloxUsername, guildId })
+      });
+
+      if (!res.ok) {
+        errorEl.textContent = 'Failed to verify. Please try again.';
+        return;
+      }
+
+      const data = await res.json();
+      showDashboard({ id: data.userId, roblox_username: data.robloxUsername });
+    } catch (err) {
+      console.error('Verification error:', err);
+      errorEl.textContent = 'An error occurred. Please try again.';
+    }
+  }
+
+  async function loadDashboardData(userId) {
+    try {
+      const res = await fetch(`/api/staff/dashboard?guildId=${guildId}`);
+      if (!res.ok) return;
+      
+      const data = await res.json();
+      document.getElementById('servers-count').textContent = data.totalServers || 0;
+      document.getElementById('strikes-count').textContent = data.totalStrikes || 0;
+      document.getElementById('hours-count').textContent = data.totalHours || 0;
+      
+      if (data.staffPositions && data.staffPositions.length > 0) {
+        document.getElementById('staff-positions').innerHTML = data.staffPositions.map(pos => `
+          <div class="profile-row">
+            <span class="profile-label">${pos.guildName}</span>
+            <span class="profile-value">${pos.rank}</span>
+          </div>
+        `).join('');
+      }
+    } catch (err) {
+      console.error('Failed to load dashboard data:', err);
+    }
+  }
+
+  async function generateStaffCard() {
+    try {
+      const res = await fetch('/api/staff/card', { method: 'POST' });
+      if (res.ok) {
+        alert('Staff card sent to your DMs!');
+      }
+    } catch (err) {
+      console.error('Failed to generate card:', err);
+    }
+  }
+
+  function editProfile() {
+    alert('Profile editing coming soon!');
+  }
+
+  async function logout() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  }
+
+  fetchUserInfo();
+</script>
+
+</body>
+</html>

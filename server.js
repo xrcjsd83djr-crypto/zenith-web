@@ -1014,6 +1014,23 @@ app.post('/api/guilds/:id/activity', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/audit-logs', (_req, res) => res.sendFile(join(publicPath, 'audit-logs.html')));
+
+app.get('/api/guilds/:id/audit-logs', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const logs = await db.all(`
+      SELECT * FROM audit_logs 
+      WHERE guild_id = ? 
+      ORDER BY timestamp DESC 
+      LIMIT 100
+    `, [id]);
+    res.json(logs || []);
+  } catch (err) {
+    console.error('Error fetching audit logs:', err);
+    res.status(500).json({ error: 'Failed to fetch audit logs' });
+  }
+});
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);
 });

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Logs — Zenith</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --surface2: #f0f2f5;
+      --border: #e0e0e0;
+      --primary: #d4af37;
+      --text: #2c3e50;
+      --muted: #7f8c8d;
+      --success: #27ae60;
+      --danger: #c0392b;
+      --warning: #f39c12;
+      --info: #3498db;
+    }
+    body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    a { color: inherit; text-decoration: none; }
+    nav { border-bottom: 2px solid var(--primary); background: var(--surface); padding: 16px 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .nav-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; }
+    .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--primary), #ffd700); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: white; }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-ghost { background: white; color: var(--text); border: 2px solid var(--primary); }
+    .btn-ghost:hover { background: var(--primary); color: white; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
+    .header h1 { font-size: 28px; font-weight: 900; }
+    .controls { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    .search-box { flex: 1; min-width: 200px; padding: 10px 16px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
+    .search-box:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1); }
+    .logs-container { background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+    .log-item { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; cursor: pointer; transition: all 0.2s; }
+    .log-item:hover { background: var(--surface2); }
+    .log-item:last-child { border-bottom: none; }
+    .log-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .log-icon.kick { background: rgba(192, 57, 43, 0.1); color: var(--danger); }
+    .log-icon.ban { background: rgba(192, 57, 43, 0.2); color: var(--danger); }
+    .log-icon.timeout { background: rgba(243, 156, 18, 0.1); color: var(--warning); }
+    .log-icon.role { background: rgba(52, 152, 219, 0.1); color: var(--info); }
+    .log-icon.strike { background: rgba(243, 156, 18, 0.1); color: var(--warning); }
+    .log-icon.loa { background: rgba(39, 174, 96, 0.1); color: var(--success); }
+    .log-details { flex: 1; }
+    .log-action { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .log-meta { font-size: 12px; color: var(--muted); }
+    .log-time { font-size: 12px; color: var(--muted); white-space: nowrap; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+    .modal.show { display: flex; }
+    .modal-content { background: white; border-radius: 16px; padding: 40px; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .modal-icon { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+    .modal-title { font-size: 24px; font-weight: 900; }
+    .modal-section { margin-bottom: 24px; }
+    .modal-section h3 { font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; letter-spacing: 0.5px; }
+    .modal-section p { font-size: 14px; color: var(--text); margin-bottom: 8px; }
+    .modal-close { position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--muted); }
+    .empty-state { text-align: center; padding: 60px 24px; }
+    .empty-icon { font-size: 48px; color: var(--muted); margin-bottom: 16px; }
+    .empty-state h2 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .empty-state p { color: var(--muted); }
+    .loader { text-align: center; padding: 40px; }
+    .loader i { font-size: 32px; color: var(--primary); animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @media (max-width: 768px) {
+      .header { flex-direction: column; align-items: flex-start; }
+      .controls { flex-direction: column; }
+      .search-box { min-width: 100%; }
+      .log-item { flex-direction: column; align-items: flex-start; }
+      .log-time { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">
+      <div class="logo-icon">Z</div>
+      Zenith
+    </a>
+    <div class="nav-right">
+      <button class="btn btn-ghost" onclick="logout(); return false;">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="header">
+    <h1><i class="fas fa-history"></i> Audit Logs</h1>
+  </div>
+
+  <div class="controls">
+    <input type="text" id="search" class="search-box" placeholder="Search by user, action, or reason..." onkeyup="filterLogs()">
+    <select id="action-filter" class="search-box" style="flex: 0 1 200px;" onchange="filterLogs()">
+      <option value="">All Actions</option>
+      <option value="kick">Kick</option>
+      <option value="ban">Ban</option>
+      <option value="timeout">Timeout</option>
+      <option value="role">Role Change</option>
+      <option value="strike">Strike</option>
+      <option value="loa">LOA Request</option>
+    </select>
+  </div>
+
+  <div class="logs-container">
+    <div id="logs-list">
+      <div style="text-align: center; padding: 40px;">
+        <div class="loader"><i class="fas fa-spinner fa-spin"></i> Loading audit logs...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="logModal" class="modal">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeModal(); return false;">&times;</button>
+    <div class="modal-header">
+      <div class="modal-icon" id="modalIcon"></div>
+      <div>
+        <div class="modal-title" id="modalTitle"></div>
+        <div class="modal-meta" id="modalMeta" style="color: var(--muted); font-size: 12px;"></div>
+      </div>
+    </div>
+    <div id="modalDetails"></div>
+  </div>
+</div>
+
+<script>
+  const guildId = new URLSearchParams(window.location.search).get('id');
+  if (!guildId) { window.location.href = '/select-server'; }
+  let allLogs = [];
+
+  async function loadLogs() {
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/audit-logs?t=${Date.now()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      allLogs = await res.json();
+      allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      renderLogs(allLogs);
+    } catch (err) {
+      console.error('Failed to load logs:', err);
+      document.getElementById('logs-list').innerHTML = `<div style="text-align: center; color: #c0392b; padding: 40px;"><i class="fas fa-exclamation-circle"></i> Failed to load audit logs. Please refresh the page.</div>`;
+    }
+  }
+
+  function renderLogs(logs) {
+    const container = document.getElementById('logs-list');
+    if (!logs || logs.length === 0) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-inbox"></i></div><h2>No audit logs</h2><p>Logs will appear here as actions occur</p></div>`;
+      return;
+    }
+
+    container.innerHTML = logs.map((log, idx) => `
+      <div class="log-item" onclick="showLogDetails(${idx}); return false;">
+        <div class="log-icon ${log.action}"><i class="fas ${getIcon(log.action)}"></i></div>
+        <div class="log-details">
+          <div class="log-action">${escapeHtml(log.action_name || log.action)}</div>
+          <div class="log-meta">${escapeHtml(log.user_name || 'Unknown')} • ${escapeHtml(log.target_name || log.target || 'N/A')}</div>
+        </div>
+        <div class="log-time">${formatTime(log.timestamp)}</div>
+      </div>
+    `).join('');
+  }
+
+  function filterLogs() {
+    const search = document.getElementById('search').value.toLowerCase();
+    const actionFilter = document.getElementById('action-filter').value;
+    const filtered = allLogs.filter(log => {
+      const matchesSearch = !search || (log.user_name && log.user_name.toLowerCase().includes(search)) || (log.target_name && log.target_name.toLowerCase().includes(search)) || (log.reason && log.reason.toLowerCase().includes(search));
+      const matchesAction = !actionFilter || log.action === actionFilter;
+      return matchesSearch && matchesAction;
+    });
+    renderLogs(filtered);
+  }
+
+  function showLogDetails(idx) {
+    const log = allLogs[idx];
+    const modal = document.getElementById('logModal');
+    document.getElementById('modalIcon').className = `modal-icon log-icon ${log.action}`;
+    document.getElementById('modalIcon').innerHTML = `<i class="fas ${getIcon(log.action)}"></i>`;
+    document.getElementById('modalTitle').textContent = log.action_name || log.action;
+    document.getElementById('modalMeta').textContent = formatTime(log.timestamp);
+    
+    let details = `
+      <div class="modal-section">
+        <h3>User</h3>
+        <p>${escapeHtml(log.user_name || 'Unknown')} ${log.user_id ? `<code style="background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${log.user_id}</code>` : ''}</p>
+      </div>
+      <div class="modal-section">
+        <h3>Target</h3>
+        <p>${escapeHtml(log.target_name || log.target || 'N/A')}</p>
+      </div>
+    `;
+    
+    if (log.reason) {
+      details += `<div class="modal-section"><h3>Reason</h3><p>${escapeHtml(log.reason)}</p></div>`;
+    }
+    
+    if (log.details) {
+      details += `<div class="modal-section"><h3>Details</h3><p>${escapeHtml(JSON.stringify(log.details, null, 2))}</p></div>`;
+    }
+    
+    details += `<div class="modal-section"><h3>Timestamp</h3><p>${new Date(log.timestamp).toLocaleString()}</p></div>`;
+    
+    document.getElementById('modalDetails').innerHTML = details;
+    modal.classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('logModal').classList.remove('show');
+  }
+
+  function getIcon(action) {
+    const icons = {
+      kick: 'fa-user-slash',
+      ban: 'fa-ban',
+      timeout: 'fa-clock',
+      role: 'fa-shield-alt',
+      strike: 'fa-gavel',
+      loa: 'fa-plane',
+    };
+    return icons[action] || 'fa-info-circle';
+  }
+
+  function formatTime(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (seconds < 60) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString();
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  async function logout() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Logout error:', err);
+      window.location.href = '/';
+    }
+  }
+
+  loadLogs();
+</script>
+
+</body>
+</html>

@@ -12,11 +12,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DISCORD_API = 'https://discord.com/api/v10';
 
-// Immediate health checks for Railway
-app.get('/healthz', (_req, res) => res.status(200).send('OK'));
-app.get('/health', (_req, res) => res.status(200).send('OK'));
-app.get('/ping', (_req, res) => res.status(200).send('pong'));
-
 const {
   DISCORD_CLIENT_ID,
   DISCORD_CLIENT_SECRET,
@@ -27,23 +22,35 @@ const {
   DATABASE_URL,
 } = process.env;
 
+// Initialize DB immediately but don't let it block the server start
 if (DATABASE_URL) {
-  initDb();
+  initDb().catch(err => console.error('[DB] Failed to init:', err));
 }
 
-  app.set('trust proxy', 1);
-  app.use(express.json());
-  app.use(session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    },
-  }));
+app.set('trust proxy', 1);
+app.use(express.json());
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  },
+}));
+
+// Immediate health checks for Railway - MUST BE AFTER session/json middleware
+app.get('/healthz', (_req, res) => res.status(200).send('OK'));
+app.get('/health', (_req, res) => res.status(200).send('OK'));
+app.get('/', (_req, res, next) => {
+  // If it's a health check from Railway (often just pings root)
+  if (_req.headers['user-agent']?.includes('Railway')) {
+    return res.status(200).send('OK');
+  }
+  next();
+});
 
   const publicPath = join(__dirname, 'public');
   if (existsSync(publicPath)) {

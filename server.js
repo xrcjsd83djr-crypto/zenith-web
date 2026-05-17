@@ -12,6 +12,11 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 const DISCORD_API = 'https://discord.com/api/v10';
 
+// 1. ABSOLUTE FIRST: Health checks for Railway
+app.get('/health', (_req, res) => res.status(200).send('OK'));
+app.get('/healthz', (_req, res) => res.status(200).send('OK'));
+app.get('/ping', (_req, res) => res.status(200).send('pong'));
+
 const {
   DISCORD_CLIENT_ID,
   DISCORD_CLIENT_SECRET,
@@ -20,6 +25,12 @@ const {
   SESSION_SECRET = 'zenith-secret-key-123',
   DATABASE_URL,
 } = process.env;
+
+// 2. Log every request to see what Railway is doing
+app.use((req, res, next) => {
+  console.log(`[Request] ${req.method} ${req.url} - ${req.headers['user-agent']}`);
+  next();
+});
 
 // Initialize DB immediately but don't let it block
 if (DATABASE_URL) {
@@ -31,19 +42,15 @@ app.set('trust proxy', 1);
 app.use(express.json());
 app.use(session({
   secret: SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
+  resave: true, // Changed to true to help with MemoryStore stability
+  saveUninitialized: true, // Changed to true to help with MemoryStore stability
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
+    secure: false, // Set to false to avoid issues with Railway's proxy
     httpOnly: true,
     sameSite: 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000,
   },
 }));
-
-// ── Health Checks (MUST be before static/auth) ──────────────────────────────
-app.get('/health', (_req, res) => res.status(200).send('OK'));
-app.get('/healthz', (_req, res) => res.status(200).send('OK'));
 
 // ── Auth Logic ──────────────────────────────────────────────────────────────
 async function handleAuthCallback(req, res) {

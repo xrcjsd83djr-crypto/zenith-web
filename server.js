@@ -11,6 +11,27 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 8080;
 const DISCORD_API = 'https://discord.com/api/v10';
+const AUDIT_ACTION_MAP = {
+  1: 'GUILD_UPDATE', 10: 'CHANNEL_CREATE', 11: 'CHANNEL_UPDATE', 12: 'CHANNEL_DELETE',
+  13: 'CHANNEL_OVERWRITE_CREATE', 14: 'CHANNEL_OVERWRITE_UPDATE', 15: 'CHANNEL_OVERWRITE_DELETE',
+  20: 'MEMBER_KICK', 21: 'MEMBER_PRUNE', 22: 'MEMBER_BAN_ADD', 23: 'MEMBER_BAN_REMOVE',
+  24: 'MEMBER_UPDATE', 25: 'MEMBER_ROLE_UPDATE', 26: 'MEMBER_MOVE', 27: 'MEMBER_DISCONNECT',
+  28: 'BOT_ADD', 30: 'ROLE_CREATE', 31: 'ROLE_UPDATE', 32: 'ROLE_DELETE',
+  40: 'INVITE_CREATE', 41: 'INVITE_UPDATE', 42: 'INVITE_DELETE',
+  50: 'WEBHOOK_CREATE', 51: 'WEBHOOK_UPDATE', 52: 'WEBHOOK_DELETE',
+  60: 'EMOJI_CREATE', 61: 'EMOJI_UPDATE', 62: 'EMOJI_DELETE',
+  72: 'MESSAGE_DELETE', 73: 'MESSAGE_BULK_DELETE', 74: 'MESSAGE_PIN', 75: 'MESSAGE_UNPIN',
+  80: 'INTEGRATION_CREATE', 81: 'INTEGRATION_UPDATE', 82: 'INTEGRATION_DELETE',
+  83: 'STAGE_INSTANCE_CREATE', 84: 'STAGE_INSTANCE_UPDATE', 85: 'STAGE_INSTANCE_DELETE',
+  90: 'STICKER_CREATE', 91: 'STICKER_UPDATE', 92: 'STICKER_DELETE',
+  110: 'GUILD_SCHEDULED_EVENT_CREATE', 111: 'GUILD_SCHEDULED_EVENT_UPDATE', 112: 'GUILD_SCHEDULED_EVENT_DELETE',
+  121: 'THREAD_CREATE', 122: 'THREAD_UPDATE', 123: 'THREAD_DELETE',
+  140: 'APPLICATION_COMMAND_PERMISSION_UPDATE', 150: 'AUTO_MODERATION_RULE_CREATE',
+  151: 'AUTO_MODERATION_RULE_UPDATE', 152: 'AUTO_MODERATION_RULE_DELETE',
+  153: 'AUTO_MODERATION_BLOCK_MESSAGE', 154: 'AUTO_MODERATION_FLAG_TO_CHANNEL',
+  155: 'AUTO_MODERATION_USER_COMMUNICATION_DISABLED'
+};
+
 
 // ── 1. HEALTH CHECKS FIRST — Railway needs these to respond instantly ────────
 app.get('/health', (_req, res) => res.status(200).send('OK'));
@@ -955,12 +976,22 @@ app.get('/api/guilds/:id/is-premium', requireAuth, async (req, res) => {
 // ── AUDIT LOGS API ────────────────────────────────────────────────────────
 app.get('/api/guilds/:id/audit-logs', requireAuth, async (req, res) => {
   const { id } = req.params;
-  if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
+  if (!DISCORD_BOT_TOKEN) {
+    console.error('[audit-logs] DISCORD_BOT_TOKEN is missing');
+    return res.status(400).json({ error: 'Bot token not configured' });
+  }
 
   try {
+    console.log(`[audit-logs] Fetching logs for guild ${id}`);
     const discordAuditRes = await fetch(`${DISCORD_API}/guilds/${id}/audit-logs?limit=50`, {
       headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
     });
+
+    if (!discordAuditRes.ok) {
+      const errorText = await discordAuditRes.text();
+      console.error(`[audit-logs] Discord API error: ${discordAuditRes.status} ${errorText}`);
+    }
+
     const discordAuditData = discordAuditRes.ok ? await discordAuditRes.json() : { audit_log_entries: [], users: [] };
     const usersById = new Map((discordAuditData.users || []).map(u => [u.id, u]));
 
@@ -977,11 +1008,12 @@ app.get('/api/guilds/:id/audit-logs', requireAuth, async (req, res) => {
     const combinedLogs = [
       ...(discordAuditData.audit_log_entries || []).map(entry => {
         const actor = usersById.get(entry.user_id);
+        const actionName = AUDIT_ACTION_MAP[entry.action_type] || `Action ${entry.action_type}`;
         return {
           id: entry.id,
           type: 'discord',
-          action: entry.action_type,
-          action_name: `Discord Action ${entry.action_type}`,
+          action: actionName.toLowerCase().replace(/_/g, '-'),
+          action_name: actionName.replace(/_/g, ' '),
           user: entry.user_id,
           user_name: actor?.global_name || actor?.username || entry.user_id || 'Unknown',
           target: entry.target_id,
@@ -994,7 +1026,7 @@ app.get('/api/guilds/:id/audit-logs', requireAuth, async (req, res) => {
       ...(botLogsResult.rows || []).map(row => ({
         id: `bot-${row.source}-${row.id}`,
         type: 'bot',
-        action: row.source,
+        action: row.source.toLowerCase().replace(/ /g, '-'),
         action_name: row.source,
         user: row.issued_by || 'System',
         user_name: row.issued_by_name || row.issued_by || 'System',
@@ -1008,12 +1040,10 @@ app.get('/api/guilds/:id/audit-logs', requireAuth, async (req, res) => {
 
     res.json(combinedLogs.slice(0, 100));
   } catch (err) {
-    console.error('[audit-logs]', err);
+    console.error('[audit-logs] Error:', err);
     res.status(500).json({ error: 'Failed to fetch audit logs' });
   }
 });
-
-// ── ACTIVITY LOGGING ────────────────────────────────────────────────────────
 app.post('/api/guilds/:id/activity', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { userId, action, details } = req.body;

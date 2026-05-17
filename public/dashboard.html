@@ -77,14 +77,15 @@
     .stat-label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
     .stat-detail { font-size: 10px; color: var(--muted); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
     
+    .chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .chart-container { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+    .chart-container h3 { font-size: 16px; font-weight: 800; margin-bottom: 16px; }
+    
     .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 32px; }
     .info-card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
     .info-card h3 { font-size: 13px; font-weight: 800; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; letter-spacing: 0.5px; }
     .info-card p { font-size: 18px; font-weight: 700; color: var(--text); }
     .info-card .detail { font-size: 12px; color: var(--muted); margin-top: 8px; }
-    
-    .chart-container { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
-    .chart-container h3 { font-size: 16px; font-weight: 800; margin-bottom: 16px; }
     
     .staff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
     .staff-card { background: white; border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; transition: all 0.3s; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.02); position: relative; }
@@ -168,11 +169,12 @@
       .header-right { font-size: 11px; }
       .content { padding: 16px; }
       .section-header h1 { font-size: 20px; }
-      .stats-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
       .stat-card { padding: 16px; }
       .stat-icon { font-size: 24px; }
       .stat-value { font-size: 20px; }
       .stat-detail { display: none; }
+      .chart-row { grid-template-columns: 1fr; }
       .info-grid { grid-template-columns: 1fr; }
       .staff-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
       .staff-card { padding: 16px; }
@@ -230,14 +232,6 @@
       <div class="staff-detail-section">
         <h4><i class="fas fa-exclamation-triangle" style="margin-right: 6px; color: #f39c12;"></i> Strikes</h4>
         <p id="staffDetailStrikes">0</p>
-      </div>
-      <div class="staff-detail-section">
-        <h4><i class="fas fa-clock" style="margin-right: 6px; color: #3498db;"></i> Last Active</h4>
-        <p id="staffDetailLastActive">N/A</p>
-      </div>
-      <div class="staff-detail-section">
-        <h4><i class="fas fa-ban" style="margin-right: 6px; color: #e74c3c;"></i> LOA Status</h4>
-        <p id="staffDetailLOA">None</p>
       </div>
     </div>
 
@@ -318,7 +312,7 @@
       <div id="overview" class="section active">
         <div class="section-header">
           <h1>Server Overview</h1>
-          <p>Real-time server statistics and comprehensive analytics.</p>
+          <p>Real-time analytics and server insights.</p>
         </div>
         <div class="stats-grid">
           <div class="stat-card">
@@ -330,13 +324,13 @@
           <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-circle"></i></div>
             <div class="stat-value" id="stat-online">0</div>
-            <div class="stat-label">Online Now</div>
+            <div class="stat-label">Online</div>
             <div class="stat-detail" id="stat-online-detail"></div>
           </div>
           <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-user-shield"></i></div>
             <div class="stat-value" id="stat-staff">0</div>
-            <div class="stat-label">Staff Members</div>
+            <div class="stat-label">Staff</div>
             <div class="stat-detail" id="stat-staff-detail"></div>
           </div>
           <div class="stat-card">
@@ -354,19 +348,20 @@
           <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-crown"></i></div>
             <div class="stat-value" id="stat-plan">Free</div>
-            <div class="stat-label">Plan Type</div>
+            <div class="stat-label">Plan</div>
             <div class="stat-detail" id="stat-plan-detail"></div>
           </div>
         </div>
 
-        <div class="chart-container">
-          <h3><i class="fas fa-chart-line" style="margin-right: 8px; color: #d4af37;"></i> Activity Over Time</h3>
-          <canvas id="activityChart" style="max-height: 300px;"></canvas>
-        </div>
-
-        <div class="chart-container">
-          <h3><i class="fas fa-pie-chart" style="margin-right: 8px; color: #3498db;"></i> Member Status Distribution</h3>
-          <canvas id="statusChart" style="max-height: 300px;"></canvas>
+        <div class="chart-row">
+          <div class="chart-container">
+            <h3><i class="fas fa-chart-line" style="margin-right: 8px; color: #d4af37;"></i> Activity Trend</h3>
+            <canvas id="activityChart" style="max-height: 250px;"></canvas>
+          </div>
+          <div class="chart-container">
+            <h3><i class="fas fa-pie-chart" style="margin-right: 8px; color: #3498db;"></i> Member Status</h3>
+            <canvas id="statusChart" style="max-height: 250px;"></canvas>
+          </div>
         </div>
 
         <div class="info-grid">
@@ -375,29 +370,29 @@
             <p id="info-name">Loading...</p>
           </div>
           <div class="info-card">
-            <h3><i class="fas fa-users-slash" style="margin-right: 6px;"></i> Members Online</h3>
-            <p id="info-online">0</p>
-            <div class="detail">Out of <span id="info-total">0</span> total</div>
+            <h3><i class="fas fa-users-slash" style="margin-right: 6px;"></i> Online Ratio</h3>
+            <p id="info-online">0%</p>
+            <div class="detail">Of total members</div>
           </div>
           <div class="info-card">
-            <h3><i class="fas fa-list" style="margin-right: 6px;"></i> Total Roles</h3>
+            <h3><i class="fas fa-list" style="margin-right: 6px;"></i> Roles</h3>
             <p id="info-roles">0</p>
-            <div class="detail">Including @everyone</div>
+            <div class="detail">Including defaults</div>
           </div>
           <div class="info-card">
             <h3><i class="fas fa-smile" style="margin-right: 6px;"></i> Custom Emojis</h3>
             <p id="info-emojis">0</p>
-            <div class="detail">Available for use</div>
-          </div>
-          <div class="info-card">
-            <h3><i class="fas fa-calendar" style="margin-right: 6px;"></i> Created</h3>
-            <p id="info-created">N/A</p>
-            <div class="detail" id="info-created-detail"></div>
+            <div class="detail">Available</div>
           </div>
           <div class="info-card">
             <h3><i class="fas fa-robot" style="margin-right: 6px;"></i> Bot Status</h3>
             <p style="color: #27ae60;"><i class="fas fa-check-circle"></i> Online</p>
-            <div class="detail">Connected & Monitoring</div>
+            <div class="detail">Connected</div>
+          </div>
+          <div class="info-card">
+            <h3><i class="fas fa-calendar" style="margin-right: 6px;"></i> Server Created</h3>
+            <p id="info-created">N/A</p>
+            <div class="detail" id="info-created-detail"></div>
           </div>
         </div>
       </div>
@@ -406,7 +401,7 @@
       <div id="staff" class="section">
         <div class="section-header">
           <h1>Staff Management</h1>
-          <p>Manage your entire staff team with real-time data.</p>
+          <p>Manage your staff team with real-time data.</p>
         </div>
         <div id="staff-setup" style="display: none;">
           <div class="role-selector">
@@ -425,15 +420,15 @@
       <div id="shifts" class="section">
         <div class="section-header">
           <h1>Shift Management</h1>
-          <p>Track and manage staff shifts. (Coming soon with bot integration)</p>
+          <p>Coming soon with bot integration.</p>
         </div>
         <div class="table-container">
           <table>
             <thead>
               <tr>
                 <th><i class="fas fa-user" style="margin-right: 6px;"></i> Staff Member</th>
-                <th><i class="fas fa-play" style="margin-right: 6px;"></i> Start Time</th>
-                <th><i class="fas fa-stop" style="margin-right: 6px;"></i> End Time</th>
+                <th><i class="fas fa-play" style="margin-right: 6px;"></i> Start</th>
+                <th><i class="fas fa-stop" style="margin-right: 6px;"></i> End</th>
                 <th><i class="fas fa-clock" style="margin-right: 6px;"></i> Duration</th>
               </tr>
             </thead>
@@ -448,7 +443,7 @@
       <div id="strikes" class="section">
         <div class="section-header">
           <h1>Strike System</h1>
-          <p>Manage staff strikes and violations. (Coming soon with bot integration)</p>
+          <p>Coming soon with bot integration.</p>
         </div>
         <div class="table-container">
           <table>
@@ -471,7 +466,7 @@
       <div id="performance" class="section">
         <div class="section-header">
           <h1>Performance Reviews</h1>
-          <p>Track staff performance and ratings. (Coming soon with bot integration)</p>
+          <p>Coming soon with bot integration.</p>
         </div>
         <div class="table-container">
           <table>
@@ -494,7 +489,7 @@
       <div id="trainings" class="section">
         <div class="section-header">
           <h1>Training Logs</h1>
-          <p>Track staff training sessions. (Coming soon with bot integration)</p>
+          <p>Coming soon with bot integration.</p>
         </div>
         <div class="table-container">
           <table>
@@ -517,15 +512,15 @@
       <div id="loa" class="section">
         <div class="section-header">
           <h1>Leave of Absence</h1>
-          <p>Manage staff LOA requests. (Coming soon with bot integration)</p>
+          <p>Coming soon with bot integration.</p>
         </div>
         <div class="table-container">
           <table>
             <thead>
               <tr>
                 <th><i class="fas fa-user" style="margin-right: 6px;"></i> Staff Member</th>
-                <th><i class="fas fa-calendar-check" style="margin-right: 6px;"></i> Start Date</th>
-                <th><i class="fas fa-calendar-times" style="margin-right: 6px;"></i> End Date</th>
+                <th><i class="fas fa-calendar-check" style="margin-right: 6px;"></i> Start</th>
+                <th><i class="fas fa-calendar-times" style="margin-right: 6px;"></i> End</th>
                 <th><i class="fas fa-info-circle" style="margin-right: 6px;"></i> Status</th>
               </tr>
             </thead>
@@ -540,7 +535,7 @@
       <div id="applications" class="section">
         <div class="section-header">
           <h1>Applications</h1>
-          <p>Manage staff applications. (Coming soon with bot integration)</p>
+          <p>Coming soon with bot integration.</p>
         </div>
         <div class="table-container">
           <table>
@@ -583,7 +578,7 @@
       <div id="account" class="section">
         <div class="section-header">
           <h1>Profile</h1>
-          <p>Manage your account settings.</p>
+          <p>Your account information.</p>
         </div>
         <div class="profile-card">
           <img src="" alt="" class="profile-avatar" id="profile-avatar">
@@ -644,19 +639,19 @@
       const emojis = server.emojis || 0;
       
       document.getElementById('stat-members').textContent = members;
-      document.getElementById('stat-members-detail').textContent = `${Math.round((members / (members + 1)) * 100)}% active`;
+      document.getElementById('stat-members-detail').textContent = `Total users`;
       
       document.getElementById('stat-online').textContent = online;
-      document.getElementById('stat-online-detail').textContent = `${Math.round((online / (members || 1)) * 100)}% online`;
+      const onlinePercent = members > 0 ? Math.round((online / members) * 100) : 0;
+      document.getElementById('stat-online-detail').textContent = `${onlinePercent}% online`;
       
       document.getElementById('stat-channels').textContent = channels;
       document.getElementById('stat-channels-detail').textContent = `Text & Voice`;
       
       document.getElementById('stat-roles').textContent = roles;
-      document.getElementById('stat-roles-detail').textContent = `Including defaults`;
+      document.getElementById('stat-roles-detail').textContent = `All roles`;
       
-      document.getElementById('info-online').textContent = online;
-      document.getElementById('info-total').textContent = members;
+      document.getElementById('info-online').textContent = `${onlinePercent}%`;
       document.getElementById('info-roles').textContent = roles;
       document.getElementById('info-emojis').textContent = emojis;
       
@@ -712,13 +707,13 @@
       } else {
         renderStaffList(staff);
         document.getElementById('stat-staff').textContent = staff.length;
-        document.getElementById('stat-staff-detail').textContent = `Active members`;
+        document.getElementById('stat-staff-detail').textContent = `Active`;
       }
 
       const premiumRes = await fetch(`/api/guilds/${serverId}/premium`);
       const premium = premiumRes.ok ? await premiumRes.json() : { isPremium: false };
       document.getElementById('stat-plan').textContent = premium.isPremium ? 'Pro' : 'Free';
-      document.getElementById('stat-plan-detail').textContent = premium.isPremium ? 'All features' : 'Basic plan';
+      document.getElementById('stat-plan-detail').textContent = premium.isPremium ? 'All features' : 'Basic';
     } catch (err) {
       console.error('Error:', err);
     }
@@ -757,20 +752,36 @@
   }
 
   async function saveStaffRoles() {
-    if (selectedRoles.size === 0) return alert('Select at least one role!');
+    if (selectedRoles.size === 0) {
+      alert('Please select at least one role!');
+      return;
+    }
+    
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    
     try {
       const res = await fetch(`/api/guilds/${serverId}/staff-roles`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roleIds: Array.from(selectedRoles) })
       });
+      
+      const data = await res.json();
       if (res.ok) {
-        alert('Staff roles saved! Reloading...');
-        location.reload();
+        alert(`Success! Added ${data.added} staff members.`);
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        alert(`Error: ${data.error}`);
+        btn.disabled = false;
+        btn.textContent = 'Save Staff Roles';
       }
     } catch (err) {
       console.error('Error:', err);
       alert('Failed to save roles');
+      btn.disabled = false;
+      btn.textContent = 'Save Staff Roles';
     }
   }
 
@@ -787,7 +798,6 @@
         <div class="staff-meta">
           <div class="staff-meta-item"><i class="fas fa-circle" style="font-size: 6px; margin-right: 4px; color: ${s.status === 'online' ? '#27ae60' : '#95a5a6'};"></i> ${s.status === 'online' ? 'Online' : 'Offline'}</div>
           <div class="staff-meta-item"><i class="fas fa-exclamation-triangle" style="margin-right: 4px; color: #f39c12;"></i> ${s.strikes || 0} strikes</div>
-          <div class="staff-meta-item"><i class="fas fa-calendar" style="margin-right: 4px; color: #3498db;"></i> ${s.joined_at ? new Date(s.joined_at).toLocaleDateString() : 'N/A'}</div>
         </div>
       </div>
     `).join('');
@@ -809,25 +819,20 @@
       document.getElementById('staffDetailAvatar').src = member.avatar_url;
       document.getElementById('staffDetailAvatar').onerror = function() { this.src = 'https://cdn.discordapp.com/embed/avatars/0.png'; };
       
-      // Status indicator
       const statusIndicator = document.querySelector('.staff-status-indicator');
       statusIndicator.className = `staff-status-indicator ${isOnline ? 'online' : 'offline'}`;
       document.getElementById('staffStatusText').textContent = isOnline ? 'Online' : 'Offline';
       
       document.getElementById('staffDetailStrikes').textContent = (staffMember?.strikes || 0);
-      document.getElementById('staffDetailLastActive').textContent = isOnline ? 'Now' : 'N/A';
       
-      // Build roles list
       const rolesList = member.all_roles.map(r => `<span class="role-badge">${r.name}</span>`).join('');
       document.getElementById('staffRolesList').innerHTML = rolesList || '<span class="role-badge">Staff</span>';
       
-      // Build history
       const historyHtml = `
         <div class="history-item"><i class="fas fa-check-circle history-icon" style="color: #27ae60;"></i>Added to staff team</div>
         <div class="history-item"><i class="fas fa-crown history-icon" style="color: #d4af37;"></i>Highest Role: ${member.highest_role}</div>
         <div class="history-item"><i class="fas fa-list history-icon" style="color: #3498db;"></i>Total Roles: ${member.all_roles.length}</div>
         ${(staffMember?.strikes || 0) > 0 ? `<div class="history-item"><i class="fas fa-exclamation-triangle history-icon" style="color: #f39c12;"></i>${staffMember.strikes} strike(s) recorded</div>` : ''}
-        <div class="history-item"><i class="fas fa-circle history-icon" style="color: ${isOnline ? '#27ae60' : '#95a5a6'};"></i>Status: ${isOnline ? 'Online' : 'Offline'}</div>
       `;
       document.getElementById('staffHistory').innerHTML = historyHtml;
       
@@ -875,7 +880,6 @@
     }
   }
 
-  // Initialize
   window.addEventListener('load', () => {
     const loader = document.getElementById('loader');
     setTimeout(() => {

@@ -440,32 +440,52 @@ app.post('/api/guilds/:id/staff-roles', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { roleIds } = req.body;
   if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
+  if (!DATABASE_URL) return res.status(400).json({ error: 'Database not configured' });
+  if (!roleIds || roleIds.length === 0) return res.status(400).json({ error: 'No roles selected' });
+  
   try {
+    let addedCount = 0;
+    
+    // Get all roles first
+    const rolesRes = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+    const allRoles = rolesRes.ok ? await rolesRes.json() : [];
+    
+    // For each role, get members with that role
     for (const roleId of roleIds) {
       const membersRes = await fetch(`${DISCORD_API}/guilds/${id}/members?limit=1000`, {
         headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
       });
-      if (membersRes.ok) {
-        const members = await membersRes.json();
-        const staff = members.filter(m => m.roles.includes(roleId));
-        for (const m of staff) {
-          if (DATABASE_URL) {
-            const avatarUrl = m.user.avatar
-              ? `https://cdn.discordapp.com/avatars/${m.user.id}/${m.user.avatar}.png`
-              : `https://cdn.discordapp.com/embed/avatars/${(parseInt(m.user.id) % 5)}.png`;
-            await query(`
-              INSERT INTO staff_members (guild_id, user_id, username, avatar, avatar_url, role)
-              VALUES ($1, $2, $3, $4, $5, $6)
-              ON CONFLICT (guild_id, user_id) DO UPDATE SET username = EXCLUDED.username, avatar = EXCLUDED.avatar, avatar_url = EXCLUDED.avatar_url
-            `, [id, m.user.id, m.user.global_name || m.user.username, m.user.avatar, avatarUrl, 'Staff']);
-          }
-        }
+      
+      if (!membersRes.ok) continue;
+      
+      const members = await membersRes.json();
+      const staffMembers = members.filter(m => m.roles.includes(roleId));
+      
+      // Get the role name
+      const role = allRoles.find(r => r.id === roleId);
+      const roleName = role ? role.name : 'Staff';
+      
+      for (const m of staffMembers) {
+        const avatarUrl = m.user.avatar
+          ? `https://cdn.discordapp.com/avatars/${m.user.id}/${m.user.avatar}.png`
+          : `https://cdn.discordapp.com/embed/avatars/${(parseInt(m.user.id) % 5)}.png`;
+        
+        await query(`
+          INSERT INTO staff_members (guild_id, user_id, username, avatar, avatar_url, role)
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (guild_id, user_id) DO UPDATE SET username = EXCLUDED.username, avatar = EXCLUDED.avatar, avatar_url = EXCLUDED.avatar_url, role = EXCLUDED.role
+        `, [id, m.user.id, m.user.global_name || m.user.username, m.user.avatar, avatarUrl, roleName]);
+        
+        addedCount++;
       }
     }
-    res.json({ success: true });
+    
+    res.json({ success: true, added: addedCount, message: `Added ${addedCount} staff members` });
   } catch (err) {
     console.error('[staff-roles]', err);
-    res.status(500).json({ error: 'Failed' });
+    res.status(500).json({ error: 'Failed to save staff roles', details: err.message });
   }
 });
 

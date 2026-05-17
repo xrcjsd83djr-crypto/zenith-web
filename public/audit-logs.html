@@ -222,14 +222,29 @@
 
   function getIcon(action) {
     const icons = {
-      kick: 'fa-user-slash',
-      ban: 'fa-ban',
-      timeout: 'fa-clock',
-      role: 'fa-shield-alt',
-      strike: 'fa-gavel',
-      loa: 'fa-plane',
+      'member-kick': 'fa-user-slash',
+      'member-ban-add': 'fa-ban',
+      'member-ban-remove': 'fa-user-check',
+      'member-update': 'fa-user-edit',
+      'member-role-update': 'fa-shield-alt',
+      'role-create': 'fa-plus-circle',
+      'role-update': 'fa-edit',
+      'role-delete': 'fa-trash-alt',
+      'channel-create': 'fa-hashtag',
+      'channel-update': 'fa-cog',
+      'channel-delete': 'fa-trash',
+      'strike': 'fa-gavel',
+      'loa-request': 'fa-plane',
+      'guild-update': 'fa-server',
+      'invite-create': 'fa-paper-plane',
+      'message-delete': 'fa-comment-slash',
     };
-    return icons[action] || 'fa-info-circle';
+    // Support both exact match and partial match for CSS classes
+    if (icons[action]) return icons[action];
+    for (const key in icons) {
+      if (action.includes(key)) return icons[key];
+    }
+    return 'fa-info-circle';
   }
 
   function formatTime(timestamp) {

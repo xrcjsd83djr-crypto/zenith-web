@@ -757,7 +757,6 @@ app.get('/api/staff/profile/:robloxUsername', async (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
 
 // Settings API
 app.post('/api/guilds/:id/settings', requireAuth, async (req, res) => {
@@ -801,4 +800,8 @@ app.get('/api/guilds/:id/staff', requireAuth, async (req, res) => {
     console.error('[staff]', err);
     res.status(500).json({ error: 'Failed to fetch staff' });
   }
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[Zenith] Server running on port ${PORT}`);
 });

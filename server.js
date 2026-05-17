@@ -1191,10 +1191,16 @@ app.get('/api/staff/profile/:username', async (req, res) => {
 });
 
 // Catch-all → index.html (must stay after every API/page route)
+
+// ── Start Server ─────────────────────────────────────────────────────────────
+});
+
+// ── Final Routes ───────────────────────────────────────────────────────────
+app.get('/circle-config', (_req, res) => res.sendFile(join(publicPath, 'circle-config.html')));
+// Catch-all → index.html (must stay after every API/page route)
 app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
 
 // ── Start Server ─────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);
 });
-app.get('/circle-config', (_req, res) => res.sendFile(join(publicPath, 'circle-config.html')));

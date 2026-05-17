@@ -1185,7 +1185,465 @@ app.post('/api/admin/send-notification', (req, res) => {
 
 // ── 23. Static Files & Page Routes ────────────────────────────────────────
 const publicPath = join(__dirname, 'dist');
-app.use(express.static(publicPath));
+
+  // ── 22. Warnings ──────────────────────────────────────────────────────
+  app.get('/api/guilds/:id/warnings', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    if (!DATABASE_URL) return res.json([]);
+    try {
+      const r = await query(`SELECT * FROM warnings WHERE guild_id = $1 ORDER BY created_at DESC`, [id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  app.post('/api/guilds/:id/warnings', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { userId, username, reason, severity, issuedBy, issuedByName } = req.body;
+    if (!userId || !reason || !issuedBy) return res.status(400).json({ error: 'Missing required fields' });
+    if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+    try {
+      const r = await query(
+        `INSERT INTO warnings (guild_id, user_id, username, reason, severity, issued_by, issued_by_name, active)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE) RETURNING *`,
+        [id, userId, username, reason, severity || 'minor', issuedBy, issuedByName]
+      );
+      // Update warning count on staff member
+      await query(
+        `UPDATE staff_members SET warnings = (SELECT COUNT(*) FROM warnings WHERE guild_id=$1 AND user_id=$2 AND active=TRUE)
+         WHERE guild_id=$1 AND user_id=$2`,
+        [id, userId]
+      ).catch(() => {});
+      // Auto-escalate: 3 major warnings → create a strike
+      const majorCount = await query(
+        `SELECT COUNT(*) FROM warnings WHERE guild_id=$1 AND user_id=$2 AND severity='major' AND active=TRUE`,
+        [id, userId]
+      );
+      if (parseInt(majorCount.rows[0].count) >= 3) {
+        await query(
+          `INSERT INTO strikes (guild_id, user_id, username, reason, issued_by, issued_by_name, active, severity)
+           VALUES ($1,$2,$3,'Auto-escalated from 3 major warnings',$4,$5,TRUE,'auto') ON CONFLICT DO NOTHING`,
+          [id, userId, username, issuedBy, issuedByName]
+        ).catch(() => {});
+        // Deactivate the warnings so count resets
+        await query(`UPDATE warnings SET active=FALSE WHERE guild_id=$1 AND user_id=$2 AND severity='major'`, [id, userId]).catch(() => {});
+      }
+      await logActivity(id, issuedBy, issuedByName, 'warning_issued', { targetId: userId, reason, severity });
+      res.json(r.rows[0]);
+    } catch (err) {
+      console.error('[warning create]', err);
+      res.status(500).json({ error: 'Failed to create warning' });
+    }
+  });
+
+  app.delete('/api/guilds/:id/warnings/:warningId', requireAuth, async (req, res) => {
+    const { id, warningId } = req.params;
+    try {
+      await query(`UPDATE warnings SET active=FALSE WHERE id=$1 AND guild_id=$2`, [warningId, id]);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to remove warning' });
+    }
+  });
+
+  // ── 23. Blacklist ─────────────────────────────────────────────────────
+  app.get('/api/guilds/:id/blacklist', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    if (!DATABASE_URL) return res.json([]);
+    try {
+      const r = await query(`SELECT * FROM blacklist WHERE guild_id=$1 ORDER BY created_at DESC`, [id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  app.post('/api/guilds/:id/blacklist', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { userId, username, reason, addedBy, addedByName } = req.body;
+    if (!username || !reason || !addedBy) return res.status(400).json({ error: 'Missing required fields' });
+    if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+    try {
+      const r = await query(
+        `INSERT INTO blacklist (guild_id, user_id, username, reason, added_by, added_by_name, active)
+         VALUES ($1,$2,$3,$4,$5,$6,TRUE) RETURNING *`,
+        [id, userId || null, username, reason, addedBy, addedByName]
+      );
+      await logActivity(id, addedBy, addedByName, 'blacklist_add', { username, reason });
+      res.json(r.rows[0]);
+    } catch (err) {
+      console.error('[blacklist add]', err);
+      res.status(500).json({ error: 'Failed to add to blacklist' });
+    }
+  });
+
+  app.delete('/api/guilds/:id/blacklist/:entryId', requireAuth, async (req, res) => {
+    const { id, entryId } = req.params;
+    try {
+      await query(`UPDATE blacklist SET active=FALSE WHERE id=$1 AND guild_id=$2`, [entryId, id]);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to remove from blacklist' });
+    }
+  });
+
+  // ── 24. Register Discord Slash Commands (fixes duplicates) ────────────
+  app.post('/api/admin/register-commands', requireBotSecret, async (req, res) => {
+    if (!DISCORD_BOT_TOKEN || !DISCORD_CLIENT_ID) return res.status(400).json({ error: 'Bot token/client ID not configured' });
+    try {
+      // First delete all existing global commands to fix duplicates
+      const listRes = await fetch(`${DISCORD_API}/applications/${DISCORD_CLIENT_ID}/commands`, {
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+      });
+      const existing = listRes.ok ? await listRes.json() : [];
+      if (Array.isArray(existing)) {
+        await Promise.all(existing.map(cmd =>
+          fetch(`${DISCORD_API}/applications/${DISCORD_CLIENT_ID}/commands/${cmd.id}`, {
+            method: 'DELETE', headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+          })
+        ));
+      }
+
+      // Register fresh command set (staff management only)
+      const commands = [
+        { name: 'strike', description: 'Issue a strike to a staff member', options: [
+            { type: 6, name: 'user', description: 'The staff member to strike', required: true },
+            { type: 3, name: 'reason', description: 'Reason for the strike', required: true },
+            { type: 3, name: 'severity', description: 'Strike severity', required: false,
+              choices: [{ name: 'Strike', value: 'strike' }, { name: 'Final Warning', value: 'final_warning' }] },
+          ] },
+        { name: 'strikes', description: 'View strikes for a staff member', options: [
+            { type: 6, name: 'user', description: 'Staff member to check', required: true },
+          ] },
+        { name: 'warn', description: 'Issue a warning to a staff member', options: [
+            { type: 6, name: 'user', description: 'The staff member to warn', required: true },
+            { type: 3, name: 'reason', description: 'Reason for the warning', required: true },
+            { type: 3, name: 'severity', description: 'Warning severity', required: false,
+              choices: [{ name: 'Minor', value: 'minor' }, { name: 'Moderate', value: 'moderate' }, { name: 'Major', value: 'major' }] },
+          ] },
+        { name: 'loa', description: 'Request a leave of absence', options: [
+            { type: 3, name: 'reason', description: 'Reason for LOA', required: true },
+            { type: 3, name: 'start', description: 'Start date (YYYY-MM-DD)', required: true },
+            { type: 3, name: 'end', description: 'End date (YYYY-MM-DD)', required: true },
+          ] },
+        { name: 'staff', description: 'Manage staff roster', options: [
+            { type: 1, name: 'add', description: 'Add a staff member', options: [
+                { type: 6, name: 'user', description: 'Discord user to add', required: true },
+                { type: 3, name: 'rank', description: 'Their rank/role', required: true },
+              ] },
+            { name: 'remove', type: 1, description: 'Remove a staff member', options: [
+                { type: 6, name: 'user', description: 'Discord user to remove', required: true },
+                { type: 3, name: 'reason', description: 'Reason for removal', required: false },
+              ] },
+            { type: 1, name: 'info', description: 'View staff member info', options: [
+                { type: 6, name: 'user', description: 'Discord user to look up', required: true },
+              ] },
+          ] },
+        { name: 'stafflist', description: 'List all active staff members' },
+        { name: 'blacklist', description: 'Manage the applicant blacklist', options: [
+            { type: 1, name: 'add', description: 'Add a user to the blacklist', options: [
+                { type: 6, name: 'user', description: 'User to blacklist', required: true },
+                { type: 3, name: 'reason', description: 'Reason', required: true },
+              ] },
+            { type: 1, name: 'check', description: 'Check if a user is blacklisted', options: [
+                { type: 6, name: 'user', description: 'User to check', required: true },
+              ] },
+          ] },
+        { name: 'config', description: 'View current server configuration (admins only)' },
+      ];
+
+      const regRes = await fetch(`${DISCORD_API}/applications/${DISCORD_CLIENT_ID}/commands`, {
+        method: 'PUT',
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(commands),
+      });
+
+      if (!regRes.ok) {
+        const err = await regRes.json();
+        return res.status(400).json({ error: 'Discord API error', details: err });
+      }
+
+      const registered = await regRes.json();
+      res.json({ success: true, registered: registered.length, commands: registered.map(c => c.name) });
+    } catch (err) {
+      console.error('[register-commands]', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── 25. Discord Interactions Handler ─────────────────────────────────
+  app.post('/api/interactions', express.raw({ type: '*/*' }), async (req, res) => {
+    let body;
+    try { body = JSON.parse(req.body.toString()); } catch { return res.status(400).end(); }
+
+    // Handle PING from Discord
+    if (body.type === 1) return res.json({ type: 1 });
+
+    // Application command interactions (slash commands)
+    if (body.type === 2) {
+      const guildId = body.guild_id;
+      const userId = body.member?.user?.id || body.user?.id;
+      const username = body.member?.user?.global_name || body.member?.user?.username || 'Unknown';
+      const cmdName = body.data?.name;
+
+      const ack = (content, ephemeral = true) => res.json({
+        type: 4,
+        data: { content, flags: ephemeral ? 64 : 0 },
+      });
+
+      if (!guildId) return ack('This command must be used in a server.');
+
+      try {
+        if (cmdName === 'strike') {
+          const targetId = body.data.options?.find(o => o.name === 'user')?.value;
+          const reason = body.data.options?.find(o => o.name === 'reason')?.value;
+          const severity = body.data.options?.find(o => o.name === 'severity')?.value || 'strike';
+          if (!DATABASE_URL) return ack('Database not configured.');
+          const targetMember = body.data.resolved?.members?.[targetId];
+          const targetUser = body.data.resolved?.users?.[targetId];
+          const targetName = targetUser?.global_name || targetUser?.username || targetId;
+          await query(
+            `INSERT INTO strikes (guild_id, user_id, username, reason, issued_by, issued_by_name, active, severity)
+             VALUES ($1,$2,$3,$4,$5,$6,TRUE,$7)`,
+            [guildId, targetId, targetName, reason, userId, username, severity]
+          );
+          await logActivity(guildId, userId, username, 'strike_issued', { targetId, reason, severity });
+          return ack(`✅ Strike issued to <@${targetId}> for: **${reason}**`, false);
+        }
+
+        if (cmdName === 'warn') {
+          const targetId = body.data.options?.find(o => o.name === 'user')?.value;
+          const reason = body.data.options?.find(o => o.name === 'reason')?.value;
+          const severity = body.data.options?.find(o => o.name === 'severity')?.value || 'minor';
+          if (!DATABASE_URL) return ack('Database not configured.');
+          const targetUser = body.data.resolved?.users?.[targetId];
+          const targetName = targetUser?.global_name || targetUser?.username || targetId;
+          await query(
+            `INSERT INTO warnings (guild_id, user_id, username, reason, severity, issued_by, issued_by_name, active)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE)`,
+            [guildId, targetId, targetName, reason, severity, userId, username]
+          );
+          return ack(`⚠️ ${severity.charAt(0).toUpperCase() + severity.slice(1)} warning issued to <@${targetId}>: **${reason}**`, false);
+        }
+
+        if (cmdName === 'strikes') {
+          const targetId = body.data.options?.find(o => o.name === 'user')?.value;
+          if (!DATABASE_URL) return ack('Database not configured.');
+          const r = await query(`SELECT * FROM strikes WHERE guild_id=$1 AND user_id=$2 AND active=TRUE ORDER BY created_at DESC`, [guildId, targetId]);
+          if (r.rows.length === 0) return ack(`<@${targetId}> has no active strikes. ✅`);
+          const list = r.rows.map((s, i) => `**${i+1}.** ${s.reason} *(by ${s.issued_by_name || 'Unknown'}, ${new Date(s.created_at).toLocaleDateString()})*`).join('\n');
+          return ack(`**Strikes for <@${targetId}>** (${r.rows.length} active):\n${list}`);
+        }
+
+        if (cmdName === 'loa') {
+          const reason = body.data.options?.find(o => o.name === 'reason')?.value;
+          const start = body.data.options?.find(o => o.name === 'start')?.value;
+          const end = body.data.options?.find(o => o.name === 'end')?.value;
+          if (!DATABASE_URL) return ack('Database not configured.');
+          await query(
+            `INSERT INTO loa_requests (guild_id, user_id, username, reason, start_date, end_date, status)
+             VALUES ($1,$2,$3,$4,$5,$6,'pending')`,
+            [guildId, userId, username, reason, new Date(start), new Date(end)]
+          );
+          return ack(`📅 Your LOA request has been submitted for **${start} → ${end}**. Awaiting management approval.`);
+        }
+
+        if (cmdName === 'stafflist') {
+          if (!DATABASE_URL) return ack('Database not configured.');
+          const r = await query(`SELECT username, rank FROM staff_members WHERE guild_id=$1 AND is_active=TRUE ORDER BY rank, username LIMIT 20`, [guildId]);
+          if (r.rows.length === 0) return ack('No active staff members found.');
+          const list = r.rows.map(m => `• **${m.username}** — ${m.rank || 'Staff'}`).join('\n');
+          return ack(`**Active Staff (${r.rows.length}):**\n${list}`, false);
+        }
+
+        if (cmdName === 'staff') {
+          const sub = body.data.options?.[0]?.name;
+          const subOpts = body.data.options?.[0]?.options || [];
+          if (sub === 'add') {
+            const targetId = subOpts.find(o => o.name === 'user')?.value;
+            const rank = subOpts.find(o => o.name === 'rank')?.value;
+            const targetUser = body.data.resolved?.users?.[targetId];
+            const targetName = targetUser?.global_name || targetUser?.username || targetId;
+            const avatarUrl = targetUser?.avatar ? `https://cdn.discordapp.com/avatars/${targetId}/${targetUser.avatar}.png` : null;
+            await query(
+              `INSERT INTO staff_members (guild_id, user_id, username, avatar_url, rank, role)
+               VALUES ($1,$2,$3,$4,$5,$5) ON CONFLICT (guild_id, user_id) DO UPDATE SET rank=$5, role=$5, is_active=TRUE, updated_at=NOW()`,
+              [guildId, targetId, targetName, avatarUrl, rank]
+            );
+            return ack(`✅ <@${targetId}> added to staff as **${rank}**.`, false);
+          }
+          if (sub === 'remove') {
+            const targetId = subOpts.find(o => o.name === 'user')?.value;
+            await query(`UPDATE staff_members SET is_active=FALSE, updated_at=NOW() WHERE guild_id=$1 AND user_id=$2`, [guildId, targetId]);
+            return ack(`✅ <@${targetId}> removed from staff roster.`, false);
+          }
+          if (sub === 'info') {
+            const targetId = subOpts.find(o => o.name === 'user')?.value;
+            const [sm, sR] = await Promise.all([
+              query(`SELECT * FROM staff_members WHERE guild_id=$1 AND user_id=$2`, [guildId, targetId]),
+              query(`SELECT COUNT(*) FROM strikes WHERE guild_id=$1 AND user_id=$2 AND active=TRUE`, [guildId, targetId]),
+            ]);
+            if (!sm.rows[0]) return ack(`<@${targetId}> is not in the staff roster.`);
+            const m = sm.rows[0];
+            return ack(`**Staff Info: ${m.username}**\nRank: ${m.rank || 'N/A'}\nDivision: ${m.division || 'N/A'}\nActive Strikes: ${sR.rows[0].count}\nJoined: ${new Date(m.joined_at).toLocaleDateString()}`);
+          }
+        }
+
+        if (cmdName === 'config') {
+          if (!DATABASE_URL) return ack('Database not configured.');
+          const r = await query(`SELECT * FROM server_config WHERE guild_id=$1`, [guildId]);
+          const cfg = r.rows[0];
+          if (!cfg) return ack('No configuration saved yet. Set it up at the Zenith dashboard.');
+          return ack(`**Zenith Configuration**\nApplications: ${cfg.applications_enabled ? 'Enabled' : 'Disabled'}\nStrike Threshold: ${cfg.strike_threshold}\nLOA Approval Required: ${cfg.loa_require_approval ? 'Yes' : 'No'}\nPrefix: ${cfg.prefix}\n\nManage at your dashboard.`);
+        }
+
+        return ack('Unknown command.');
+      } catch (err) {
+        console.error('[interactions]', err);
+        return ack('An error occurred. Please try again.');
+      }
+    }
+
+    // Button/component interactions
+    if (body.type === 3) {
+      const customId = body.data?.custom_id;
+      const guildId = body.guild_id;
+      const userId = body.member?.user?.id || body.user?.id;
+      const username = body.member?.user?.global_name || body.member?.user?.username || 'Unknown';
+
+      if (customId === 'zenith_apply') {
+        return res.json({
+          type: 9, // MODAL
+          data: {
+            custom_id: 'apply_modal',
+            title: 'Staff Application',
+            components: [{
+              type: 1, components: [{
+                type: 4, custom_id: 'why_apply', label: 'Why do you want to join the staff team?',
+                style: 2, min_length: 50, max_length: 1000, required: true,
+                placeholder: 'Be specific and honest...',
+              }],
+            }, {
+              type: 1, components: [{
+                type: 4, custom_id: 'experience', label: 'What relevant experience do you have?',
+                style: 2, min_length: 20, max_length: 500, required: true,
+                placeholder: 'Previous server staff, moderation experience, etc.',
+              }],
+            }, {
+              type: 1, components: [{
+                type: 4, custom_id: 'age', label: 'How old are you and what timezone are you in?',
+                style: 1, max_length: 50, required: true, placeholder: 'e.g. 17, EST',
+              }],
+            }],
+          },
+        });
+      }
+
+      if (customId === 'zenith_loa') {
+        return res.json({
+          type: 9, // MODAL
+          data: {
+            custom_id: 'loa_modal',
+            title: 'Leave of Absence Request',
+            components: [{
+              type: 1, components: [{
+                type: 4, custom_id: 'loa_reason', label: 'Reason for Leave of Absence',
+                style: 2, min_length: 10, max_length: 500, required: true,
+                placeholder: 'Please be specific about why you need time off.',
+              }],
+            }, {
+              type: 1, components: [{
+                type: 4, custom_id: 'loa_dates', label: 'Start and End Dates',
+                style: 1, required: true, placeholder: 'e.g. May 20 → May 30, 2025',
+              }],
+            }],
+          },
+        });
+      }
+
+      return res.json({ type: 6 }); // Deferred update for unknown buttons
+    }
+
+    // Modal submit interactions
+    if (body.type === 5) {
+      const customId = body.data?.custom_id;
+      const guildId = body.guild_id;
+      const userId = body.member?.user?.id || body.user?.id;
+      const username = body.member?.user?.global_name || body.member?.user?.username || 'Unknown';
+
+      if (customId === 'apply_modal' && DATABASE_URL) {
+        const answers = body.data.components.flatMap(row => row.components).reduce((acc, comp) => {
+          acc[comp.custom_id] = comp.value;
+          return acc;
+        }, {});
+
+        const cfg = await query('SELECT applications_review_channel_id, embed_footer FROM server_config WHERE guild_id=$1', [guildId]).catch(() => ({ rows: [] }));
+        const reviewChannel = cfg.rows[0]?.applications_review_channel_id;
+
+        if (reviewChannel && DISCORD_BOT_TOKEN) {
+          await fetch(`${DISCORD_API}/channels/${reviewChannel}/messages`, {
+            method: 'POST',
+            headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              embeds: [{
+                title: '📋 New Staff Application',
+                color: 0xd4af37,
+                author: { name: username, icon_url: body.member?.user?.avatar ? `https://cdn.discordapp.com/avatars/${userId}/${body.member.user.avatar}.png` : undefined },
+                fields: Object.entries(answers).map(([k, v]) => ({ name: k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), value: String(v), inline: false })),
+                footer: { text: cfg.rows[0]?.embed_footer || 'Zenith Staff Management' },
+                timestamp: new Date().toISOString(),
+              }],
+              components: [{
+                type: 1, components: [
+                  { type: 2, style: 3, label: 'Accept', custom_id: `app_accept_${userId}`, emoji: { name: '✅' } },
+                  { type: 2, style: 4, label: 'Decline', custom_id: `app_decline_${userId}`, emoji: { name: '❌' } },
+                ],
+              }],
+            }),
+          }).catch(() => {});
+        }
+
+        return res.json({ type: 4, data: { content: '✅ Your application has been submitted! Management will review it shortly.', flags: 64 } });
+      }
+
+      if (customId === 'loa_modal' && DATABASE_URL) {
+        const reason = body.data.components[0]?.components[0]?.value;
+        const dates = body.data.components[1]?.components[0]?.value;
+        const today = new Date();
+        const nextWeek = new Date(today.getTime() + 7 * 86400000);
+
+        await query(
+          `INSERT INTO loa_requests (guild_id, user_id, username, reason, start_date, end_date, status)
+           VALUES ($1,$2,$3,$4,$5,$6,'pending')`,
+          [guildId, userId, username, `${reason} (dates: ${dates})`, today, nextWeek]
+        ).catch(() => {});
+
+        // Notify review channel
+        const cfg = await query('SELECT loa_channel_id, embed_footer FROM server_config WHERE guild_id=$1', [guildId]).catch(() => ({ rows: [] }));
+        const loaChannel = cfg.rows[0]?.loa_channel_id;
+        if (loaChannel && DISCORD_BOT_TOKEN) {
+          await fetch(`${DISCORD_API}/channels/${loaChannel}/messages`, {
+            method: 'POST',
+            headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              embeds: [{
+                title: '📅 LOA Request',
+                color: 0xd4af37,
+                description: `**${username}** has submitted a Leave of Absence request.\n\n**Reason:** ${reason}\n**Dates:** ${dates}`,
+                footer: { text: cfg.rows[0]?.embed_footer || 'Zenith Staff Management' },
+                timestamp: new Date().toISOString(),
+              }],
+            }),
+          }).catch(() => {});
+        }
+
+        return res.json({ type: 4, data: { content: '📅 Your LOA request has been submitted and is pending management approval.', flags: 64 } });
+      }
+
+      return res.json({ type: 4, data: { content: 'Received!', flags: 64 } });
+    }
+
+    res.status(400).json({ error: 'Unknown interaction type' });
+  });
+
+  app.use(express.static(publicPath));
 
 const pages = [
   ['/select-server', 'select-server.html'], ['/staff-portal', 'staff-portal.html'],

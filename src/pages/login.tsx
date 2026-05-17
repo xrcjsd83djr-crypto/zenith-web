@@ -9,7 +9,7 @@ export default function LoginPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md animate-pulse flex flex-col items-center">
           <div className="w-16 h-16 bg-gray-200 rounded-xl mb-6"></div>
           <div className="h-6 w-32 bg-gray-200 rounded mb-2"></div>
@@ -36,7 +36,7 @@ export default function LoginPage() {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <Link href="/" className="flex justify-center mb-6 hover:opacity-90 transition-opacity">
-          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-white font-bold text-4xl shadow-lg shadow-primary/20">
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-4xl shadow-lg" style={{ background: "linear-gradient(135deg,#d4af37,#ffd700)", boxShadow: "0 8px 24px rgba(212,175,55,.35)" }}>
             Z
           </div>
         </Link>

@@ -1,160 +1,112 @@
 import { useState, useEffect, useCallback } from "react";
-  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+  import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
   import { Button } from "@/components/ui/button";
-  import { Input } from "@/components/ui/input";
   import { Label } from "@/components/ui/label";
+  import { Input } from "@/components/ui/input";
   import { Switch } from "@/components/ui/switch";
-  import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-  import { Badge } from "@/components/ui/badge";
   import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-  import { Separator } from "@/components/ui/separator";
-  import { CheckCircle, AlertCircle, Loader2, Hash, Shield, Settings, Bell, Users, FileText, Send, Star, Lock } from "lucide-react";
-  import { Textarea } from "@/components/ui/textarea";
+  import { Badge } from "@/components/ui/badge";
+  import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+  import { Loader2, RefreshCw, CheckCircle, AlertCircle, Settings, Hash, Shield, Bot, Zap, Star, Plus, X, Send } from "lucide-react";
 
-  interface Channel { id: string; name: string; type: number; }
-  interface Role { id: string; name: string; color: string; }
-  interface Config { [key: string]: any; }
+  interface Channel { id: string; name: string; }
+  interface Role { id: string; name: string; color?: number; }
+  type Config = Record<string, any>;
 
-  function ChannelSelect({ value, onChange, channels, placeholder = "Select a channel", loading }: {
-    value: string; onChange: (v: string) => void;
-    channels: Channel[]; placeholder?: string; loading?: boolean;
-  }) {
+  // Multi-role selector: allows up to `max` roles to be selected
+  function MultiRoleSelect({
+    values, onChange, roles, placeholder, loading, max = 4,
+  }: { values: string[]; onChange: (v: string[]) => void; roles: Role[]; placeholder: string; loading: boolean; max?: number; }) {
+    const [open, setOpen] = useState(false);
+    const safeValues = Array.isArray(values) ? values : [];
+    const selected = roles.filter(r => safeValues.includes(r.id));
+    const available = roles.filter(r => !safeValues.includes(r.id));
+
+    const roleColor = (color?: number) => {
+      if (!color) return '#94a3b8';
+      return '#' + color.toString(16).padStart(6, '0');
+    };
+
     return (
-      <Select value={value || ""} onValueChange={onChange}>
-        <SelectTrigger className="w-full bg-white border-border">
-          <SelectValue placeholder={loading ? "Loading channels..." : placeholder}>
-            {value && value !== "none" ? (
-              <span className="flex items-center gap-2 text-foreground">
-                <Hash size={13} className="text-muted-foreground flex-shrink-0" />
-                {channels.find(c => c.id === value)?.name || value}
-              </span>
-            ) : (
-              <span className="text-muted-foreground">{loading ? "Loading channels..." : placeholder}</span>
-            )}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent className="bg-white border-border">
-          <SelectItem value="none">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <AlertCircle size={13} /> Not configured
-            </span>
-          </SelectItem>
-          {channels.map(c => (
-            <SelectItem key={c.id} value={c.id}>
-              <span className="flex items-center gap-2">
-                <Hash size={13} className="text-muted-foreground flex-shrink-0" />
-                {c.name}
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    );
-  }
-
-  function RoleSelect({ value, onChange, roles, placeholder = "Select a role", loading }: {
-    value: string; onChange: (v: string) => void;
-    roles: Role[]; placeholder?: string; loading?: boolean;
-  }) {
-    return (
-      <Select value={value || ""} onValueChange={onChange}>
-        <SelectTrigger className="w-full bg-white border-border">
-          <SelectValue placeholder={loading ? "Loading roles..." : placeholder}>
-            {value && value !== "none" ? (
-              <span className="flex items-center gap-2 text-foreground">
-                <Shield size={13} className="text-muted-foreground flex-shrink-0" />
-                {roles.find(r => r.id === value)?.name || value}
-              </span>
-            ) : (
-              <span className="text-muted-foreground">{loading ? "Loading roles..." : placeholder}</span>
-            )}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent className="bg-white border-border">
-          <SelectItem value="none">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <AlertCircle size={13} /> Not configured
-            </span>
-          </SelectItem>
-          {roles.map(r => (
-            <SelectItem key={r.id} value={r.id}>
-              <span className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full flex-shrink-0 border border-border"
-                  style={{ backgroundColor: (!r.color || r.color === '#000000' || r.color === '#99aab5') ? '#9ca3af' : r.color }} />
-                {r.name}
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    );
-  }
-
-  function FieldGroup({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
-    return (
-      <div className="space-y-1.5">
-        <Label className="text-sm font-semibold text-foreground">{label}</Label>
-        {description && <p className="text-xs text-muted-foreground">{description}</p>}
-        {children}
-      </div>
-    );
-  }
-
-  function StatusBadge({ configured }: { configured: boolean }) {
-    return configured ? (
-      <Badge className="bg-green-100 text-green-700 border-green-200 text-xs whitespace-nowrap">
-        <CheckCircle size={10} className="mr-1" /> Set
-      </Badge>
-    ) : (
-      <Badge variant="outline" className="text-muted-foreground text-xs whitespace-nowrap">Not set</Badge>
-    );
-  }
-
-  function PremiumLock({ children, isPremium }: { children: React.ReactNode; isPremium: boolean }) {
-    if (isPremium) return <>{children}</>;
-    return (
-      <div className="relative">
-        <div className="pointer-events-none opacity-40 select-none">{children}</div>
-        <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-white/60 backdrop-blur-[1px]">
-          <div className="flex items-center gap-1.5 bg-white border border-border rounded-full px-3 py-1.5 shadow-sm text-xs font-semibold text-muted-foreground">
-            <Lock size={12} style={{ color: '#d4af37' }} />
-            <span>Premium only</span>
+      <div className="space-y-2">
+        {selected.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {selected.map(role => (
+              <div key={role.id} className="flex items-center gap-1 px-2 py-1 rounded-full border border-border bg-muted/30 text-xs font-medium">
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: roleColor(role.color) }} />
+                {role.name}
+                <button onClick={() => onChange(safeValues.filter(v => v !== role.id))} className="ml-0.5 text-muted-foreground hover:text-red-500 transition-colors">
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
           </div>
-        </div>
+        )}
+        {safeValues.length < max ? (
+          <div className="relative">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOpen(o => !o)}
+              className="w-full justify-start gap-2 text-muted-foreground text-xs h-8"
+            >
+              <Plus size={12} /> {selected.length > 0 ? `Add role (${selected.length}/${max})` : placeholder}
+            </Button>
+            {open && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+                <div className="absolute top-full left-0 mt-1 w-full bg-white border border-border rounded-lg shadow-lg z-20 py-1 max-h-48 overflow-y-auto">
+                  {loading ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground flex items-center gap-2"><Loader2 size={11} className="animate-spin" />Loading roles...</div>
+                  ) : available.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No more roles to add</div>
+                  ) : available.map(role => (
+                    <button key={role.id} type="button" onClick={() => { onChange([...safeValues, role.id]); if (safeValues.length + 1 >= max) setOpen(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted/50 text-xs text-left transition-colors">
+                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: roleColor(role.color) }} />
+                      {role.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground italic">Maximum {max} roles selected</div>
+        )}
       </div>
     );
   }
 
   export default function ConfigPage({ guildId }: { guildId: string }) {
+    const [config, setConfig] = useState<Config>({});
     const [channels, setChannels] = useState<Channel[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
-    const [config, setConfig] = useState<Config>({});
     const [isPremium, setIsPremium] = useState(false);
     const [loadingData, setLoadingData] = useState(true);
+    const [rolesLoading, setRolesLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
-    const [error, setError] = useState("");
+    const [error, setError] = useState('');
     const [posting, setPosting] = useState<string | null>(null);
-    const [postMsg, setPostMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+    const [postMsg, setPostMsg] = useState<{ type: string; text: string } | null>(null);
 
     const fetchAll = useCallback(async () => {
       setLoadingData(true);
       try {
-        const [chanRes, rolesRes, cfgRes, premRes] = await Promise.all([
+        const [cfgRes, chanRes, rolesRes, premRes] = await Promise.all([
+          fetch(`/api/guilds/${guildId}/config`, { credentials: 'include' }),
           fetch(`/api/guilds/${guildId}/channels`, { credentials: 'include' }),
           fetch(`/api/guilds/${guildId}/roles`, { credentials: 'include' }),
-          fetch(`/api/guilds/${guildId}/config`, { credentials: 'include' }),
-          fetch(`/api/guilds/${guildId}/is-premium`, { credentials: 'include' }),
+          fetch(`/api/guilds/${guildId}/premium`, { credentials: 'include' }),
         ]);
+        if (cfgRes.ok) setConfig(await cfgRes.json());
         if (chanRes.ok) setChannels(await chanRes.json());
         if (rolesRes.ok) setRoles(await rolesRes.json());
-        if (cfgRes.ok) setConfig(await cfgRes.json());
         if (premRes.ok) { const p = await premRes.json(); setIsPremium(p.isPremium || p.premium); }
-      } catch {
-        setError("Failed to load configuration. Check bot token and server access.");
-      } finally {
-        setLoadingData(false);
-      }
+      } catch { setError('Failed to load configuration.'); }
+      setLoadingData(false);
     }, [guildId]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -165,276 +117,236 @@ import { useState, useEffect, useCallback } from "react";
     };
 
     const handleSave = async () => {
-      setSaving(true);
-      setError("");
+      setSaving(true); setError('');
       try {
         const payload: Config = {};
         for (const [k, v] of Object.entries(config)) {
-          payload[k] = (v === "none" || v === "") ? null : v;
+          payload[k] = (v === 'none' || v === '') ? null : v;
         }
         const res = await fetch(`/api/guilds/${guildId}/config`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
           body: JSON.stringify(payload),
         });
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Failed to save');
-        }
+        if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Failed to save'); }
         const data = await res.json();
         if (data.config) setConfig(data.config);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setSaving(false);
-      }
+        setSaved(true); setTimeout(() => setSaved(false), 3000);
+      } catch (err: any) { setError(err.message); }
+      setSaving(false);
     };
 
     const postPanel = async (type: string) => {
-      setPosting(type);
-      setPostMsg(null);
+      setPosting(type); setPostMsg(null);
       try {
         const res = await fetch(`/api/guilds/${guildId}/config/post-panel`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
           body: JSON.stringify({ type }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to post panel');
-        setPostMsg({ type: "ok", text: data.message || 'Panel posted successfully!' });
-      } catch (err: any) {
-        setPostMsg({ type: "err", text: err.message });
-      } finally {
-        setPosting(null);
-        setTimeout(() => setPostMsg(null), 5000);
-      }
+        setPostMsg({ type: 'ok', text: data.message || 'Panel posted!' });
+      } catch (err: any) { setPostMsg({ type: 'err', text: err.message }); }
+      setPosting(null);
+      setTimeout(() => setPostMsg(null), 5000);
     };
 
-    if (loadingData) {
-      return (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center space-y-3">
-            <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mx-auto"
-              style={{ borderColor: '#d4af37', borderTopColor: 'transparent' }} />
-            <p className="text-muted-foreground text-sm">Loading configuration...</p>
-          </div>
+    if (loadingData) return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin mx-auto" style={{ borderColor: '#d4af37', borderTopColor: 'transparent' }} />
+          <p className="text-muted-foreground text-sm">Loading configuration...</p>
         </div>
-      );
-    }
+      </div>
+    );
 
     const chanVal = (key: string) => config[key] || "";
     const roleVal = (key: string) => config[key] || "";
+    const roleArrVal = (key: string): string[] => {
+      const v = config[key];
+      if (Array.isArray(v)) return v;
+      if (typeof v === 'string' && v) return [v];
+      return [];
+    };
+
+    const ChannelSelect = ({ label, desc, cfgKey }: { label: string; desc?: string; cfgKey: string }) => (
+      <div className="space-y-1.5">
+        <Label className="text-sm font-semibold">{label}</Label>
+        {desc && <p className="text-xs text-muted-foreground">{desc}</p>}
+        <Select value={chanVal(cfgKey)} onValueChange={v => updateConfig(cfgKey, v === 'none' ? null : v)}>
+          <SelectTrigger className="bg-white border-border text-sm"><SelectValue placeholder="Select channel" /></SelectTrigger>
+          <SelectContent className="bg-white border-border">
+            <SelectItem value="none">Not set</SelectItem>
+            {channels.map(c => <SelectItem key={c.id} value={c.id}>#{c.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+
+    const RoleSelect = ({ label, desc, cfgKey }: { label: string; desc?: string; cfgKey: string }) => (
+      <div className="space-y-1.5">
+        <Label className="text-sm font-semibold">{label}</Label>
+        {desc && <p className="text-xs text-muted-foreground">{desc}</p>}
+        <Select value={roleVal(cfgKey)} onValueChange={v => updateConfig(cfgKey, v === 'none' ? null : v)}>
+          <SelectTrigger className="bg-white border-border text-sm"><SelectValue placeholder="Select role" /></SelectTrigger>
+          <SelectContent className="bg-white border-border">
+            <SelectItem value="none">Not set</SelectItem>
+            {roles.map(r => <SelectItem key={r.id} value={r.id}>@{r.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+    );
 
     return (
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-5 max-w-4xl">
         {/* Header */}
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight">Server Configuration</h2>
-            <p className="text-muted-foreground mt-0.5 text-sm">Configure channels, roles, and bot behaviour. All saved to the database.</p>
+            <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
+              <Settings className="w-6 h-6" style={{ color: '#d4af37' }} /> Server Configuration
+            </h2>
+            <p className="text-muted-foreground mt-0.5 text-sm">Configure channels, roles, and bot behaviour. Changes are saved to the database.</p>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            {postMsg && (
-              <span className={`flex items-center gap-1.5 text-sm font-medium ${postMsg.type === "ok" ? "text-green-600" : "text-destructive"}`}>
-                {postMsg.type === "ok" ? <CheckCircle size={15} /> : <AlertCircle size={15} />}
-                {postMsg.text}
-              </span>
-            )}
-            {saved && (
-              <span className="flex items-center gap-1.5 text-green-600 text-sm font-medium">
-                <CheckCircle size={15} /> Saved!
-              </span>
-            )}
-            {error && (
-              <span className="flex items-center gap-1.5 text-destructive text-sm">
-                <AlertCircle size={14} /> {error}
-              </span>
-            )}
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              {saving ? <><Loader2 size={14} className="animate-spin" />Saving...</> : "Save Changes"}
+          <div className="flex items-center gap-2 flex-wrap">
+            {saved && <span className="text-green-600 text-sm flex items-center gap-1.5 font-medium"><CheckCircle size={14} /> Saved!</span>}
+            {error && <span className="text-red-600 text-sm flex items-center gap-1.5"><AlertCircle size={14} /> {error}</span>}
+            <Button variant="outline" size="sm" onClick={fetchAll} className="gap-1.5"><RefreshCw size={13} />Refresh</Button>
+            <Button onClick={handleSave} disabled={saving} size="sm" style={{ background: saving ? undefined : 'linear-gradient(135deg,#d4af37,#ffd700)', color: '#5a3e10', border: 'none' }}>
+              {saving ? <><Loader2 size={13} className="animate-spin mr-1" />Saving...</> : "Save Configuration"}
             </Button>
           </div>
         </div>
 
-        <Tabs defaultValue="channels" className="space-y-4">
-          <TabsList className="flex flex-wrap gap-1 h-auto p-1">
-            <TabsTrigger value="channels" className="gap-1.5"><Hash size={13} /> Channels</TabsTrigger>
-            <TabsTrigger value="roles" className="gap-1.5"><Shield size={13} /> Roles</TabsTrigger>
-            <TabsTrigger value="strikes" className="gap-1.5"><AlertCircle size={13} /> Strikes</TabsTrigger>
-            <TabsTrigger value="loa" className="gap-1.5"><Bell size={13} /> LOA</TabsTrigger>
-            <TabsTrigger value="applications" className="gap-1.5"><FileText size={13} /> Applications</TabsTrigger>
-            <TabsTrigger value="general" className="gap-1.5"><Settings size={13} /> General</TabsTrigger>
+        <Tabs defaultValue="channels" className="w-full">
+          <TabsList className="bg-muted/50 border border-border w-full justify-start flex-wrap h-auto gap-1 p-1">
+            {[
+              { value: 'channels', icon: <Hash size={13} />, label: 'Channels' },
+              { value: 'roles', icon: <Shield size={13} />, label: 'Roles' },
+              { value: 'strikes', icon: <Zap size={13} />, label: 'Strike System' },
+              { value: 'bot', icon: <Bot size={13} />, label: 'Bot Settings' },
+              { value: 'panels', icon: <Send size={13} />, label: 'Post Panels' },
+            ].map(t => (
+              <TabsTrigger key={t.value} value={t.value} className="flex items-center gap-1.5 text-xs data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm">
+                {t.icon}{t.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          {/* ── CHANNELS ── */}
-          <TabsContent value="channels">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Hash size={17} style={{ color: '#d4af37' }} /> Channel Configuration
-                </CardTitle>
-                <CardDescription>Set channels for different bot features. Dropdowns are fetched live from your Discord server.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {[
-                    { key: 'logs_channel_id',                label: 'Logs Channel',               desc: 'All mod actions and bot logs.' },
-                    { key: 'loa_channel_id',                 label: 'LOA Channel',                desc: 'Leave of absence request posts.' },
-                    { key: 'applications_channel_id',        label: 'Applications Channel',       desc: 'Staff application panel posts here.' },
-                    { key: 'applications_review_channel_id', label: 'Applications Review',        desc: 'Management review for applications.' },
-                    { key: 'welcome_channel_id',             label: 'Welcome Channel',            desc: 'New staff welcome messages.' },
-                    { key: 'strike_log_channel_id',          label: 'Strike Log Channel',         desc: 'Strike records logged here.' },
-                  ].map(({ key, label, desc }) => (
-                    <FieldGroup key={key} label={label} description={desc}>
-                      <div className="flex items-center gap-2">
-                        <ChannelSelect
-                          value={chanVal(key)}
-                          onChange={v => updateConfig(key, v)}
-                          channels={channels}
-                        />
-                        <StatusBadge configured={!!config[key]} />
-                      </div>
-                    </FieldGroup>
-                  ))}
-                </div>
-
-                <Separator />
-
-                {/* Panel posting buttons */}
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold">Post Panels to Discord</h4>
-                  <p className="text-xs text-muted-foreground">Post interactive panels to the configured channels. Save your channel settings first.</p>
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={!config.applications_channel_id || posting === 'applications'}
-                      onClick={() => postPanel('applications')}
-                      className="gap-2 border-primary/30 text-primary hover:bg-primary/5"
-                    >
-                      {posting === 'applications' ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                      Post Application Panel
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={!config.loa_channel_id || posting === 'loa'}
-                      onClick={() => postPanel('loa')}
-                      className="gap-2 border-primary/30 text-primary hover:bg-primary/5"
-                    >
-                      {posting === 'loa' ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-                      Post LOA Panel
-                    </Button>
-                  </div>
-                  {(!config.applications_channel_id) && (
-                    <p className="text-xs text-amber-600 flex items-center gap-1">
-                      <AlertCircle size={12} /> Set and save the Applications Channel above to enable panel posting.
-                    </p>
-                  )}
-                </div>
+          {/* ── Channels ── */}
+          <TabsContent value="channels" className="mt-4 space-y-4">
+            <Card className="border-border bg-white shadow-sm">
+              <CardHeader className="pb-3"><CardTitle className="text-base">Logging & Notifications</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <ChannelSelect label="Audit Log Channel" desc="Staff actions, strikes, LOA updates." cfgKey="logs_channel_id" />
+                <ChannelSelect label="LOA Channel" desc="Where LOA requests are posted." cfgKey="loa_channel_id" />
+                <ChannelSelect label="Applications Panel Channel" desc="Where the apply button panel goes." cfgKey="applications_channel_id" />
+                <ChannelSelect label="Applications Review Channel" desc="Where submitted applications land (staff only)." cfgKey="applications_review_channel_id" />
+                <ChannelSelect label="Strike Log Channel" desc="Strike issuance notifications." cfgKey="strike_log_channel_id" />
+                <ChannelSelect label="Welcome Channel" desc="New staff member announcements." cfgKey="welcome_channel_id" />
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* ── ROLES ── */}
-          <TabsContent value="roles">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Shield size={17} style={{ color: '#d4af37' }} /> Role Configuration
-                </CardTitle>
-                <CardDescription>Map Discord roles to Zenith's permission system.</CardDescription>
+          {/* ── Roles ── */}
+          <TabsContent value="roles" className="mt-4 space-y-4">
+            <Card className="border-border bg-white shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Staff Tier Roles</CardTitle>
+                <CardDescription>Select up to 4 roles per tier. All selected roles are treated as that tier level.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {[
-                    { key: 'staff_role_id',      label: 'Staff Role',      desc: 'The main staff role in your server.' },
-                    { key: 'admin_role_id',       label: 'Admin Role',      desc: 'Full dashboard access.' },
-                    { key: 'management_role_id',  label: 'Management Role', desc: 'Can approve LOAs and applications.' },
-                    { key: 'on_loa_role_id',      label: 'On LOA Role',     desc: 'Assigned when a staff member goes on leave.' },
-                  ].map(({ key, label, desc }) => (
-                    <FieldGroup key={key} label={label} description={desc}>
-                      <div className="flex items-center gap-2">
-                        <RoleSelect value={roleVal(key)} onChange={v => updateConfig(key, v)} roles={roles} />
-                        <StatusBadge configured={!!config[key]} />
-                      </div>
-                    </FieldGroup>
-                  ))}
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold">Staff Roles (up to 4)</Label>
+                  <p className="text-xs text-muted-foreground">Base staff tier — lowest management access.</p>
+                  <MultiRoleSelect
+                    values={roleArrVal('staff_role_ids')}
+                    onChange={v => updateConfig('staff_role_ids', v)}
+                    roles={roles} placeholder="Add staff roles..." loading={rolesLoading} max={4}
+                  />
                 </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold">Admin Roles (up to 4)</Label>
+                  <p className="text-xs text-muted-foreground">Mid-level — can approve LOA, manage applications.</p>
+                  <MultiRoleSelect
+                    values={roleArrVal('admin_role_ids')}
+                    onChange={v => updateConfig('admin_role_ids', v)}
+                    roles={roles} placeholder="Add admin roles..." loading={rolesLoading} max={4}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold">Management Roles (up to 4)</Label>
+                  <p className="text-xs text-muted-foreground">Highest tier — full dashboard access.</p>
+                  <MultiRoleSelect
+                    values={roleArrVal('management_role_ids')}
+                    onChange={v => updateConfig('management_role_ids', v)}
+                    roles={roles} placeholder="Add management roles..." loading={rolesLoading} max={4}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border bg-white shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Special Roles</CardTitle>
+                <CardDescription>Single role assignments for specific status effects.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <RoleSelect label="On-LOA Role" desc="Assigned when a LOA is approved, removed when returned." cfgKey="on_loa_role_id" />
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* ── STRIKES ── */}
-          <TabsContent value="strikes">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <AlertCircle size={17} style={{ color: '#d4af37' }} /> Strike Settings
-                </CardTitle>
-                <CardDescription>Configure automatic strike handling and thresholds.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <FieldGroup label="Strike Threshold" description="Number of active strikes before automatic action.">
-                    <Input type="number" min={1} max={10}
+          {/* ── Strike System ── */}
+          <TabsContent value="strikes" className="mt-4 space-y-4">
+            <Card className="border-border bg-white shadow-sm">
+              <CardHeader className="pb-3"><CardTitle className="text-base">Strike Settings</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-semibold">Strike Threshold</Label>
+                    <p className="text-xs text-muted-foreground">Number of strikes before automatic action is taken.</p>
+                    <Input
+                      type="number" min="1" max="10"
                       value={config.strike_threshold ?? 3}
                       onChange={e => updateConfig('strike_threshold', parseInt(e.target.value))}
-                      className="bg-white"
+                      className="bg-white border-border w-24"
                     />
-                  </FieldGroup>
-                  <FieldGroup label="Automatic Action" description="Action triggered when threshold is reached.">
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-semibold">Automatic Action</Label>
+                    <p className="text-xs text-muted-foreground">What happens when the threshold is reached.</p>
                     <Select value={config.strike_action || 'demotion'} onValueChange={v => updateConfig('strike_action', v)}>
-                      <SelectTrigger className="bg-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white">
+                      <SelectTrigger className="bg-white border-border text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-white border-border">
                         <SelectItem value="demotion">Demotion</SelectItem>
-                        <SelectItem value="suspension">Suspension</SelectItem>
                         <SelectItem value="termination">Termination</SelectItem>
-                        <SelectItem value="warn">Warn only</SelectItem>
+                        <SelectItem value="notify">Notify Only</SelectItem>
                       </SelectContent>
                     </Select>
-                  </FieldGroup>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border border-border">
-                  <div>
-                    <div className="text-sm font-semibold">Automatic Strike Processing</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">Automatically take action when the threshold is reached.</div>
                   </div>
-                  <Switch checked={!!config.strike_automation} onCheckedChange={v => updateConfig('strike_automation', v)} />
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30 gap-4">
+                  <div>
+                    <p className="text-sm font-semibold">Automate Strike Actions <Badge className="ml-2 text-[10px] bg-amber-100 text-amber-700 border-amber-200">Premium</Badge></p>
+                    <p className="text-muted-foreground text-xs mt-0.5">Automatically demote or remove staff when threshold is exceeded.</p>
+                  </div>
+                  <Switch checked={!!config.strike_automation} onCheckedChange={v => updateConfig('strike_automation', v)} disabled={!isPremium} />
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          {/* ── LOA ── */}
-          <TabsContent value="loa">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Bell size={17} style={{ color: '#d4af37' }} /> LOA Settings
-                </CardTitle>
-                <CardDescription>Configure leave of absence rules and approval workflows.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <FieldGroup label="Maximum LOA Duration (days)" description="Longest a staff member can request.">
-                    <Input type="number" min={1} max={90}
-                      value={config.loa_max_days ?? 14}
-                      onChange={e => updateConfig('loa_max_days', parseInt(e.target.value))}
-                      className="bg-white"
-                    />
-                  </FieldGroup>
+            <Card className="border-border bg-white shadow-sm">
+              <CardHeader className="pb-3"><CardTitle className="text-base">LOA Settings</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm font-semibold">Maximum LOA Duration (days)</Label>
+                    <Input type="number" min="1" max="90" value={config.loa_max_days ?? 14} onChange={e => updateConfig('loa_max_days', parseInt(e.target.value))} className="bg-white border-border w-24" />
+                  </div>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border border-border">
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30 gap-4">
                   <div>
-                    <div className="text-sm font-semibold">Require Management Approval</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">LOA requests must be approved by management before taking effect.</div>
+                    <p className="text-sm font-semibold">Require Management Approval</p>
+                    <p className="text-muted-foreground text-xs mt-0.5">LOA requests need manual approval before taking effect.</p>
                   </div>
                   <Switch checked={config.loa_require_approval !== false} onCheckedChange={v => updateConfig('loa_require_approval', v)} />
                 </div>
@@ -442,117 +354,84 @@ import { useState, useEffect, useCallback } from "react";
             </Card>
           </TabsContent>
 
-          {/* ── APPLICATIONS ── */}
-          <TabsContent value="applications">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <FileText size={17} style={{ color: '#d4af37' }} /> Application Settings
-                </CardTitle>
-                <CardDescription>Configure the staff application system.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border border-border">
-                  <div>
-                    <div className="text-sm font-semibold">Applications Enabled</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">Allow users to apply for staff positions.</div>
+          {/* ── Bot Settings ── */}
+          <TabsContent value="bot" className="mt-4 space-y-4">
+            <Card className="border-border bg-white shadow-sm">
+              <CardHeader className="pb-3"><CardTitle className="text-base">Appearance</CardTitle></CardHeader>
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold">Embed Colour</Label>
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={config.embed_color || '#d4af37'} onChange={e => updateConfig('embed_color', e.target.value)} className="w-10 h-9 rounded cursor-pointer border border-border" />
+                    <Input value={config.embed_color || '#d4af37'} onChange={e => updateConfig('embed_color', e.target.value)} className="bg-white border-border font-mono text-sm" placeholder="#d4af37" />
                   </div>
-                  <Switch checked={!!config.applications_enabled} onCheckedChange={v => updateConfig('applications_enabled', v)} />
                 </div>
-                <FieldGroup label="Application Title" description="The title shown on the application panel.">
-                  <Input
-                    value={config.applications_title || ''}
-                    onChange={e => updateConfig('applications_title', e.target.value)}
-                    placeholder="Staff Application — Zenith"
-                    className="bg-white"
-                  />
-                </FieldGroup>
-                <div className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border border-border">
-                  <div>
-                    <div className="text-sm font-semibold">Require Recommendations</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">Applicants must have a staff recommendation.</div>
-                  </div>
-                  <Switch checked={!!config.require_recommendations} onCheckedChange={v => updateConfig('require_recommendations', v)} />
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold">Embed Footer Text</Label>
+                  <Input value={config.embed_footer || ''} onChange={e => updateConfig('embed_footer', e.target.value)} placeholder="Zenith Staff Management" className="bg-white border-border" />
                 </div>
-                <PremiumLock isPremium={isPremium}>
-                  <div className="space-y-3">
-                    <FieldGroup label="Custom Questions" description="Add custom questions to the application form. (Premium)">
-                      <Textarea
-                        value={Array.isArray(config.applications_questions) ? config.applications_questions.join('\n') : ''}
-                        onChange={e => updateConfig('applications_questions', e.target.value.split('\n').filter(Boolean))}
-                        placeholder="One question per line..."
-                        rows={4}
-                        className="bg-white"
-                        disabled={!isPremium}
-                      />
-                    </FieldGroup>
-                    <div className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border border-border">
-                      <div>
-                        <div className="text-sm font-semibold flex items-center gap-1.5">
-                          Auto-Reject Failed Applications
-                          <Badge className="text-[10px]" style={{ background: 'rgba(212,175,55,.15)', color: '#b8941f', border: '1px solid rgba(212,175,55,.3)' }}>
-                            <Star size={9} className="mr-0.5 fill-current" /> Premium
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">Automatically reject applications that fail requirements.</div>
-                      </div>
-                      <Switch checked={!!config.auto_reject} onCheckedChange={v => updateConfig('auto_reject', v)} disabled={!isPremium} />
-                    </div>
-                  </div>
-                </PremiumLock>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold">Bot Prefix</Label>
+                  <Input value={config.prefix || '!'} onChange={e => updateConfig('prefix', e.target.value)} placeholder="!" className="bg-white border-border w-20" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold">Timezone</Label>
+                  <Select value={config.timezone || 'UTC'} onValueChange={v => updateConfig('timezone', v)}>
+                    <SelectTrigger className="bg-white border-border text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-white border-border">
+                      {['UTC','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','Europe/London','Europe/Paris','Asia/Tokyo','Australia/Sydney'].map(tz => (
+                        <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-white shadow-sm">
+              <CardHeader className="pb-3"><CardTitle className="text-base">Command Registration</CardTitle><CardDescription>Fix duplicate or missing slash commands in your Discord server.</CardDescription></CardHeader>
+              <CardContent>
+                <Button variant="outline" onClick={async () => {
+                  const res = await fetch(`/api/admin/register-commands`, { method: 'POST', credentials: 'include' });
+                  const d = await res.json();
+                  if (res.ok) setPostMsg({ type: 'ok', text: `Registered ${d.registered} commands.` });
+                  else setPostMsg({ type: 'err', text: d.error || 'Failed' });
+                  setTimeout(() => setPostMsg(null), 5000);
+                }} className="gap-1.5">
+                  <RefreshCw size={13} /> Re-register Slash Commands
+                </Button>
+                {postMsg && <p className={`mt-2 text-sm ${postMsg.type === 'ok' ? 'text-green-600' : 'text-red-600'}`}>{postMsg.text}</p>}
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* ── GENERAL ── */}
-          <TabsContent value="general">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Settings size={17} style={{ color: '#d4af37' }} /> General Settings
-                </CardTitle>
-                <CardDescription>Bot behaviour and tracking preferences.</CardDescription>
+          {/* ── Post Panels ── */}
+          <TabsContent value="panels" className="mt-4 space-y-4">
+            <Card className="border-border bg-white shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Discord Panels</CardTitle>
+                <CardDescription>Post interactive panels to your configured channels. Users click buttons to submit applications or LOA requests — no commands needed.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <FieldGroup label="Bot Prefix" description="Command prefix for non-slash commands.">
-                    <Input
-                      value={config.prefix || '!'}
-                      onChange={e => updateConfig('prefix', e.target.value)}
-                      placeholder="!"
-                      maxLength={5}
-                      className="bg-white w-24"
-                    />
-                  </FieldGroup>
-                  <FieldGroup label="Timezone" description="Used for scheduling and activity windows.">
-                    <Select value={config.timezone || 'UTC'} onValueChange={v => updateConfig('timezone', v)}>
-                      <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-white">
-                        {['UTC','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','Europe/London','Europe/Paris','Asia/Tokyo','Australia/Sydney'].map(tz => (
-                          <SelectItem key={tz} value={tz}>{tz}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FieldGroup>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-muted/40 rounded-xl border border-border">
-                  <div>
-                    <div className="text-sm font-semibold">Activity Tracking</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">Track message and voice activity for staff leaderboards.</div>
+              <CardContent className="space-y-3">
+                {postMsg && (
+                  <div className={`p-3 rounded-lg text-sm font-medium flex items-center gap-2 ${postMsg.type === 'ok' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                    {postMsg.type === 'ok' ? <CheckCircle size={14} /> : <AlertCircle size={14} />} {postMsg.text}
                   </div>
-                  <Switch checked={config.activity_tracking !== false} onCheckedChange={v => updateConfig('activity_tracking', v)} />
-                </div>
-                <PremiumLock isPremium={isPremium}>
-                  <FieldGroup label="Custom Embed Footer" description="Shown on all bot embed messages. (Premium)">
-                    <Input
-                      value={config.embed_footer || ''}
-                      onChange={e => updateConfig('embed_footer', e.target.value)}
-                      placeholder="Zenith Staff Management"
-                      className="bg-white"
-                      disabled={!isPremium}
-                    />
-                  </FieldGroup>
-                </PremiumLock>
+                )}
+                {[
+                  { type: 'applications', label: 'Post Application Panel', desc: 'Posts an "Apply Now" button embed to your applications channel.', icon: '📋', channel: config.applications_channel_id },
+                  { type: 'loa', label: 'Post LOA Request Panel', desc: 'Posts a "Request LOA" button embed to your LOA channel.', icon: '📅', channel: config.loa_channel_id },
+                ].map(panel => (
+                  <div key={panel.type} className="flex items-center justify-between p-4 border border-border rounded-lg bg-muted/20 gap-4">
+                    <div>
+                      <p className="font-semibold text-sm">{panel.icon} {panel.label}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{panel.desc}</p>
+                      {!panel.channel && <p className="text-xs text-amber-600 mt-1">⚠ Configure the channel first in the Channels tab.</p>}
+                    </div>
+                    <Button size="sm" onClick={() => postPanel(panel.type)} disabled={!!posting || !panel.channel} className="gap-1.5 flex-shrink-0" style={{ background: panel.channel ? 'linear-gradient(135deg,#d4af37,#ffd700)' : undefined, color: panel.channel ? '#5a3e10' : undefined, border: 'none' }}>
+                      {posting === panel.type ? <><Loader2 size={12} className="animate-spin" />Posting...</> : <><Send size={12} />Post</>}
+                    </Button>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </TabsContent>

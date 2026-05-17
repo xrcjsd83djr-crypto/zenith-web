@@ -179,17 +179,31 @@ async function getManageableGuilds(accessToken) {
 }
 
 app.get('/api/guilds', requireAuth, async (req, res) => {
-  try {
-    const guilds = await getManageableGuilds(req.session.user.accessToken);
-    res.json(guilds.map(g => ({
-      id: g.id, name: g.name, icon: g.icon,
-      iconUrl: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
-    })));
-  } catch (err) {
-    console.error('[guilds]', err);
-    res.status(500).json({ error: 'Failed to fetch guilds' });
-  }
-});
+    try {
+      const guilds = await getManageableGuilds(req.session.user.accessToken);
+      const guildList = guilds.map(g => ({
+        id: g.id, name: g.name, icon: g.icon,
+        iconUrl: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
+        botInstalled: false,
+      }));
+
+      if (DISCORD_BOT_TOKEN) {
+        await Promise.all(guildList.map(async (guild) => {
+          try {
+            const r = await fetch(`${DISCORD_API}/guilds/${guild.id}`, {
+              headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+            });
+            guild.botInstalled = r.ok;
+          } catch {}
+        }));
+      }
+
+      res.json(guildList);
+    } catch (err) {
+      console.error('[guilds]', err);
+      res.status(500).json({ error: 'Failed to fetch guilds' });
+    }
+  });
 
 app.get('/api/auth/guilds', requireAuth, async (req, res) => {
   try {

@@ -111,7 +111,7 @@ async function handleAuthCallback(req, res) {
     req.session.save((err) => {
       if (err) console.error('[Auth] Session save error:', err);
       if (DATABASE_URL) upsertUser(userData).catch(() => {});
-      res.redirect('/select-server');
+      res.redirect('/servers');
     });
   } catch (err) {
     console.error('[auth] Callback error:', err);

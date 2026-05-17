@@ -786,6 +786,185 @@ app.get('/api/guilds/:id/settings', requireAuth, async (req, res) => {
 
 // Staff Roster API
 
+// ── STRIKES API ────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/strikes', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await query(
+      `SELECT * FROM strikes WHERE guild_id = $1 ORDER BY created_at DESC`,
+      [id]
+    );
+    res.json(result.rows || []);
+  } catch (err) {
+    console.error('[strikes]', err);
+    res.status(500).json({ error: 'Failed to fetch strikes' });
+  }
+});
+
+app.post('/api/guilds/:id/strikes', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId, username, reason, evidence, issuedBy, issuedByName } = req.body;
+  
+  if (!userId || !reason || !issuedBy) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  
+  try {
+    const result = await query(
+      `INSERT INTO strikes (guild_id, user_id, username, reason, evidence, issued_by, issued_by_name, active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
+       RETURNING *`,
+      [id, userId, username, reason, evidence, issuedBy, issuedByName]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[strikes create]', err);
+    res.status(500).json({ error: 'Failed to create strike' });
+  }
+});
+
+app.delete('/api/guilds/:id/strikes/:strikeId', requireAuth, async (req, res) => {
+  const { id, strikeId } = req.params;
+  try {
+    await query(
+      `UPDATE strikes SET active = FALSE WHERE id = $1 AND guild_id = $2`,
+      [strikeId, id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[strikes delete]', err);
+    res.status(500).json({ error: 'Failed to revoke strike' });
+  }
+});
+
+// ── LOA API ────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/loa', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await query(
+      `SELECT * FROM loa_requests WHERE guild_id = $1 ORDER BY created_at DESC`,
+      [id]
+    );
+    res.json(result.rows || []);
+  } catch (err) {
+    console.error('[loa]', err);
+    res.status(500).json({ error: 'Failed to fetch LOA requests' });
+  }
+});
+
+app.post('/api/guilds/:id/loa', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId, username, reason, startDate, endDate } = req.body;
+  
+  if (!userId || !reason || !startDate || !endDate) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+  
+  // Check if LOA channel is configured
+  const configResult = await query(
+    `SELECT loa_channel_id FROM server_config WHERE guild_id = $1`,
+    [id]
+  );
+  
+  if (!configResult.rows[0]?.loa_channel_id) {
+    return res.status(400).json({ error: 'LOA channel not configured. Please set it up in Server Settings.' });
+  }
+  
+  try {
+    const result = await query(
+      `INSERT INTO loa_requests (guild_id, user_id, username, reason, start_date, end_date, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+       RETURNING *`,
+      [id, userId, username, reason, startDate, endDate]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[loa create]', err);
+    res.status(500).json({ error: 'Failed to create LOA request' });
+  }
+});
+
+app.patch('/api/guilds/:id/loa/:loaId', requireAuth, async (req, res) => {
+  const { id, loaId } = req.params;
+  const { status, approvedBy } = req.body;
+  
+  try {
+    const result = await query(
+      `UPDATE loa_requests SET status = $1, approved_by = $2 WHERE id = $3 AND guild_id = $4 RETURNING *`,
+      [status, approvedBy, loaId, id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[loa update]', err);
+    res.status(500).json({ error: 'Failed to update LOA request' });
+  }
+});
+
+// ── SERVER CONFIG API ────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/config', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await query(
+      `SELECT * FROM server_config WHERE guild_id = $1`,
+      [id]
+    );
+    res.json(result.rows[0] || {});
+  } catch (err) {
+    console.error('[config]', err);
+    res.status(500).json({ error: 'Failed to fetch config' });
+  }
+});
+
+app.post('/api/guilds/:id/config', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { loaChannelId, applicationsChannelId, logsChannelId, staffRoleId, adminRoleId, premiumEnabled } = req.body;
+  
+  try {
+    const result = await query(
+      `INSERT INTO server_config (guild_id, loa_channel_id, applications_channel_id, logs_channel_id, staff_role_id, admin_role_id, premium_enabled)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (guild_id) DO UPDATE SET
+       loa_channel_id = $2, applications_channel_id = $3, logs_channel_id = $4, staff_role_id = $5, admin_role_id = $6, premium_enabled = $7
+       RETURNING *`,
+      [id, loaChannelId, applicationsChannelId, logsChannelId, staffRoleId, adminRoleId, premiumEnabled]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[config save]', err);
+    res.status(500).json({ error: 'Failed to save config' });
+  }
+});
+
+// ── PREMIUM CHECK ────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/is-premium', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await query(
+      `SELECT is_premium FROM servers WHERE id = $1`,
+      [id]
+    );
+    res.json({ isPremium: result.rows[0]?.is_premium || false });
+  } catch (err) {
+    console.error('[premium check]', err);
+    res.status(500).json({ error: 'Failed to check premium status' });
+  }
+});
+
+// ── ACTIVITY LOGGING ────────────────────────────────────────────────────────
+app.post('/api/guilds/:id/activity', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId, action, details } = req.body;
+  
+  try {
+    // Log to audit trail or activity table
+    console.log(`[Activity] Guild: ${id}, User: ${userId}, Action: ${action}, Details: ${details}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[activity]', err);
+    res.status(500).json({ error: 'Failed to log activity' });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);
 });

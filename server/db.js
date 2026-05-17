@@ -138,6 +138,46 @@ export async function initDb() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, guild_id)
       );
+      
+      CREATE TABLE IF NOT EXISTS strikes (
+        id SERIAL PRIMARY KEY,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        username TEXT,
+        reason TEXT NOT NULL,
+        evidence TEXT,
+        issued_by TEXT NOT NULL,
+        issued_by_name TEXT,
+        active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMP
+      );
+      
+      CREATE TABLE IF NOT EXISTS loa_requests (
+        id SERIAL PRIMARY KEY,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        username TEXT,
+        reason TEXT NOT NULL,
+        start_date TIMESTAMP NOT NULL,
+        end_date TIMESTAMP NOT NULL,
+        status TEXT DEFAULT 'pending',
+        approved_by TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE TABLE IF NOT EXISTS server_config (
+        guild_id TEXT PRIMARY KEY,
+        loa_channel_id TEXT,
+        applications_channel_id TEXT,
+        logs_channel_id TEXT,
+        staff_role_id TEXT,
+        admin_role_id TEXT,
+        prefix TEXT DEFAULT '!',
+        premium_enabled BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
     console.log('[DB] Database tables initialized');
   } catch (err) {

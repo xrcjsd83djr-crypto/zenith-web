@@ -11,34 +11,21 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 8080;
 const DISCORD_API = 'https://discord.com/api/v10';
+
 const AUDIT_ACTION_MAP = {
   1: 'GUILD_UPDATE', 10: 'CHANNEL_CREATE', 11: 'CHANNEL_UPDATE', 12: 'CHANNEL_DELETE',
-  13: 'CHANNEL_OVERWRITE_CREATE', 14: 'CHANNEL_OVERWRITE_UPDATE', 15: 'CHANNEL_OVERWRITE_DELETE',
   20: 'MEMBER_KICK', 21: 'MEMBER_PRUNE', 22: 'MEMBER_BAN_ADD', 23: 'MEMBER_BAN_REMOVE',
-  24: 'MEMBER_UPDATE', 25: 'MEMBER_ROLE_UPDATE', 26: 'MEMBER_MOVE', 27: 'MEMBER_DISCONNECT',
-  28: 'BOT_ADD', 30: 'ROLE_CREATE', 31: 'ROLE_UPDATE', 32: 'ROLE_DELETE',
-  40: 'INVITE_CREATE', 41: 'INVITE_UPDATE', 42: 'INVITE_DELETE',
-  50: 'WEBHOOK_CREATE', 51: 'WEBHOOK_UPDATE', 52: 'WEBHOOK_DELETE',
-  60: 'EMOJI_CREATE', 61: 'EMOJI_UPDATE', 62: 'EMOJI_DELETE',
-  72: 'MESSAGE_DELETE', 73: 'MESSAGE_BULK_DELETE', 74: 'MESSAGE_PIN', 75: 'MESSAGE_UNPIN',
+  24: 'MEMBER_UPDATE', 25: 'MEMBER_ROLE_UPDATE', 28: 'BOT_ADD',
+  30: 'ROLE_CREATE', 31: 'ROLE_UPDATE', 32: 'ROLE_DELETE',
+  72: 'MESSAGE_DELETE', 73: 'MESSAGE_BULK_DELETE',
   80: 'INTEGRATION_CREATE', 81: 'INTEGRATION_UPDATE', 82: 'INTEGRATION_DELETE',
-  83: 'STAGE_INSTANCE_CREATE', 84: 'STAGE_INSTANCE_UPDATE', 85: 'STAGE_INSTANCE_DELETE',
-  90: 'STICKER_CREATE', 91: 'STICKER_UPDATE', 92: 'STICKER_DELETE',
-  110: 'GUILD_SCHEDULED_EVENT_CREATE', 111: 'GUILD_SCHEDULED_EVENT_UPDATE', 112: 'GUILD_SCHEDULED_EVENT_DELETE',
-  121: 'THREAD_CREATE', 122: 'THREAD_UPDATE', 123: 'THREAD_DELETE',
-  140: 'APPLICATION_COMMAND_PERMISSION_UPDATE', 150: 'AUTO_MODERATION_RULE_CREATE',
-  151: 'AUTO_MODERATION_RULE_UPDATE', 152: 'AUTO_MODERATION_RULE_DELETE',
-  153: 'AUTO_MODERATION_BLOCK_MESSAGE', 154: 'AUTO_MODERATION_FLAG_TO_CHANNEL',
-  155: 'AUTO_MODERATION_USER_COMMUNICATION_DISABLED'
 };
 
-
-// ── 1. HEALTH CHECKS FIRST — Railway needs these to respond instantly ────────
+// ── 1. Health Checks — must respond instantly ─────────────────────────────
 app.get('/health', (_req, res) => res.status(200).send('OK'));
-app.get('/version', (_req, res) => res.json({ version: '1.0.6-persistence-fix', commit: '4185b81' }));
-
 app.get('/healthz', (_req, res) => res.status(200).send('OK'));
 app.get('/ping', (_req, res) => res.status(200).send('pong'));
+app.get('/version', (_req, res) => res.json({ version: '2.0.0', status: 'online' }));
 
 const {
   DISCORD_CLIENT_ID,
@@ -47,21 +34,16 @@ const {
   DISCORD_BOT_TOKEN,
   SESSION_SECRET = 'zenith-secret-key-123',
   DATABASE_URL,
+  BOT_SECRET,
 } = process.env;
 
-// ── 2. Trust proxy (required for Railway) ───────────────────────────────────
+// ── 2. Middleware ─────────────────────────────────────────────────────────
 app.set('trust proxy', 1);
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
-// ── 3. Session store — use Postgres if available, fallback to memory ─────────
 const PgSession = connectPgSimple(session);
-
 const sessionStore = DATABASE_URL
-  ? new PgSession({
-      pool: pool,
-      tableName: 'session',
-      createTableIfMissing: true,
-    })
+  ? new PgSession({ pool, tableName: 'session', createTableIfMissing: true })
   : undefined;
 
 app.use(session({
@@ -69,26 +51,27 @@ app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: {
-    secure: false,
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  },
+  cookie: { secure: false, httpOnly: true, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 },
 }));
 
-// ── 4. Initialize DB (non-blocking) ─────────────────────────────────────────
-if (DATABASE_URL) {
-  initDb().catch(err => console.error('[DB] Failed to init:', err));
+// ── 3. DB Init ──────────────────────────────────────────────────────────
+if (DATABASE_URL) initDb().catch(err => console.error('[DB] Init error:', err));
+
+// ── 4. Auth Helpers ──────────────────────────────────────────────────────
+function requireAuth(req, res, next) {
+  if (BOT_SECRET && req.headers['x-bot-secret'] === BOT_SECRET) return next();
+  if (!req.session?.user) return res.status(401).json({ error: 'Not authenticated' });
+  next();
 }
 
-// ── 5. Request logger ────────────────────────────────────────────────────────
-app.use((req, _res, next) => {
-  console.log(`[Req] ${req.method} ${req.url}`);
+function requireBotSecret(req, res, next) {
+  if (!BOT_SECRET || req.headers['x-bot-secret'] !== BOT_SECRET) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
   next();
-});
+}
 
-// ── Auth helpers ─────────────────────────────────────────────────────────────
+// ── 5. Discord Auth ──────────────────────────────────────────────────────
 async function handleAuthCallback(req, res) {
   const { code } = req.query;
   if (!code) return res.redirect('/?error=no_code');
@@ -125,12 +108,9 @@ async function handleAuthCallback(req, res) {
     req.session.discordAccessToken = tokens.access_token;
     req.session.user = userData;
 
-    // Save session explicitly before redirect to ensure it's persisted
     req.session.save((err) => {
       if (err) console.error('[Auth] Session save error:', err);
-      if (DATABASE_URL) {
-        upsertUser(userData).catch(() => {});
-      }
+      if (DATABASE_URL) upsertUser(userData).catch(() => {});
       res.redirect('/select-server');
     });
   } catch (err) {
@@ -139,16 +119,6 @@ async function handleAuthCallback(req, res) {
   }
 }
 
-function requireAuth(req, res, next) {
-  const botSecret = req.headers['x-bot-secret'];
-  if (botSecret && botSecret === process.env.BOT_SECRET) {
-    return next();
-  }
-  if (!req.session?.user) return res.status(401).json({ error: 'Not authenticated' });
-  next();
-}
-
-// ── Auth Routes ──────────────────────────────────────────────────────────────
 app.get('/auth/discord', (req, res) => {
   const params = new URLSearchParams({
     client_id: DISCORD_CLIENT_ID,
@@ -158,7 +128,6 @@ app.get('/auth/discord', (req, res) => {
   });
   res.redirect(`https://discord.com/api/oauth2/authorize?${params}`);
 });
-
 app.get('/api/auth/discord', (req, res) => {
   const params = new URLSearchParams({
     client_id: DISCORD_CLIENT_ID,
@@ -168,10 +137,8 @@ app.get('/api/auth/discord', (req, res) => {
   });
   res.redirect(`https://discord.com/api/oauth2/authorize?${params}`);
 });
-
 app.get('/auth/callback', handleAuthCallback);
 app.get('/api/auth/discord/callback', handleAuthCallback);
-
 app.post('/api/auth/logout', (req, res) => {
   req.session.destroy(() => {
     res.clearCookie('connect.sid');
@@ -179,47 +146,39 @@ app.post('/api/auth/logout', (req, res) => {
   });
 });
 
-// ── User / Profile Routes ────────────────────────────────────────────────────
-// /api/me — used internally
+// ── 6. User Routes ───────────────────────────────────────────────────────
 app.get('/api/me', requireAuth, (req, res) => {
   const { accessToken, ...safe } = req.session.user;
   res.json(safe);
 });
-
-// /api/user — used by dashboard.html
 app.get('/api/user', requireAuth, (req, res) => {
   const { accessToken, ...safe } = req.session.user;
   res.json(safe);
 });
-
-// /api/auth/user — used by select-server.html
 app.get('/api/auth/user', requireAuth, (req, res) => {
   const { accessToken, ...safe } = req.session.user;
   res.json(safe);
 });
 
-// ── Guild Routes ─────────────────────────────────────────────────────────────
-// /api/guilds — internal
+// ── 7. Guild List ────────────────────────────────────────────────────────
+async function getManageableGuilds(accessToken) {
+  const res = await fetch(`${DISCORD_API}/users/@me/guilds`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const guilds = await res.json();
+  if (!Array.isArray(guilds)) return [];
+  const ADMIN = BigInt(0x8), MANAGE = BigInt(0x20);
+  return guilds.filter(g => {
+    const p = BigInt(g.permissions);
+    return g.owner || (p & ADMIN) === ADMIN || (p & MANAGE) === MANAGE;
+  });
+}
+
 app.get('/api/guilds', requireAuth, async (req, res) => {
-  const { accessToken } = req.session.user;
   try {
-    const guildsRes = await fetch(`${DISCORD_API}/users/@me/guilds`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    const allGuilds = await guildsRes.json();
-    if (!Array.isArray(allGuilds)) return res.json([]);
-
-    const ADMIN = BigInt(0x8);
-    const MANAGE = BigInt(0x20);
-    const manageable = allGuilds.filter(g => {
-      const p = BigInt(g.permissions);
-      return g.owner || (p & ADMIN) === ADMIN || (p & MANAGE) === MANAGE;
-    });
-
-    res.json(manageable.map(g => ({
-      id: g.id,
-      name: g.name,
-      icon: g.icon,
+    const guilds = await getManageableGuilds(req.session.user.accessToken);
+    res.json(guilds.map(g => ({
+      id: g.id, name: g.name, icon: g.icon,
       iconUrl: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
     })));
   } catch (err) {
@@ -228,46 +187,25 @@ app.get('/api/guilds', requireAuth, async (req, res) => {
   }
 });
 
-// /api/auth/guilds — used by select-server.html
 app.get('/api/auth/guilds', requireAuth, async (req, res) => {
-  const { accessToken } = req.session.user;
   try {
-    const guildsRes = await fetch(`${DISCORD_API}/users/@me/guilds`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    const allGuilds = await guildsRes.json();
-    if (!Array.isArray(allGuilds)) return res.json([]);
-
-    const ADMIN = BigInt(0x8);
-    const MANAGE = BigInt(0x20);
-    const manageable = allGuilds.filter(g => {
-      const p = BigInt(g.permissions);
-      return g.owner || (p & ADMIN) === ADMIN || (p & MANAGE) === MANAGE;
-    });
-
-    // Check which guilds have the bot added
-    const guildList = manageable.map(g => ({
-      id: g.id,
-      name: g.name,
-      icon: g.icon,
+    const guilds = await getManageableGuilds(req.session.user.accessToken);
+    const guildList = guilds.map(g => ({
+      id: g.id, name: g.name, icon: g.icon,
       iconUrl: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
-      owner: g.owner,
-      role: g.owner ? 'Owner' : 'Admin',
-      botAdded: false, // Will be updated below if bot token is available
+      owner: g.owner, role: g.owner ? 'Owner' : 'Admin',
+      botAdded: false,
     }));
 
-    // Try to check if bot is in each guild
     if (DISCORD_BOT_TOKEN) {
-      for (const guild of guildList) {
+      await Promise.all(guildList.map(async (guild) => {
         try {
-          const botGuildRes = await fetch(`${DISCORD_API}/guilds/${guild.id}`, {
+          const r = await fetch(`${DISCORD_API}/guilds/${guild.id}`, {
             headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
           });
-          guild.botAdded = botGuildRes.ok;
-        } catch {
-          // ignore
-        }
-      }
+          guild.botAdded = r.ok;
+        } catch {}
+      }));
     }
 
     res.json(guildList);
@@ -277,611 +215,531 @@ app.get('/api/auth/guilds', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/guilds/:id/detailed', requireAuth, async (req, res) => {
-  const { id } = req.params;
-  const userToken = req.session.discordAccessToken;
-  try {
-    let guildData;
-    if (DISCORD_BOT_TOKEN) {
-      const botRes = await fetch(`${DISCORD_API}/guilds/${id}?with_counts=true`, {
-        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-      });
-      if (botRes.ok) {
-        guildData = await botRes.json();
-      }
-    }
-    if (!guildData) {
-      const userRes = await fetch(`${DISCORD_API}/guilds/${id}`, {
-        headers: { Authorization: `Bearer ${userToken}` },
-      });
-      guildData = await userRes.json();
-    }
-
-    let channels = [], roles = [];
-    if (DISCORD_BOT_TOKEN) {
-      const chanRes = await fetch(`${DISCORD_API}/guilds/${id}/channels`, {
-        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-      });
-      if (chanRes.ok) channels = await chanRes.json();
-
-      const rolesRes = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
-        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-      });
-      if (rolesRes.ok) roles = await rolesRes.json();
-    }
-
-    res.json({
-      name: guildData.name,
-      icon: guildData.icon,
-      iconUrl: guildData.icon ? `https://cdn.discordapp.com/icons/${id}/${guildData.icon}.png` : null,
-      member_count: guildData.approximate_member_count || 0,
-      online_count: guildData.approximate_presence_count || 0,
-      channels: channels.length,
-      roles: roles.length,
-      emojis: guildData.emojis ? guildData.emojis.length : 0,
-      stickers: guildData.stickers ? guildData.stickers.length : 0,
-    });
-  } catch (err) {
-    console.error('[guilds/detailed]', err);
-    res.status(500).json({ error: 'Error fetching details' });
-  }
-});
-
-
-// Get guild channels
+// ── 8. Guild Discord Data (channels, roles) ───────────────────────────────
 app.get('/api/guilds/:id/channels', requireAuth, async (req, res) => {
   const { id } = req.params;
   if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
   try {
-    const response = await fetch(`${DISCORD_API}/guilds/${id}/channels`, {
+    const r = await fetch(`${DISCORD_API}/guilds/${id}/channels`, {
       headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
     });
-    if (!response.ok) throw new Error('Failed to fetch channels');
-    const channels = await response.json();
-    // Filter for text channels
-    res.json(channels.filter(c => c.type === 0).map(c => ({ id: c.id, name: c.name })));
+    if (!r.ok) return res.status(r.status).json({ error: 'Discord API error' });
+    const channels = await r.json();
+    // Return all text channels and categories
+    res.json(channels
+      .filter(c => c.type === 0 || c.type === 5 || c.type === 15)
+      .sort((a, b) => a.position - b.position)
+      .map(c => ({ id: c.id, name: c.name, type: c.type })));
   } catch (err) {
     console.error('[channels]', err);
     res.status(500).json({ error: 'Failed to fetch channels' });
   }
 });
 
-// Get guild roles
-app.get('/api/guilds/:id/roles-list', requireAuth, async (req, res) => {
+app.get('/api/guilds/:id/roles', requireAuth, async (req, res) => {
   const { id } = req.params;
   if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
   try {
-    const response = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
+    const r = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
       headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
     });
-    if (!response.ok) throw new Error('Failed to fetch roles');
-    const roles = await response.json();
-    res.json(roles.map(r => ({ id: r.id, name: r.name, color: r.color })));
+    if (!r.ok) return res.status(r.status).json({ error: 'Discord API error' });
+    const roles = await r.json();
+    res.json(roles
+      .filter(r => r.name !== '@everyone')
+      .sort((a, b) => b.position - a.position)
+      .map(r => ({ id: r.id, name: r.name, color: r.color ? `#${r.color.toString(16).padStart(6, '0')}` : '#99aab5' })));
   } catch (err) {
     console.error('[roles]', err);
     res.status(500).json({ error: 'Failed to fetch roles' });
   }
 });
 
-app.get('/api/guilds/:id/roles', requireAuth, async (req, res) => {
-  const { id } = req.params;
+app.get('/api/guilds/:id/roles-list', requireAuth, async (req, res) => {
+  req.params.id = req.params.id;
+  // Alias to above
+  if (!DISCORD_BOT_TOKEN) return res.json([]);
   try {
-    if (!DISCORD_BOT_TOKEN) return res.json([]);
-    const rolesRes = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
+    const r = await fetch(`${DISCORD_API}/guilds/${req.params.id}/roles`, {
       headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
     });
-    if (!rolesRes.ok) return res.json([]);
-    const roles = await rolesRes.json();
-    res.json(roles.map(r => ({ id: r.id, name: r.name, color: r.color })));
+    const roles = r.ok ? await r.json() : [];
+    res.json(roles.filter(r => r.name !== '@everyone').sort((a, b) => b.position - a.position)
+      .map(r => ({ id: r.id, name: r.name, color: r.color })));
+  } catch { res.json([]); }
+});
+
+app.get('/api/guilds/:id/members', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DISCORD_BOT_TOKEN) return res.json([]);
+  try {
+    const r = await fetch(`${DISCORD_API}/guilds/${id}/members?limit=1000`, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+    const members = r.ok ? await r.json() : [];
+    res.json(members.map(m => ({
+      id: m.user.id,
+      username: m.user.global_name || m.user.username,
+      avatar: m.user.avatar
+        ? `https://cdn.discordapp.com/avatars/${m.user.id}/${m.user.avatar}.png`
+        : `https://cdn.discordapp.com/embed/avatars/0.png`,
+      roles: m.roles,
+      nick: m.nick,
+    })));
   } catch (err) {
-    console.error('[guilds/roles]', err);
+    console.error('[members]', err);
     res.json([]);
   }
 });
 
+app.get('/api/guilds/:id/detailed', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    let guildData = null;
+    if (DISCORD_BOT_TOKEN) {
+      const r = await fetch(`${DISCORD_API}/guilds/${id}?with_counts=true`, {
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+      });
+      if (r.ok) guildData = await r.json();
+    }
+
+    let channels = [], roles = [];
+    if (DISCORD_BOT_TOKEN) {
+      const [cR, rR] = await Promise.all([
+        fetch(`${DISCORD_API}/guilds/${id}/channels`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } }),
+        fetch(`${DISCORD_API}/guilds/${id}/roles`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } }),
+      ]);
+      if (cR.ok) channels = await cR.json();
+      if (rR.ok) roles = await rR.json();
+    }
+
+    res.json({
+      name: guildData?.name || 'Unknown',
+      icon: guildData?.icon,
+      iconUrl: guildData?.icon ? `https://cdn.discordapp.com/icons/${id}/${guildData.icon}.png` : null,
+      member_count: guildData?.approximate_member_count || 0,
+      online_count: guildData?.approximate_presence_count || 0,
+      channels: channels.length,
+      roles: roles.length,
+      emojis: guildData?.emojis?.length || 0,
+    });
+  } catch (err) {
+    console.error('[detailed]', err);
+    res.status(500).json({ error: 'Failed to fetch guild details' });
+  }
+});
+
+// ── 9. Guild Registration (bot callable) ─────────────────────────────────
+app.put('/api/guilds/:id', requireBotSecret, async (req, res) => {
+  const { id } = req.params;
+  const { name, icon } = req.body;
+  if (!DATABASE_URL) return res.json({ ok: true });
+  try {
+    await query(
+      `INSERT INTO servers (id, name, icon, icon_url, bot_added, updated_at)
+       VALUES ($1, $2, $3, $4, TRUE, NOW())
+       ON CONFLICT (id) DO UPDATE SET name = $2, icon = $3, icon_url = $4, bot_added = TRUE, updated_at = NOW()`,
+      [id, name, icon, icon ? `https://cdn.discordapp.com/icons/${id}/${icon}.png` : null]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[guild upsert]', err);
+    res.status(500).json({ error: 'Failed to upsert guild' });
+  }
+});
+
+// ── 10. Premium ─────────────────────────────────────────────────────────
 app.get('/api/guilds/:id/premium', requireAuth, async (req, res) => {
   const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ isPremium: false });
   try {
-    if (!DATABASE_URL) return res.json({ isPremium: false });
-    const result = await query('SELECT is_premium FROM servers WHERE id = $1', [id]);
-    res.json({ isPremium: result.rows[0]?.is_premium || false });
-  } catch {
-    res.json({ isPremium: false });
+    const r = await query(`SELECT is_premium, premium_expires_at FROM servers WHERE id = $1`, [id]);
+    const row = r.rows[0];
+    const expired = row?.premium_expires_at && new Date(row.premium_expires_at) < new Date();
+    res.json({ isPremium: !!row?.is_premium && !expired, expiresAt: row?.premium_expires_at || null });
+  } catch { res.json({ isPremium: false }); }
+});
+
+app.get('/api/guilds/:id/is-premium', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ premium: false, isPremium: false });
+  try {
+    const r = await query(`SELECT is_premium, premium_expires_at FROM servers WHERE id = $1`, [id]);
+    const row = r.rows[0];
+    const expired = row?.premium_expires_at && new Date(row.premium_expires_at) < new Date();
+    const ok = !!row?.is_premium && !expired;
+    res.json({ premium: ok, isPremium: ok });
+  } catch { res.json({ premium: false, isPremium: false }); }
+});
+
+// Admin: give premium (bot or admin only)
+app.post('/api/admin/give-premium', requireBotSecret, async (req, res) => {
+  const { guildId, days } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No DB' });
+  try {
+    const expires = new Date(Date.now() + (days || 30) * 86400000);
+    await query(
+      `INSERT INTO servers (id, name, is_premium, premium_expires_at)
+       VALUES ($1, $1, TRUE, $2)
+       ON CONFLICT (id) DO UPDATE SET is_premium = TRUE, premium_expires_at = $2`,
+      [guildId, expires]
+    );
+    res.json({ ok: true, expiresAt: expires });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.get('/api/guilds/:id/staff', requireAuth, async (req, res) => {
+app.post('/api/admin/revoke-premium', requireBotSecret, async (req, res) => {
+  const { guildId } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No DB' });
   try {
-    if (!DATABASE_URL) return res.json([]);
-    const staff = await query('SELECT * FROM staff_members WHERE guild_id = $1', [req.params.id]);
-    res.json(staff.rows);
-  } catch {
+    await query(`UPDATE servers SET is_premium = FALSE WHERE id = $1`, [guildId]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── 11. Server Config ────────────────────────────────────────────────────
+app.get('/api/guilds/:id/config', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({});
+  try {
+    const r = await query(`SELECT * FROM server_config WHERE guild_id = $1`, [id]);
+    res.json(r.rows[0] || {});
+  } catch (err) {
+    console.error('[config get]', err);
+    res.status(500).json({ error: 'Failed to fetch config' });
+  }
+});
+
+app.put('/api/guilds/:id/config', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database configured' });
+
+  const {
+    logs_channel_id, loa_channel_id, applications_channel_id,
+    applications_review_channel_id, welcome_channel_id, strike_log_channel_id,
+    staff_role_id, admin_role_id, management_role_id, on_loa_role_id,
+    embed_color, embed_footer,
+    strike_threshold, strike_action, strike_automation,
+    loa_max_days, loa_require_approval,
+    applications_enabled, applications_title, applications_questions,
+    require_recommendations, auto_reject,
+    prefix, timezone, activity_tracking,
+  } = req.body;
+
+  try {
+    const r = await query(
+      `INSERT INTO server_config (
+        guild_id,
+        logs_channel_id, loa_channel_id, applications_channel_id,
+        applications_review_channel_id, welcome_channel_id, strike_log_channel_id,
+        staff_role_id, admin_role_id, management_role_id, on_loa_role_id,
+        embed_color, embed_footer,
+        strike_threshold, strike_action, strike_automation,
+        loa_max_days, loa_require_approval,
+        applications_enabled, applications_title, applications_questions,
+        require_recommendations, auto_reject,
+        prefix, timezone, activity_tracking, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::jsonb,$22,$23,$24,$25,$26, NOW())
+      ON CONFLICT (guild_id) DO UPDATE SET
+        logs_channel_id = $2, loa_channel_id = $3, applications_channel_id = $4,
+        applications_review_channel_id = $5, welcome_channel_id = $6, strike_log_channel_id = $7,
+        staff_role_id = $8, admin_role_id = $9, management_role_id = $10, on_loa_role_id = $11,
+        embed_color = $12, embed_footer = $13,
+        strike_threshold = $14, strike_action = $15, strike_automation = $16,
+        loa_max_days = $17, loa_require_approval = $18,
+        applications_enabled = $19, applications_title = $20, applications_questions = $21::jsonb,
+        require_recommendations = $22, auto_reject = $23,
+        prefix = $24, timezone = $25, activity_tracking = $26, updated_at = NOW()
+      RETURNING *`,
+      [
+        id,
+        logs_channel_id || null, loa_channel_id || null, applications_channel_id || null,
+        applications_review_channel_id || null, welcome_channel_id || null, strike_log_channel_id || null,
+        staff_role_id || null, admin_role_id || null, management_role_id || null, on_loa_role_id || null,
+        embed_color || '#5BA4CF', embed_footer || 'Zenith Staff Management',
+        strike_threshold ?? 3, strike_action || 'demotion', !!strike_automation,
+        loa_max_days ?? 14, loa_require_approval !== false,
+        !!applications_enabled, applications_title || null,
+        JSON.stringify(applications_questions || []),
+        !!require_recommendations, !!auto_reject,
+        prefix || '!', timezone || 'UTC', activity_tracking !== false,
+      ]
+    );
+
+    // Also ensure server record exists
+    await query(
+      `INSERT INTO servers (id, name) VALUES ($1, $1)
+       ON CONFLICT (id) DO NOTHING`,
+      [id]
+    ).catch(() => {});
+
+    await logActivity(id, null, null, 'config_update', { updated_by: req.session?.user?.id });
+    res.json({ success: true, config: r.rows[0] });
+  } catch (err) {
+    console.error('[config save]', err);
+    res.status(500).json({ error: 'Failed to save config', details: err.message });
+  }
+});
+
+// Keep POST as alias
+app.post('/api/guilds/:id/config', requireAuth, async (req, res) => {
+  req.method = 'PUT';
+  // Re-route logic
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database configured' });
+  const body = req.body;
+  try {
+    const r = await query(
+      `INSERT INTO server_config (guild_id, loa_channel_id, applications_channel_id, logs_channel_id, staff_role_id, admin_role_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (guild_id) DO UPDATE SET
+         loa_channel_id = COALESCE($2, server_config.loa_channel_id),
+         applications_channel_id = COALESCE($3, server_config.applications_channel_id),
+         logs_channel_id = COALESCE($4, server_config.logs_channel_id),
+         staff_role_id = COALESCE($5, server_config.staff_role_id),
+         admin_role_id = COALESCE($6, server_config.admin_role_id),
+         updated_at = NOW()
+       RETURNING *`,
+      [id, body.loaChannelId || null, body.applicationsChannelId || null,
+       body.logsChannelId || null, body.staffRoleId || null, body.adminRoleId || null]
+    );
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error('[config post]', err);
+    res.status(500).json({ error: 'Failed to save config' });
+  }
+});
+
+// ── 12. Staff CRUD ───────────────────────────────────────────────────────
+app.get('/api/guilds/:id/staff', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(
+      `SELECT * FROM staff_members WHERE guild_id = $1 AND is_active = TRUE ORDER BY joined_at DESC`,
+      [id]
+    );
+    res.json(r.rows);
+  } catch (err) {
+    console.error('[staff list]', err);
     res.json([]);
   }
 });
 
-// Get member details with all roles and avatar
-app.get('/api/guilds/:id/member/:userId', requireAuth, async (req, res) => {
-  const { id, userId } = req.params;
-  if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
-  try {
-    const memberRes = await fetch(`${DISCORD_API}/guilds/${id}/members/${userId}`, {
-      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-    });
-    if (!memberRes.ok) return res.status(404).json({ error: 'Member not found' });
-    const member = await memberRes.json();
-    
-    // Get all roles for this member
-    const rolesRes = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
-      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-    });
-    const allRoles = rolesRes.ok ? await rolesRes.json() : [];
-    
-    // Map member role IDs to role objects
-    const memberRoles = member.roles
-      .map(roleId => allRoles.find(r => r.id === roleId))
-      .filter(r => r && r.name !== '@everyone')
-      .sort((a, b) => b.position - a.position);
-    
-    // Get highest role
-    const highestRole = memberRoles.length > 0 ? memberRoles[0].name : 'Member';
-    
-    // Get avatar URL
-    const avatarUrl = member.user.avatar
-      ? `https://cdn.discordapp.com/avatars/${member.user.id}/${member.user.avatar}.png`
-      : `https://cdn.discordapp.com/embed/avatars/${(parseInt(member.user.id) % 5)}.png`;
-    
-    res.json({
-      user_id: member.user.id,
-      username: member.user.global_name || member.user.username,
-      avatar_url: avatarUrl,
-      highest_role: highestRole,
-      all_roles: memberRoles.map(r => ({ id: r.id, name: r.name, color: r.color })),
-      joined_at: member.joined_at,
-      nick: member.nick
-    });
-  } catch (err) {
-    console.error('[member-details]', err);
-    res.status(500).json({ error: 'Failed' });
-  }
-});
-
-// Get staff with real-time status
-app.get('/api/guilds/:id/staff-with-status', requireAuth, async (req, res) => {
+app.post('/api/guilds/:id/staff', requireAuth, async (req, res) => {
   const { id } = req.params;
-  if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
+  const { userId, username, rank, division, callsign, notes, avatarUrl } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  if (!userId) return res.status(400).json({ error: 'userId required' });
   try {
-    // Get all members
-    const membersRes = await fetch(`${DISCORD_API}/guilds/${id}/members?limit=1000`, {
-      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-    });
-    const allMembers = membersRes.ok ? await membersRes.json() : [];
-    
-    // Get all roles
-    const rolesRes = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
-      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-    });
-    const allRoles = rolesRes.ok ? await rolesRes.json() : [];
-    
-    // Get staff from DB
-    const staffResult = DATABASE_URL ? await query('SELECT * FROM staff_members WHERE guild_id = $1', [id]) : { rows: [] };
-    const staffRows = staffResult.rows || [];
-    const enrichedStaff = staffRows.map(s => {
-      const member = allMembers.find(m => m.user.id === s.user_id);
-      if (!member) return null;
-      
-      const memberRoles = member.roles
-        .map(roleId => allRoles.find(r => r.id === roleId))
-        .filter(r => r && r.name !== '@everyone')
-        .sort((a, b) => b.position - a.position);
-      
-      const highestRole = memberRoles.length > 0 ? memberRoles[0].name : 'Member';
-      const isOnline = member.user.status === 'online' || member.user.status === 'dnd' || member.user.status === 'idle';
-      
-      return {
-        ...s,
-        highest_role: highestRole,
-        all_roles: memberRoles,
-        status: isOnline ? 'online' : 'offline',
-        avatar_url: member.user.avatar
-          ? `https://cdn.discordapp.com/avatars/${member.user.id}/${member.user.avatar}.png`
-          : `https://cdn.discordapp.com/embed/avatars/${(parseInt(member.user.id) % 5)}.png`
-      };
-    }).filter(s => s !== null);
-    
-    res.json(enrichedStaff);
+    const r = await query(
+      `INSERT INTO staff_members (guild_id, user_id, username, role, rank, division, callsign, notes, avatar_url)
+       VALUES ($1, $2, $3, $4, $4, $5, $6, $7, $8)
+       ON CONFLICT (guild_id, user_id) DO UPDATE SET
+         username = EXCLUDED.username, role = EXCLUDED.role, rank = EXCLUDED.rank,
+         division = EXCLUDED.division, callsign = EXCLUDED.callsign,
+         notes = EXCLUDED.notes, avatar_url = EXCLUDED.avatar_url,
+         is_active = TRUE, updated_at = NOW()
+       RETURNING *`,
+      [id, userId, username, rank || null, division || null, callsign || null, notes || null, avatarUrl || null]
+    );
+    await logActivity(id, userId, username, 'staff_add', { rank, division });
+    res.json(r.rows[0]);
   } catch (err) {
-    console.error('[staff-status]', err);
-    res.status(500).json({ error: 'Failed' });
+    console.error('[staff add]', err);
+    res.status(500).json({ error: 'Failed to add staff member', details: err.message });
   }
 });
 
+app.get('/api/guilds/:id/staff/:userId', requireAuth, async (req, res) => {
+  const { id, userId } = req.params;
+  if (!DATABASE_URL) return res.status(404).json({ error: 'Not found' });
+  try {
+    const [staffR, strikesR, loaR] = await Promise.all([
+      query(`SELECT * FROM staff_members WHERE guild_id = $1 AND user_id = $2`, [id, userId]),
+      query(`SELECT * FROM strikes WHERE guild_id = $1 AND user_id = $2 ORDER BY created_at DESC`, [id, userId]),
+      query(`SELECT * FROM loa_requests WHERE guild_id = $1 AND user_id = $2 ORDER BY created_at DESC`, [id, userId]),
+    ]);
+    if (!staffR.rows[0]) return res.status(404).json({ error: 'Staff member not found' });
+    res.json({ ...staffR.rows[0], strikes: strikesR.rows, loaHistory: loaR.rows });
+  } catch (err) {
+    console.error('[staff get]', err);
+    res.status(500).json({ error: 'Failed to fetch staff member' });
+  }
+});
 
+app.patch('/api/guilds/:id/staff/:userId', requireAuth, async (req, res) => {
+  const { id, userId } = req.params;
+  const { rank, division, callsign, notes, robloxUsername } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  try {
+    const r = await query(
+      `UPDATE staff_members SET
+         rank = COALESCE($3, rank), role = COALESCE($3, role),
+         division = COALESCE($4, division), callsign = COALESCE($5, callsign),
+         notes = COALESCE($6, notes), roblox_username = COALESCE($7, roblox_username),
+         updated_at = NOW()
+       WHERE guild_id = $1 AND user_id = $2 RETURNING *`,
+      [id, userId, rank || null, division || null, callsign || null, notes || null, robloxUsername || null]
+    );
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error('[staff update]', err);
+    res.status(500).json({ error: 'Failed to update staff member' });
+  }
+});
 
+app.delete('/api/guilds/:id/staff/:userId', requireAuth, async (req, res) => {
+  const { id, userId } = req.params;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  try {
+    await query(
+      `UPDATE staff_members SET is_active = FALSE, updated_at = NOW() WHERE guild_id = $1 AND user_id = $2`,
+      [id, userId]
+    );
+    await logActivity(id, userId, null, 'staff_remove', {});
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[staff remove]', err);
+    res.status(500).json({ error: 'Failed to remove staff member' });
+  }
+});
+
+// Import from role
 app.post('/api/guilds/:id/staff-roles', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { roleIds } = req.body;
-  if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
-  if (!DATABASE_URL) return res.status(400).json({ error: 'Database not configured' });
-  if (!roleIds || roleIds.length === 0) return res.status(400).json({ error: 'No roles selected' });
-  
+  if (!DISCORD_BOT_TOKEN || !DATABASE_URL) return res.status(400).json({ error: 'Not configured' });
+  if (!roleIds?.length) return res.status(400).json({ error: 'No roles selected' });
   try {
+    const [membersR, rolesR] = await Promise.all([
+      fetch(`${DISCORD_API}/guilds/${id}/members?limit=1000`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } }),
+      fetch(`${DISCORD_API}/guilds/${id}/roles`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } }),
+    ]);
+    const members = membersR.ok ? await membersR.json() : [];
+    const allRoles = rolesR.ok ? await rolesR.json() : [];
+
     let addedCount = 0;
-    
-    // Get all roles first
-    const rolesRes = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
-      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-    });
-    const allRoles = rolesRes.ok ? await rolesRes.json() : [];
-    
-    // For each role, get members with that role
     for (const roleId of roleIds) {
-      const membersRes = await fetch(`${DISCORD_API}/guilds/${id}/members?limit=1000`, {
-        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-      });
-      
-      if (!membersRes.ok) continue;
-      
-      const members = await membersRes.json();
-      const staffMembers = members.filter(m => m.roles.includes(roleId));
-      
-      // Get the role name
       const role = allRoles.find(r => r.id === roleId);
-      const roleName = role ? role.name : 'Staff';
-      
+      const roleName = role?.name || 'Staff';
+      const staffMembers = members.filter(m => m.roles.includes(roleId));
+
       for (const m of staffMembers) {
         const avatarUrl = m.user.avatar
           ? `https://cdn.discordapp.com/avatars/${m.user.id}/${m.user.avatar}.png`
-          : `https://cdn.discordapp.com/embed/avatars/${(parseInt(m.user.id) % 5)}.png`;
-        
-        await query(`
-          INSERT INTO staff_members (guild_id, user_id, username, avatar, avatar_url, role)
-          VALUES ($1, $2, $3, $4, $5, $6)
-          ON CONFLICT (guild_id, user_id) DO UPDATE SET username = EXCLUDED.username, avatar = EXCLUDED.avatar, avatar_url = EXCLUDED.avatar_url, role = EXCLUDED.role
-        `, [id, m.user.id, m.user.global_name || m.user.username, m.user.avatar, avatarUrl, roleName]);
-        
+          : `https://cdn.discordapp.com/embed/avatars/0.png`;
+        await query(
+          `INSERT INTO staff_members (guild_id, user_id, username, avatar_url, role, rank)
+           VALUES ($1, $2, $3, $4, $5, $5)
+           ON CONFLICT (guild_id, user_id) DO UPDATE SET
+             username = EXCLUDED.username, avatar_url = EXCLUDED.avatar_url,
+             role = EXCLUDED.role, rank = EXCLUDED.rank, is_active = TRUE, updated_at = NOW()`,
+          [id, m.user.id, m.user.global_name || m.user.username, avatarUrl, roleName]
+        );
         addedCount++;
       }
     }
-    
-    res.json({ success: true, added: addedCount, message: `Added ${addedCount} staff members` });
+    res.json({ success: true, added: addedCount });
   } catch (err) {
     console.error('[staff-roles]', err);
-    res.status(500).json({ error: 'Failed to save staff roles', details: err.message });
+    res.status(500).json({ error: 'Failed to import staff', details: err.message });
   }
 });
 
-// ── Bot Stats ────────────────────────────────────────────────────────────────
-app.get('/api/bot/stats', async (_req, res) => {
-  try {
-    if (!DATABASE_URL) return res.json({ guilds: 0, users: 0, status: 'Online' });
-    const guilds = await query('SELECT COUNT(*) FROM servers');
-    const users = await query('SELECT COUNT(*) FROM users');
-    res.json({ guilds: guilds.rows[0].count, users: users.rows[0].count, status: 'Online' });
-  } catch {
-    res.json({ guilds: 0, users: 0, status: 'Online' });
-  }
-});
-
-// ── Static Files ─────────────────────────────────────────────────────────────
-const publicPath = join(__dirname, 'dist');
-app.use(express.static(publicPath));
-
-app.get('/select-server', (_req, res) => res.sendFile(join(publicPath, 'select-server.html')));
-app.get('/staff-portal', (_req, res) => res.sendFile(join(publicPath, 'staff-portal.html')));
-app.get('/staff-dashboard', (_req, res) => res.sendFile(join(publicPath, 'staff-dashboard.html')));
-app.get('/profile/:username', (_req, res) => res.sendFile(join(publicPath, 'profile.html')));
-app.get('/admin-portal', (_req, res) => res.sendFile(join(publicPath, 'admin-portal.html')));
-app.get('/dashboard', (_req, res) => res.sendFile(join(publicPath, 'dashboard.html')));
-app.get('/status', (_req, res) => res.sendFile(join(publicPath, 'status.html')));
-app.get('/premium', (_req, res) => res.sendFile(join(publicPath, 'premium.html')));
-app.get('/settings', (_req, res) => res.sendFile(join(publicPath, 'settings.html')));
-app.get('/server-settings', (_req, res) => res.sendFile(join(publicPath, 'settings-config.html')));
-app.get('/settings-config', (_req, res) => res.sendFile(join(publicPath, 'settings-config.html')));
-app.get('/staff-roster', (_req, res) => res.sendFile(join(publicPath, 'staff-roster.html')));
-app.get('/audit-logs', (_req, res) => res.sendFile(join(publicPath, 'audit-logs.html')));
-app.get('/applications-config', (_req, res) => res.sendFile(join(publicPath, 'applications-config.html')));
-app.get('/privacy', (_req, res) => res.sendFile(join(publicPath, 'privacy.html')));
-app.get('/tos', (_req, res) => res.sendFile(join(publicPath, 'tos.html')));
-
-// ── Additional API and admin routes ──────────────────────────────────────────
-
-// Global notifications storage
-let globalNotifications = [];
-
-// Admin Portal Endpoints
-app.post('/api/admin/verify-pin', (req, res) => {
-  const { pin, userId } = req.body;
-  const ADMIN_ID = '1416209242838401064';
-  const ADMIN_PIN = '1232009';
-  
-  if (userId !== ADMIN_ID) {
-    return res.status(403).json({ error: 'Unauthorized' });
-  }
-  
-  if (pin !== ADMIN_PIN) {
-    return res.status(401).json({ error: 'Invalid PIN' });
-  }
-  
-  res.json({ success: true, token: Buffer.from(userId + ':' + Date.now()).toString('base64') });
-});
-
-app.get('/api/admin/dashboard', (req, res) => {
-  const ADMIN_ID = '1416209242838401064';
-  const userId = req.user?.id;
-  
-  if (userId !== ADMIN_ID) {
-    return res.status(403).json({ error: 'Unauthorized' });
-  }
-  
-  res.json({
-    totalUsers: 0,
-    totalServers: 0,
-    globalNotifications: globalNotifications.length,
-    systemStatus: 'Online'
-  });
-});
-
-app.post('/api/admin/send-notification', (req, res) => {
-  const ADMIN_ID = '1416209242838401064';
-  const userId = req.user?.id;
-  
-  if (userId !== ADMIN_ID) {
-    return res.status(403).json({ error: 'Unauthorized' });
-  }
-  
-  const { message, type } = req.body;
-  
-  if (!message) {
-    return res.status(400).json({ error: 'Message required' });
-  }
-  
-  const notification = {
-    id: Date.now(),
-    message,
-    type: type || 'info',
-    timestamp: new Date(),
-    read: false
-  };
-  
-  globalNotifications.unshift(notification);
-  
-  res.json({ success: true, notification });
-});
-
-app.get('/api/admin/notifications', (req, res) => {
-  res.json(globalNotifications.slice(0, 50));
-});
-
-app.post('/api/admin/update-content', (req, res) => {
-  const ADMIN_ID = '1416209242838401064';
-  const userId = req.user?.id;
-  
-  if (userId !== ADMIN_ID) {
-    return res.status(403).json({ error: 'Unauthorized' });
-  }
-  
-  const { section, key, value } = req.body;
-  
-  // This would normally update a database or config file
-  // For now, we'll just confirm the update
-  res.json({ 
-    success: true, 
-    message: `Updated ${section}.${key}`,
-    requiresConfirmation: true
-  });
-});
-
-app.post('/api/admin/confirm-update', (req, res) => {
-  const ADMIN_ID = '1416209242838401064';
-  const userId = req.user?.id;
-  
-  if (userId !== ADMIN_ID) {
-    return res.status(403).json({ error: 'Unauthorized' });
-  }
-  
-  const { updateId, confirmationCode } = req.body;
-  
-  // Verify confirmation code (in production, this would be more secure)
-  res.json({ 
-    success: true, 
-    message: 'Changes committed globally'
-  });
-});
-
-app.get('/api/admin/system-logs', (req, res) => {
-  const ADMIN_ID = '1416209242838401064';
-  const userId = req.user?.id;
-  
-  if (userId !== ADMIN_ID) {
-    return res.status(403).json({ error: 'Unauthorized' });
-  }
-  
-  res.json({
-    logs: [
-      { timestamp: new Date(), action: 'System started', status: 'success' },
-      { timestamp: new Date(), action: 'Database connected', status: 'success' }
-    ]
-  });
-});
-
-app.post('/api/admin/broadcast-message', (req, res) => {
-  const ADMIN_ID = '1416209242838401064';
-  const userId = req.user?.id;
-  
-  if (userId !== ADMIN_ID) {
-    return res.status(403).json({ error: 'Unauthorized' });
-  }
-  
-  const { title, message, icon } = req.body;
-  
-  const broadcast = {
-    id: Date.now(),
-    title,
-    message,
-    icon: icon || 'info',
-    timestamp: new Date()
-  };
-  
-  globalNotifications.unshift(broadcast);
-  
-  res.json({ success: true, broadcast });
-});
-
-
-// ── Staff Portal API ────────────────────────────────────────────────────────
-// Get servers where user is staff (from bot database)
-app.get('/api/staff/guilds', requireAuth, async (req, res) => {
-  const userId = req.session.user.id;
-  try {
-    const result = await query(
-      `SELECT DISTINCT sm.guild_id, s.name, s.icon, sm.role as rank
-       FROM staff_members sm
-       LEFT JOIN servers s ON sm.guild_id = s.id
-       WHERE sm.user_id = $1
-       ORDER BY s.name ASC`,
-      [userId]
-    );
-    res.json(result.rows || []);
-  } catch (err) {
-    console.error('[staff/guilds]', err);
-    res.status(500).json({ error: 'Failed to fetch staff guilds' });
-  }
-});
-
-// Set Roblox username for staff member
-app.post('/api/staff/verify-roblox', requireAuth, async (req, res) => {
-  const userId = req.session.user.id;
-  const { robloxUsername, guildId } = req.body;
-  
-  if (!robloxUsername || !guildId) {
-    return res.status(400).json({ error: 'Missing robloxUsername or guildId' });
-  }
-  
-  try {
-    // Update user's Roblox username
-    await query(
-      `UPDATE users SET roblox_username = $1, roblox_verified = TRUE WHERE id = $2`,
-      [robloxUsername, userId]
-    );
-    
-    // Record staff portal session
-    await query(
-      `INSERT INTO staff_portal_sessions (user_id, guild_id, roblox_verified_at)
-       VALUES ($1, $2, NOW())
-       ON CONFLICT (user_id, guild_id) DO UPDATE SET roblox_verified_at = NOW()`,
-      [userId, guildId]
-    );
-    
-    res.json({ success: true, robloxUsername });
-  } catch (err) {
-    console.error('[staff/verify-roblox]', err);
-    res.status(500).json({ error: 'Failed to verify Roblox username' });
-  }
-});
-
-// Get public staff profile
-app.get('/api/staff/profile/:robloxUsername', async (req, res) => {
-  const { robloxUsername } = req.params;
-  try {
-    // Get user by Roblox username
-    const userResult = await query(
-      `SELECT id, username, avatar, roblox_username FROM users WHERE roblox_username = $1`,
-      [robloxUsername]
-    );
-    
-    if (!userResult.rows[0]) {
-      return res.status(404).json({ error: 'Staff member not found' });
-    }
-    
-    const user = userResult.rows[0];
-    
-    // Get staff positions across all servers
-    const staffResult = await query(
-      `SELECT sm.guild_id, g.name as guildName, g.icon_url as guildIcon, sm.role, sm.joined_at, sm.strikes
-       FROM staff_members sm
-       JOIN servers g ON sm.guild_id = g.id
-       WHERE sm.user_id = $1 AND sm.role IS NOT NULL
-       ORDER BY sm.joined_at DESC`,
-      [user.id]
-    );
-    
-    res.json({
-      username: user.username,
-      robloxUsername: user.roblox_username,
-      avatar: user.avatar,
-      staffPositions: staffResult.rows || [],
-      totalServers: (staffResult.rows || []).length,
-    });
-  } catch (err) {
-    console.error('[staff/profile]', err);
-    res.status(500).json({ error: 'Failed to fetch profile' });
-  }
-});
-
-
-// Settings API
-app.post('/api/guilds/:id/settings', requireAuth, async (req, res) => {
+// ── 13. Ranks ────────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/ranks', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const settings = req.body;
+  if (!DATABASE_URL) return res.json([]);
   try {
-    await query(
-      `UPDATE servers SET settings = settings || $1 WHERE id = $2`,
-      [JSON.stringify(settings), id]
+    // Ensure server exists first
+    await query(`INSERT INTO servers (id, name) VALUES ($1, $1) ON CONFLICT (id) DO NOTHING`, [id]).catch(() => {});
+    const r = await query(`SELECT * FROM ranks WHERE guild_id = $1 ORDER BY level DESC, name ASC`, [id]);
+    res.json(r.rows);
+  } catch (err) {
+    console.error('[ranks]', err);
+    res.json([]);
+  }
+});
+
+app.post('/api/guilds/:id/ranks', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { name, level, color, discordRoleId, isDefault } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  try {
+    await query(`INSERT INTO servers (id, name) VALUES ($1, $1) ON CONFLICT (id) DO NOTHING`, [id]).catch(() => {});
+    const r = await query(
+      `INSERT INTO ranks (id, guild_id, name, level, color, discord_role_id, is_default)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6) RETURNING *`,
+      [id, name, level ?? 0, color || '#5865F2', discordRoleId || null, !!isDefault]
     );
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error('[rank create]', err);
+    res.status(500).json({ error: 'Failed to create rank', details: err.message });
+  }
+});
+
+app.patch('/api/guilds/:id/ranks/:rankId', requireAuth, async (req, res) => {
+  const { id, rankId } = req.params;
+  const { name, level, color, discordRoleId } = req.body;
+  try {
+    const r = await query(
+      `UPDATE ranks SET name = COALESCE($3, name), level = COALESCE($4, level),
+       color = COALESCE($5, color), discord_role_id = COALESCE($6, discord_role_id)
+       WHERE id = $2 AND guild_id = $1 RETURNING *`,
+      [id, rankId, name || null, level ?? null, color || null, discordRoleId || null]
+    );
+    res.json(r.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update rank' });
+  }
+});
+
+app.delete('/api/guilds/:id/ranks/:rankId', requireAuth, async (req, res) => {
+  const { id, rankId } = req.params;
+  try {
+    await query(`DELETE FROM ranks WHERE id = $1 AND guild_id = $2`, [rankId, id]);
     res.json({ success: true });
   } catch (err) {
-    console.error('[settings]', err);
-    res.status(500).json({ error: 'Failed to save settings' });
+    res.status(500).json({ error: 'Failed to delete rank' });
   }
 });
 
-app.get('/api/guilds/:id/settings', requireAuth, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const result = await query(`SELECT settings FROM servers WHERE id = $1`, [id]);
-    res.json(result.rows[0]?.settings || {});
-  } catch (err) {
-    console.error('[settings]', err);
-    res.status(500).json({ error: 'Failed to fetch settings' });
-  }
-});
-
-// Staff Roster API
-
-// ── STRIKES API ────────────────────────────────────────────────────────
+// ── 14. Strikes ──────────────────────────────────────────────────────────
 app.get('/api/guilds/:id/strikes', requireAuth, async (req, res) => {
   const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
   try {
-    const result = await query(
-      `SELECT * FROM strikes WHERE guild_id = $1 ORDER BY created_at DESC`,
-      [id]
-    );
-    res.json(result.rows || []);
-  } catch (err) {
-    console.error('[strikes]', err);
-    res.status(500).json({ error: 'Failed to fetch strikes' });
-  }
+    const r = await query(`SELECT * FROM strikes WHERE guild_id = $1 ORDER BY created_at DESC`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
 });
 
 app.post('/api/guilds/:id/strikes', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { userId, username, reason, evidence, issuedBy, issuedByName } = req.body;
-  
-  if (!userId || !reason || !issuedBy) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-  
+  const { userId, username, reason, evidence, issuedBy, issuedByName, severity } = req.body;
+  if (!userId || !reason || !issuedBy) return res.status(400).json({ error: 'Missing fields' });
   try {
-    const result = await query(
-      `INSERT INTO strikes (guild_id, user_id, username, reason, evidence, issued_by, issued_by_name, active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
-       RETURNING *`,
-      [id, userId, username, reason, evidence, issuedBy, issuedByName]
+    const r = await query(
+      `INSERT INTO strikes (guild_id, user_id, username, reason, evidence, issued_by, issued_by_name, active, severity)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE,$8) RETURNING *`,
+      [id, userId, username, reason, evidence, issuedBy, issuedByName, severity || 'strike']
     );
-    res.json(result.rows[0]);
+    // Update strike count on staff member
+    await query(
+      `UPDATE staff_members SET strikes = (SELECT COUNT(*) FROM strikes WHERE guild_id=$1 AND user_id=$2 AND active=TRUE)
+       WHERE guild_id=$1 AND user_id=$2`,
+      [id, userId]
+    ).catch(() => {});
+    await logActivity(id, issuedBy, issuedByName, 'strike_issued', { targetId: userId, reason });
+    res.json(r.rows[0]);
   } catch (err) {
-    console.error('[strikes create]', err);
+    console.error('[strike create]', err);
     res.status(500).json({ error: 'Failed to create strike' });
   }
 });
@@ -890,57 +748,38 @@ app.delete('/api/guilds/:id/strikes/:strikeId', requireAuth, async (req, res) =>
   const { id, strikeId } = req.params;
   try {
     await query(
-      `UPDATE strikes SET active = FALSE WHERE id = $1 AND guild_id = $2`,
-      [strikeId, id]
+      `UPDATE strikes SET active = FALSE, removed_at = NOW(), removed_by = $3
+       WHERE id = $1 AND guild_id = $2`,
+      [strikeId, id, req.session?.user?.id || 'system']
     );
     res.json({ success: true });
   } catch (err) {
-    console.error('[strikes delete]', err);
     res.status(500).json({ error: 'Failed to revoke strike' });
   }
 });
 
-// ── LOA API ────────────────────────────────────────────────────────
+// ── 15. LOA ──────────────────────────────────────────────────────────────
 app.get('/api/guilds/:id/loa', requireAuth, async (req, res) => {
   const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
   try {
-    const result = await query(
-      `SELECT * FROM loa_requests WHERE guild_id = $1 ORDER BY created_at DESC`,
-      [id]
-    );
-    res.json(result.rows || []);
-  } catch (err) {
-    console.error('[loa]', err);
-    res.status(500).json({ error: 'Failed to fetch LOA requests' });
-  }
+    const r = await query(`SELECT * FROM loa_requests WHERE guild_id = $1 ORDER BY created_at DESC`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
 });
 
 app.post('/api/guilds/:id/loa', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { userId, username, reason, startDate, endDate } = req.body;
-  
-  if (!userId || !reason || !startDate || !endDate) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-  
-  // Check if LOA channel is configured
-  const configResult = await query(
-    `SELECT loa_channel_id FROM server_config WHERE guild_id = $1`,
-    [id]
-  );
-  
-  if (!configResult.rows[0]?.loa_channel_id) {
-    return res.status(400).json({ error: 'LOA channel not configured. Please set it up in Server Settings.' });
-  }
-  
+  if (!userId || !reason || !startDate || !endDate) return res.status(400).json({ error: 'Missing fields' });
   try {
-    const result = await query(
+    const r = await query(
       `INSERT INTO loa_requests (guild_id, user_id, username, reason, start_date, end_date, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'pending')
-       RETURNING *`,
-      [id, userId, username, reason, startDate, endDate]
+       VALUES ($1,$2,$3,$4,$5,$6,'pending') RETURNING *`,
+      [id, userId, username, reason, new Date(startDate), new Date(endDate)]
     );
-    res.json(result.rows[0]);
+    await logActivity(id, userId, username, 'loa_request', { startDate, endDate });
+    res.json(r.rows[0]);
   } catch (err) {
     console.error('[loa create]', err);
     res.status(500).json({ error: 'Failed to create LOA request' });
@@ -949,258 +788,287 @@ app.post('/api/guilds/:id/loa', requireAuth, async (req, res) => {
 
 app.patch('/api/guilds/:id/loa/:loaId', requireAuth, async (req, res) => {
   const { id, loaId } = req.params;
-  const { status, approvedBy } = req.body;
-  
+  const { status, approvedBy, approvedByName } = req.body;
   try {
-    const result = await query(
-      `UPDATE loa_requests SET status = $1, approved_by = $2 WHERE id = $3 AND guild_id = $4 RETURNING *`,
-      [status, approvedBy, loaId, id]
+    const r = await query(
+      `UPDATE loa_requests SET status = $1, approved_by = $2, approved_by_name = $3
+       WHERE id = $4 AND guild_id = $5 RETURNING *`,
+      [status, approvedBy, approvedByName, loaId, id]
     );
-    res.json(result.rows[0]);
+    await logActivity(id, approvedBy, approvedByName, `loa_${status}`, { loaId });
+    res.json(r.rows[0]);
   } catch (err) {
-    console.error('[loa update]', err);
-    res.status(500).json({ error: 'Failed to update LOA request' });
+    res.status(500).json({ error: 'Failed to update LOA' });
   }
 });
 
-// ── SERVER CONFIG API ────────────────────────────────────────────────────────
-app.get('/api/guilds/:id/config', requireAuth, async (req, res) => {
+// ── 16. Activity Logs ────────────────────────────────────────────────────
+async function logActivity(guildId, userId, username, action, details) {
+  if (!DATABASE_URL) return;
+  try {
+    await query(
+      `INSERT INTO activity_logs (guild_id, user_id, username, action, details) VALUES ($1,$2,$3,$4,$5::jsonb)`,
+      [guildId, userId || null, username || null, action, JSON.stringify(details || {})]
+    );
+  } catch {}
+}
+
+app.get('/api/guilds/:id/activity', requireAuth, async (req, res) => {
   const { id } = req.params;
+  const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+  if (!DATABASE_URL) return res.json([]);
   try {
-    const result = await query(
-      `SELECT * FROM server_config WHERE guild_id = $1`,
-      [id]
+    const r = await query(
+      `SELECT * FROM activity_logs WHERE guild_id = $1 ORDER BY created_at DESC LIMIT $2`,
+      [id, limit]
     );
-    res.json(result.rows[0] || {});
-  } catch (err) {
-    console.error('[config]', err);
-    res.status(500).json({ error: 'Failed to fetch config' });
-  }
+    res.json(r.rows);
+  } catch { res.json([]); }
 });
 
-app.post('/api/guilds/:id/config', requireAuth, async (req, res) => {
+app.post('/api/guilds/:id/activity', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { loaChannelId, applicationsChannelId, logsChannelId, staffRoleId, adminRoleId, premiumEnabled } = req.body;
-  
-  try {
-    const result = await query(
-      `INSERT INTO server_config (guild_id, loa_channel_id, applications_channel_id, logs_channel_id, staff_role_id, admin_role_id, premium_enabled)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (guild_id) DO UPDATE SET
-       loa_channel_id = $2, applications_channel_id = $3, logs_channel_id = $4, staff_role_id = $5, admin_role_id = $6, premium_enabled = $7
-       RETURNING *`,
-      [id, loaChannelId, applicationsChannelId, logsChannelId, staffRoleId, adminRoleId, premiumEnabled]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('[config save]', err);
-    res.status(500).json({ error: 'Failed to save config' });
-  }
+  const { userId, username, action, details } = req.body;
+  await logActivity(id, userId, username, action, details);
+  res.json({ success: true });
 });
 
-// ── PREMIUM CHECK ────────────────────────────────────────────────────────
-app.get('/api/guilds/:id/is-premium', requireAuth, async (req, res) => {
-  const { id } = req.params;
-  try {
-    if (!DATABASE_URL) return res.json({ premium: false, isPremium: false });
-    const result = await query(
-      `SELECT is_premium FROM servers WHERE id = $1`,
-      [id]
-    );
-    const premium = !!result.rows[0]?.is_premium;
-    res.json({ premium, isPremium: premium });
-  } catch (err) {
-    console.error('[premium check]', err);
-    res.json({ premium: false, isPremium: false });
-  }
-});
-
-// ── AUDIT LOGS API ────────────────────────────────────────────────────────
+// ── 17. Audit Logs ───────────────────────────────────────────────────────
 app.get('/api/guilds/:id/audit-logs', requireAuth, async (req, res) => {
   const { id } = req.params;
-  if (!DISCORD_BOT_TOKEN) {
-    console.error('[audit-logs] DISCORD_BOT_TOKEN is missing');
-    return res.status(400).json({ error: 'Bot token not configured' });
-  }
-
+  if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
   try {
-    console.log(`[audit-logs] Fetching logs for guild ${id}`);
-    const discordAuditRes = await fetch(`${DISCORD_API}/guilds/${id}/audit-logs?limit=50`, {
-      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-    });
+    const [discordRes, botStrikesRes, botLoaRes, botActivityRes] = await Promise.all([
+      fetch(`${DISCORD_API}/guilds/${id}/audit-logs?limit=50`, {
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+      }),
+      DATABASE_URL ? query(`SELECT * FROM strikes WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 30`, [id]) : { rows: [] },
+      DATABASE_URL ? query(`SELECT * FROM loa_requests WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 20`, [id]) : { rows: [] },
+      DATABASE_URL ? query(`SELECT * FROM activity_logs WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 30`, [id]) : { rows: [] },
+    ]);
 
-    if (!discordAuditRes.ok) {
-      const errorText = await discordAuditRes.text();
-      console.error(`[audit-logs] Discord API error: ${discordAuditRes.status} ${errorText}`);
-    }
+    const discordData = discordRes.ok ? await discordRes.json() : { audit_log_entries: [], users: [] };
+    const usersById = new Map((discordData.users || []).map(u => [u.id, u]));
 
-    const discordAuditData = discordAuditRes.ok ? await discordAuditRes.json() : { audit_log_entries: [], users: [] };
-    const usersById = new Map((discordAuditData.users || []).map(u => [u.id, u]));
-
-    const botLogsResult = DATABASE_URL ? await query(
-      `SELECT id::text, guild_id, user_id, username, reason, evidence, issued_by, issued_by_name, created_at, 'Strike' AS source
-       FROM strikes WHERE guild_id = $1
-       UNION ALL
-       SELECT id::text, guild_id, user_id, username, reason, status AS evidence, approved_by AS issued_by, approved_by AS issued_by_name, created_at, 'LOA Request' AS source
-       FROM loa_requests WHERE guild_id = $1
-       ORDER BY created_at DESC LIMIT 50`,
-      [id]
-    ) : { rows: [] };
-
-    const combinedLogs = [
-      ...(discordAuditData.audit_log_entries || []).map(entry => {
+    const combined = [
+      ...(discordData.audit_log_entries || []).map(entry => {
         const actor = usersById.get(entry.user_id);
         const actionName = AUDIT_ACTION_MAP[entry.action_type] || `Action ${entry.action_type}`;
         return {
-          id: entry.id,
-          type: 'discord',
+          id: entry.id, type: 'discord',
           action: actionName.toLowerCase().replace(/_/g, '-'),
           action_name: actionName.replace(/_/g, ' '),
           user: entry.user_id,
           user_name: actor?.global_name || actor?.username || entry.user_id || 'Unknown',
           target: entry.target_id,
-          target_name: entry.target_id || 'Unknown',
           reason: entry.reason || 'No reason provided',
-          details: entry.changes || [],
-          timestamp: new Date(Number(BigInt(entry.id) / 4194304n) + 1420070400000).toISOString()
+          timestamp: new Date(Number(BigInt(entry.id) / 4194304n) + 1420070400000).toISOString(),
         };
       }),
-      ...(botLogsResult.rows || []).map(row => ({
-        id: `bot-${row.source}-${row.id}`,
-        type: 'bot',
-        action: row.source.toLowerCase().replace(/ /g, '-'),
-        action_name: row.source,
-        user: row.issued_by || 'System',
-        user_name: row.issued_by_name || row.issued_by || 'System',
-        target: row.user_id,
-        target_name: row.username || row.user_id,
-        reason: row.reason || row.evidence || 'Bot Action',
-        details: row,
-        timestamp: row.created_at
-      }))
-    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      ...botStrikesRes.rows.map(s => ({
+        id: `strike-${s.id}`, type: 'strike',
+        action: 'strike-issued', action_name: `Strike ${s.active ? 'Issued' : 'Revoked'}`,
+        user: s.issued_by, user_name: s.issued_by_name || s.issued_by,
+        target: s.user_id, target_name: s.username,
+        reason: s.reason, timestamp: s.created_at,
+      })),
+      ...botLoaRes.rows.map(l => ({
+        id: `loa-${l.id}`, type: 'loa',
+        action: 'loa-request', action_name: `LOA Request (${l.status})`,
+        user: l.user_id, user_name: l.username,
+        target: l.user_id, target_name: l.username,
+        reason: l.reason, timestamp: l.created_at,
+      })),
+      ...botActivityRes.rows.map(a => ({
+        id: `act-${a.id}`, type: 'activity',
+        action: a.action, action_name: a.action.replace(/_/g, ' '),
+        user: a.user_id, user_name: a.username,
+        target: null, reason: JSON.stringify(a.details),
+        timestamp: a.created_at,
+      })),
+    ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    res.json(combinedLogs.slice(0, 100));
+    res.json(combined.slice(0, 100));
   } catch (err) {
-    console.error('[audit-logs] Error:', err);
+    console.error('[audit-logs]', err);
     res.status(500).json({ error: 'Failed to fetch audit logs' });
   }
 });
-app.post('/api/guilds/:id/activity', requireAuth, async (req, res) => {
-  const { id } = req.params;
-  const { userId, action, details } = req.body;
 
-  try {
-    console.log(`[Activity] Guild: ${id}, User: ${userId}, Action: ${action}, Details: ${details}`);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('[activity]', err);
-    res.status(500).json({ error: 'Failed to log activity' });
-  }
-});
-
-// ── APPLICATIONS CONFIG API ────────────────────────────────────────────────
+// ── 18. Applications Config ───────────────────────────────────────────────
 app.get('/api/guilds/:id/applications-config', requireAuth, async (req, res) => {
   const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ enabled: false, channel: '', questions: [] });
   try {
-    if (!DATABASE_URL) {
-      return res.json({ enabled: false, channel: '', title: '', questions: [], requireRecommendations: false, autoReject: false });
-    }
-    const result = await query(
-      `SELECT applications_enabled, applications_channel_id, applications_title, applications_questions, require_recommendations, auto_reject
-       FROM server_config WHERE guild_id = $1`,
-      [id]
+    const r = await query(
+      `SELECT applications_enabled, applications_channel_id, applications_review_channel_id,
+              applications_title, applications_questions, require_recommendations, auto_reject
+       FROM server_config WHERE guild_id = $1`, [id]
     );
-    const row = result.rows[0] || {};
+    const row = r.rows[0] || {};
     res.json({
-      enabled: !!row.applications_enabled,
-      channel: row.applications_channel_id || '',
-      title: row.applications_title || '',
-      questions: Array.isArray(row.applications_questions) ? row.applications_questions : [],
-      requireRecommendations: !!row.require_recommendations,
-      autoReject: !!row.auto_reject,
+      enabled: !!row.applications_enabled, channel: row.applications_channel_id || '',
+      reviewChannel: row.applications_review_channel_id || '',
+      title: row.applications_title || '', questions: row.applications_questions || [],
+      requireRecommendations: !!row.require_recommendations, autoReject: !!row.auto_reject,
     });
   } catch (err) {
-    console.error('[applications config get]', err);
-    res.status(500).json({ error: 'Failed to fetch applications config' });
+    res.status(500).json({ error: 'Failed to fetch' });
   }
 });
 
 app.post('/api/guilds/:id/applications-config', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { enabled, channel, title, questions = [], requireRecommendations = false, autoReject = false } = req.body;
+  const { enabled, channel, reviewChannel, title, questions = [], requireRecommendations = false, autoReject = false } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
   try {
-    if (!DATABASE_URL) return res.status(400).json({ error: 'Database not configured' });
-
-    const premiumResult = await query(`SELECT is_premium FROM servers WHERE id = $1`, [id]);
-    const isPremium = !!premiumResult.rows[0]?.is_premium;
-    if (!isPremium && questions.length > 10) {
-      return res.status(403).json({ error: 'Free servers can save at most 10 questions. Upgrade to Premium for unlimited questions.' });
-    }
-
-    const result = await query(
-      `INSERT INTO server_config (guild_id, applications_enabled, applications_channel_id, applications_title, applications_questions, require_recommendations, auto_reject)
-       VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
+    await query(
+      `INSERT INTO server_config (guild_id, applications_enabled, applications_channel_id,
+         applications_review_channel_id, applications_title, applications_questions,
+         require_recommendations, auto_reject)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8)
        ON CONFLICT (guild_id) DO UPDATE SET
-         applications_enabled = EXCLUDED.applications_enabled,
-         applications_channel_id = EXCLUDED.applications_channel_id,
-         applications_title = EXCLUDED.applications_title,
-         applications_questions = EXCLUDED.applications_questions,
-         require_recommendations = EXCLUDED.require_recommendations,
-         auto_reject = EXCLUDED.auto_reject,
-         updated_at = CURRENT_TIMESTAMP
-       RETURNING *`,
-      [id, !!enabled, channel || null, title || null, JSON.stringify(questions), !!requireRecommendations, !!autoReject]
+         applications_enabled = $2, applications_channel_id = $3,
+         applications_review_channel_id = $4, applications_title = $5,
+         applications_questions = $6::jsonb, require_recommendations = $7,
+         auto_reject = $8, updated_at = NOW()`,
+      [id, !!enabled, channel || null, reviewChannel || null, title || null,
+       JSON.stringify(questions), !!requireRecommendations, !!autoReject]
     );
-    res.json({ success: true, config: result.rows[0] });
+    res.json({ success: true });
   } catch (err) {
-    console.error('[applications config save]', err);
     res.status(500).json({ error: 'Failed to save applications config' });
   }
 });
 
-// Staff Dashboard API
-app.get('/api/staff/dashboard', requireAuth, async (req, res) => {
-  const userId = req.session.user.id;
-  const { guildId } = req.query;
+// ── 19. Settings ─────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/settings', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({});
   try {
-    const result = await query(
-      `SELECT roblox_username, discord_username FROM users WHERE id = $1`,
-      [userId]
+    const r = await query(`SELECT settings FROM servers WHERE id = $1`, [id]);
+    res.json(r.rows[0]?.settings || {});
+  } catch { res.json({}); }
+});
+
+app.post('/api/guilds/:id/settings', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await query(
+      `INSERT INTO servers (id, name, settings) VALUES ($1, $1, $2::jsonb)
+       ON CONFLICT (id) DO UPDATE SET settings = servers.settings || $2::jsonb`,
+      [id, JSON.stringify(req.body)]
     );
-    res.json(result.rows[0] || {});
+    res.json({ success: true });
   } catch (err) {
-    console.error('[staff/dashboard]', err);
-    res.status(500).json({ error: 'Failed to fetch dashboard' });
+    res.status(500).json({ error: 'Failed to save settings' });
   }
 });
 
-// Public Staff Profile API
-app.get('/api/staff/profile/:username', async (req, res) => {
-  const { username } = req.params;
+// ── 20. Bot Stats ──────────────────────────────────────────────────────
+app.get('/api/bot/stats', async (_req, res) => {
   try {
-    const result = await query(
-      `SELECT id, roblox_username, discord_username FROM users WHERE roblox_username = $1`,
-      [username]
+    if (!DATABASE_URL) return res.json({ guilds: 0, users: 0, status: 'Online' });
+    const [gR, uR] = await Promise.all([
+      query('SELECT COUNT(*) FROM servers WHERE bot_added = TRUE'),
+      query('SELECT COUNT(*) FROM users'),
+    ]);
+    res.json({ guilds: gR.rows[0].count, users: uR.rows[0].count, status: 'Online' });
+  } catch { res.json({ guilds: 0, users: 0, status: 'Online' }); }
+});
+
+// ── 21. Staff Portal ────────────────────────────────────────────────────
+app.get('/api/staff/guilds', requireAuth, async (req, res) => {
+  const userId = req.session.user.id;
+  try {
+    const r = await query(
+      `SELECT DISTINCT sm.guild_id, s.name, s.icon, sm.role as rank
+       FROM staff_members sm LEFT JOIN servers s ON sm.guild_id = s.id
+       WHERE sm.user_id = $1 AND sm.is_active = TRUE ORDER BY s.name ASC`,
+      [userId]
     );
-    res.json(result.rows[0] || null);
+    res.json(r.rows || []);
+  } catch { res.json([]); }
+});
+
+app.post('/api/staff/verify-roblox', requireAuth, async (req, res) => {
+  const userId = req.session.user.id;
+  const { robloxUsername, guildId } = req.body;
+  if (!robloxUsername || !guildId) return res.status(400).json({ error: 'Missing fields' });
+  try {
+    await query(`UPDATE users SET roblox_username = $1, roblox_verified = TRUE WHERE id = $2`, [robloxUsername, userId]);
+    await query(
+      `INSERT INTO staff_portal_sessions (user_id, guild_id, roblox_verified_at) VALUES ($1,$2,NOW())
+       ON CONFLICT (user_id, guild_id) DO UPDATE SET roblox_verified_at = NOW()`,
+      [userId, guildId]
+    );
+    res.json({ success: true, robloxUsername });
   } catch (err) {
-    console.error('[staff/profile]', err);
+    res.status(500).json({ error: 'Failed to verify' });
+  }
+});
+
+app.get('/api/staff/profile/:robloxUsername', async (req, res) => {
+  const { robloxUsername } = req.params;
+  try {
+    const userR = await query(`SELECT id, username, avatar, roblox_username FROM users WHERE roblox_username = $1`, [robloxUsername]);
+    if (!userR.rows[0]) return res.status(404).json({ error: 'Not found' });
+    const user = userR.rows[0];
+    const staffR = await query(
+      `SELECT sm.guild_id, s.name as guild_name, s.icon, sm.role, sm.joined_at, sm.strikes
+       FROM staff_members sm LEFT JOIN servers s ON sm.guild_id = s.id
+       WHERE sm.user_id = $1 AND sm.is_active = TRUE ORDER BY sm.joined_at DESC`,
+      [user.id]
+    );
+    res.json({ ...user, staffPositions: staffR.rows, totalServers: staffR.rows.length });
+  } catch (err) {
     res.status(500).json({ error: 'Failed to fetch profile' });
   }
 });
 
-// Catch-all → index.html (must stay after every API/page route)
+// ── 22. Admin ─────────────────────────────────────────────────────────────
+let globalNotifications = [];
 
-// ── Start Server ─────────────────────────────────────────────────────────────
+app.post('/api/admin/verify-pin', (req, res) => {
+  const { pin, userId } = req.body;
+  const ADMIN_ID = '1416209242838401064';
+  const ADMIN_PIN = '1232009';
+  if (userId !== ADMIN_ID) return res.status(403).json({ error: 'Unauthorized' });
+  if (pin !== ADMIN_PIN) return res.status(401).json({ error: 'Invalid PIN' });
+  res.json({ success: true, token: Buffer.from(`${userId}:${Date.now()}`).toString('base64') });
 });
 
-// ── Final Routes ───────────────────────────────────────────────────────────
-app.get('/circle-config', (_req, res) => res.sendFile(join(publicPath, 'circle-config.html')));
-// Catch-all → index.html (must stay after every API/page route)
+app.get('/api/admin/notifications', (_req, res) => res.json(globalNotifications.slice(0, 50)));
+app.post('/api/admin/send-notification', (req, res) => {
+  const { message, type } = req.body;
+  globalNotifications.unshift({ id: Date.now(), message, type: type || 'info', timestamp: new Date(), read: false });
+  res.json({ success: true });
+});
+
+// ── 23. Static Files & Page Routes ────────────────────────────────────────
+const publicPath = join(__dirname, 'dist');
+app.use(express.static(publicPath));
+
+const pages = [
+  ['/select-server', 'select-server.html'], ['/staff-portal', 'staff-portal.html'],
+  ['/staff-dashboard', 'staff-dashboard.html'], ['/admin-portal', 'admin-portal.html'],
+  ['/dashboard', 'dashboard.html'], ['/status', 'status.html'],
+  ['/premium', 'premium.html'], ['/settings', 'settings.html'],
+  ['/server-settings', 'settings-config.html'], ['/settings-config', 'settings-config.html'],
+  ['/staff-roster', 'staff-roster.html'], ['/audit-logs', 'audit-logs.html'],
+  ['/applications-config', 'applications-config.html'], ['/circle-config', 'circle-config.html'],
+  ['/privacy', 'privacy.html'], ['/tos', 'tos.html'],
+  ['/profile/:username', 'profile.html'],
+];
+
+for (const [route, file] of pages) {
+  app.get(route, (_req, res) => res.sendFile(join(publicPath, file)));
+}
+
+// Catch-all → index.html
 app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
 
-// ── Start Server ─────────────────────────────────────────────────────────────
+// ── 24. Start ────────────────────────────────────────────────────────────
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);
 });

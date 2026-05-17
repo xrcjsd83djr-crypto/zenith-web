@@ -159,6 +159,10 @@ app.get('/api/auth/user', requireAuth, (req, res) => {
   const { accessToken, ...safe } = req.session.user;
   res.json(safe);
 });
+app.get('/api/auth/me', requireAuth, (req, res) => {
+  const { accessToken, ...safe } = req.session.user;
+  res.json(safe);
+});
 
 // ── 7. Guild List ────────────────────────────────────────────────────────
 async function getManageableGuilds(accessToken) {
@@ -216,7 +220,51 @@ app.get('/api/auth/guilds', requireAuth, async (req, res) => {
 });
 
 // ── 8. Guild Discord Data (channels, roles) ───────────────────────────────
-app.get('/api/guilds/:id/channels', requireAuth, async (req, res) => {
+// GET /api/guilds/:id — fetch single guild (used by dashboard layout)
+  app.get('/api/guilds/:id', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+      // First try DB
+      if (DATABASE_URL) {
+        const dbRes = await query('SELECT * FROM servers WHERE id = $1', [id]);
+        if (dbRes.rows.length > 0) {
+          const row = dbRes.rows[0];
+          const icon = row.icon || row.icon_url;
+          return res.json({
+            id: row.id,
+            name: row.name,
+            icon: icon,
+            iconUrl: icon ? `https://cdn.discordapp.com/icons/${row.id}/${icon}.webp?size=128` : null,
+            isPremium: !!row.is_premium,
+            premiumExpiresAt: row.premium_expires_at,
+          });
+        }
+      }
+      // Fall back to Discord API via bot token
+      if (DISCORD_BOT_TOKEN) {
+        const r = await fetch(`${DISCORD_API}/guilds/${id}`, {
+          headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+        });
+        if (r.ok) {
+          const g = await r.json();
+          return res.json({
+            id: g.id,
+            name: g.name,
+            icon: g.icon,
+            iconUrl: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.webp?size=128` : null,
+            memberCount: g.approximate_member_count,
+            isPremium: false,
+          });
+        }
+      }
+      res.status(404).json({ error: 'Guild not found' });
+    } catch (err) {
+      console.error('[guild get]', err);
+      res.status(500).json({ error: 'Failed to fetch guild' });
+    }
+  });
+
+  app.get('/api/guilds/:id/channels', requireAuth, async (req, res) => {
   const { id } = req.params;
   if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
   try {

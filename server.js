@@ -522,7 +522,7 @@ app.put('/api/guilds/:id/config', requireAuth, async (req, res) => {
         logs_channel_id || null, loa_channel_id || null, applications_channel_id || null,
         applications_review_channel_id || null, welcome_channel_id || null, strike_log_channel_id || null,
         staff_role_id || null, admin_role_id || null, management_role_id || null, on_loa_role_id || null,
-        embed_color || '#5BA4CF', embed_footer || 'Zenith Staff Management',
+        embed_color || '#d4af37', embed_footer || 'Zenith Staff Management',
         strike_threshold ?? 3, strike_action || 'demotion', !!strike_automation,
         loa_max_days ?? 14, loa_require_approval !== false,
         !!applications_enabled, applications_title || null,

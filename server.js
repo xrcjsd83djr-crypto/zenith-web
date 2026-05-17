@@ -35,6 +35,8 @@ const AUDIT_ACTION_MAP = {
 
 // ── 1. HEALTH CHECKS FIRST — Railway needs these to respond instantly ────────
 app.get('/health', (_req, res) => res.status(200).send('OK'));
+app.get('/version', (_req, res) => res.json({ version: '1.0.5-fix-audit-v2', commit: 'f6b5fc0' }));
+
 app.get('/healthz', (_req, res) => res.status(200).send('OK'));
 app.get('/ping', (_req, res) => res.status(200).send('pong'));
 

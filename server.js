@@ -489,7 +489,7 @@ app.put('/api/guilds/:id/config', requireAuth, async (req, res) => {
     loa_max_days, loa_require_approval,
     applications_enabled, applications_title, applications_questions,
     require_recommendations, auto_reject,
-    prefix, timezone, activity_tracking,
+    prefix, timezone, activity_tracking, staff_role_ids, admin_role_ids, management_role_ids,
   } = req.body;
 
   try {
@@ -504,8 +504,8 @@ app.put('/api/guilds/:id/config', requireAuth, async (req, res) => {
         loa_max_days, loa_require_approval,
         applications_enabled, applications_title, applications_questions,
         require_recommendations, auto_reject,
-        prefix, timezone, activity_tracking, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::jsonb,$22,$23,$24,$25,$26, NOW())
+        prefix, timezone, activity_tracking, staff_role_ids, admin_role_ids, management_role_ids, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::jsonb,$22,$23,$24,$25,$26,$27,$28,$29, NOW())
       ON CONFLICT (guild_id) DO UPDATE SET
         logs_channel_id = $2, loa_channel_id = $3, applications_channel_id = $4,
         applications_review_channel_id = $5, welcome_channel_id = $6, strike_log_channel_id = $7,
@@ -515,7 +515,7 @@ app.put('/api/guilds/:id/config', requireAuth, async (req, res) => {
         loa_max_days = $17, loa_require_approval = $18,
         applications_enabled = $19, applications_title = $20, applications_questions = $21::jsonb,
         require_recommendations = $22, auto_reject = $23,
-        prefix = $24, timezone = $25, activity_tracking = $26, updated_at = NOW()
+        prefix = $24, timezone = $25, activity_tracking = $26, staff_role_ids = $27, admin_role_ids = $28, management_role_ids = $29, updated_at = NOW()
       RETURNING *`,
       [
         id,
@@ -528,7 +528,7 @@ app.put('/api/guilds/:id/config', requireAuth, async (req, res) => {
         !!applications_enabled, applications_title || null,
         JSON.stringify(applications_questions || []),
         !!require_recommendations, !!auto_reject,
-        prefix || '!', timezone || 'UTC', activity_tracking !== false,
+        prefix || '!', timezone || 'UTC', activity_tracking !== false, Array.isArray(staff_role_ids) ? staff_role_ids : [], Array.isArray(admin_role_ids) ? admin_role_ids : [], Array.isArray(management_role_ids) ? management_role_ids : [],
       ]
     );
 
@@ -934,7 +934,25 @@ app.patch('/api/guilds/:id/loa/:loaId', requireAuth, async (req, res) => {
       [status, approvedBy, approvedByName, loaId, id]
     );
     await logActivity(id, approvedBy, approvedByName, `loa_${status}`, { loaId });
-    res.json(r.rows[0]);
+    const loaRow = r.rows[0];
+      // Assign or remove Discord LOA role when status changes
+      if (DISCORD_BOT_TOKEN && loaRow?.user_id && DATABASE_URL) {
+        try {
+          const cfgQ = await query('SELECT on_loa_role_id FROM server_config WHERE guild_id = $1', [id]);
+          const roleId = cfgQ.rows[0]?.on_loa_role_id;
+          if (roleId) {
+            const method = (status === 'approved' || status === 'active') ? 'PUT' : 'DELETE';
+            if (method === 'PUT' || status === 'denied' || status === 'returned' || status === 'expired') {
+              await fetch(`${DISCORD_API}/guilds/${id}/members/${loaRow.user_id}/roles/${roleId}`, {
+                method,
+                headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json', 'X-Audit-Log-Reason': `LOA ${status} — Zenith` },
+                body: method === 'PUT' ? '{}' : undefined,
+              }).catch(e => console.error('[loa-role]', e.message));
+            }
+          }
+        } catch (roleErr) { console.error('[loa-role]', roleErr.message); }
+      }
+      res.json(loaRow);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update LOA' });
   }

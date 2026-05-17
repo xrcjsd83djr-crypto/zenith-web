@@ -74,6 +74,7 @@ export async function initDb() {
         bot_added BOOLEAN DEFAULT FALSE,
         owner_id TEXT,
         is_premium BOOLEAN DEFAULT FALSE,
+        settings JSONB DEFAULT '{}',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       

@@ -948,6 +948,55 @@ app.get('/api/guilds/:id/is-premium', requireAuth, async (req, res) => {
     console.error('[premium check]', err);
     res.status(500).json({ error: 'Failed to check premium status' });
   }
+// ── AUDIT LOGS API ────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/audit-logs', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
+  
+  try {
+    // 1. Fetch Discord Audit Logs
+    const discordAuditRes = await fetch(`${DISCORD_API}/guilds/${id}/audit-logs?limit=50`, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+    const discordAuditData = discordAuditRes.ok ? await discordAuditRes.json() : { audit_log_entries: [] };
+    
+    // 2. Fetch Bot Internal Activity Logs (if you have an activity table)
+    // For now, we'll use the Discord logs and any bot-specific actions we've logged
+    const botLogsResult = await query(
+      `SELECT * FROM strikes WHERE guild_id = $1 UNION 
+       SELECT id, guild_id, user_id, username, reason, 'LOA Request' as evidence, 'System' as issued_by, 'System' as issued_by_name, TRUE as active, created_at, NULL as expires_at FROM loa_requests WHERE guild_id = $1
+       ORDER BY created_at DESC LIMIT 50`,
+      [id]
+    );
+    
+    // 3. Combine and Format
+    const combinedLogs = [
+      ...discordAuditData.audit_log_entries.map(entry => ({
+        id: entry.id,
+        type: 'discord',
+        action: entry.action_type,
+        user: entry.user_id,
+        target: entry.target_id,
+        reason: entry.reason || 'No reason provided',
+        timestamp: new Date(parseInt(entry.id) / 4194304 + 1420070400000).toISOString()
+      })),
+      ...botLogsResult.rows.map(row => ({
+        id: row.id,
+        type: 'bot',
+        action: row.reason ? 'Strike/LOA' : 'Action',
+        user: row.issued_by || row.user_id,
+        target: row.user_id,
+        reason: row.reason || 'Bot Action',
+        timestamp: row.created_at
+      }))
+    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    
+    res.json(combinedLogs.slice(0, 100));
+  } catch (err) {
+    console.error('[audit-logs]', err);
+    res.status(500).json({ error: 'Failed to fetch audit logs' });
+  }
+});
 });
 
 // ── ACTIVITY LOGGING ────────────────────────────────────────────────────────

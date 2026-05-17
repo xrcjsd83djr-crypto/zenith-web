@@ -140,6 +140,10 @@ async function handleAuthCallback(req, res) {
 }
 
 function requireAuth(req, res, next) {
+  const botSecret = req.headers['x-bot-secret'];
+  if (botSecret && botSecret === process.env.BOT_SECRET) {
+    return next();
+  }
   if (!req.session?.user) return res.status(401).json({ error: 'Not authenticated' });
   next();
 }
@@ -320,6 +324,42 @@ app.get('/api/guilds/:id/detailed', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[guilds/detailed]', err);
     res.status(500).json({ error: 'Error fetching details' });
+  }
+});
+
+
+// Get guild channels
+app.get('/api/guilds/:id/channels', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
+  try {
+    const response = await fetch(`${DISCORD_API}/guilds/${id}/channels`, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch channels');
+    const channels = await response.json();
+    // Filter for text channels
+    res.json(channels.filter(c => c.type === 0).map(c => ({ id: c.id, name: c.name })));
+  } catch (err) {
+    console.error('[channels]', err);
+    res.status(500).json({ error: 'Failed to fetch channels' });
+  }
+});
+
+// Get guild roles
+app.get('/api/guilds/:id/roles-list', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
+  try {
+    const response = await fetch(`${DISCORD_API}/guilds/${id}/roles`, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+    if (!response.ok) throw new Error('Failed to fetch roles');
+    const roles = await response.json();
+    res.json(roles.map(r => ({ id: r.id, name: r.name, color: r.color })));
+  } catch (err) {
+    console.error('[roles]', err);
+    res.status(500).json({ error: 'Failed to fetch roles' });
   }
 });
 

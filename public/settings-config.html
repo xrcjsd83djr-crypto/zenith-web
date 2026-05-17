@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>Server Settings — Zenith</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --surface2: #f0f2f5;
+      --border: #e0e0e0;
+      --primary: #d4af37;
+      --text: #2c3e50;
+      --muted: #7f8c8d;
+      --success: #27ae60;
+      --error: #e74c3c;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    a { color: inherit; text-decoration: none; }
+    
+    nav {
+      border-bottom: 2px solid #d4af37;
+      background: var(--surface);
+      padding: 16px 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .nav-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 18px;
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #d4af37, #ffd700);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #1a1a1a;
+      font-weight: 900;
+    }
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+    .btn-ghost {
+      background: white;
+      color: var(--text);
+      border: 2px solid #d4af37;
+    }
+    .btn-ghost:hover {
+      background: #d4af37;
+      color: white;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #d4af37, #ffd700);
+      color: #1a1a1a;
+      border: none;
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(212,175,55,0.4);
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+    
+    .settings-layout {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      gap: 24px;
+    }
+    
+    .settings-sidebar {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 0;
+      height: fit-content;
+      border: 1px solid var(--border);
+    }
+    
+    .settings-item {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .settings-item:last-child {
+      border-bottom: none;
+    }
+    .settings-item:hover {
+      background: var(--surface2);
+    }
+    .settings-item.active {
+      background: linear-gradient(135deg, rgba(212,175,55,0.1), rgba(255,215,0,0.1));
+      border-left: 4px solid #d4af37;
+      padding-left: 16px;
+    }
+    .settings-item i {
+      margin-right: 8px;
+      color: #d4af37;
+    }
+    
+    .settings-content {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 32px;
+      border: 1px solid var(--border);
+    }
+    
+    .settings-section {
+      display: none;
+    }
+    .settings-section.active {
+      display: block;
+    }
+    
+    .settings-section h2 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+    
+    .setting-group {
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .setting-group:last-child {
+      border-bottom: none;
+    }
+    
+    .setting-label {
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .setting-description {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+    
+    .form-control {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: #d4af37;
+      box-shadow: 0 0 0 3px rgba(212,175,55,0.1);
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    
+    .channel-select, .role-select {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .toggle-switch {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 28px;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: 0.4s;
+      border-radius: 28px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #d4af37;
+    }
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+    
+    .save-section {
+      display: flex;
+      gap: 12px;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+    
+    .status-message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .status-message.success {
+      background: rgba(39,174,96,0.1);
+      color: var(--success);
+      display: block;
+    }
+    .status-message.error {
+      background: rgba(231,76,60,0.1);
+      color: var(--error);
+      display: block;
+    }
+    
+    @media (max-width: 768px) {
+      .settings-layout {
+        grid-template-columns: 1fr;
+      }
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">
+      <div class="logo-icon">Z</div>
+      Zenith
+    </a>
+    <div class="nav-right">
+      <button class="btn btn-ghost" onclick="logout()">
+        <i class="fas fa-sign-out-alt"></i> Logout
+      </button>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="settings-layout">
+    <div class="settings-sidebar">
+      <div class="settings-item active" onclick="switchTab('general')">
+        <i class="fas fa-cog"></i> General
+      </div>
+      <div class="settings-item" onclick="switchTab('channels')">
+        <i class="fas fa-hashtag"></i> Channels
+      </div>
+      <div class="settings-item" onclick="switchTab('roles')">
+        <i class="fas fa-shield-alt"></i> Roles
+      </div>
+      <div class="settings-item" onclick="switchTab('features')">
+        <i class="fas fa-star"></i> Features
+      </div>
+      <div class="settings-item" onclick="switchTab('moderation')">
+        <i class="fas fa-gavel"></i> Moderation
+      </div>
+      <div class="settings-item" onclick="switchTab('branding')">
+        <i class="fas fa-palette"></i> Branding
+      </div>
+    </div>
+
+    <div class="settings-content">
+      <div id="status-message" class="status-message"></div>
+
+      <!-- GENERAL -->
+      <div id="general" class="settings-section active">
+        <h2><i class="fas fa-cog"></i> General Settings</h2>
+        
+        <div class="setting-group">
+          <label class="setting-label">Server Name</label>
+          <p class="setting-description">Your server's name (for reference)</p>
+          <input type="text" id="server-name" class="form-control" placeholder="My Awesome Server">
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Prefix</label>
+          <p class="setting-description">Command prefix (e.g., ! or /)</p>
+          <input type="text" id="prefix" class="form-control" placeholder="/" maxlength="3">
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Language</label>
+          <p class="setting-description">Bot language for responses</p>
+          <select id="language" class="form-control">
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+          </select>
+        </div>
+
+        <div class="save-section">
+          <button class="btn btn-primary" onclick="saveSettings('general')">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </div>
+
+      <!-- CHANNELS -->
+      <div id="channels" class="settings-section">
+        <h2><i class="fas fa-hashtag"></i> Channel Configuration</h2>
+        
+        <div class="setting-group">
+          <label class="setting-label">Log Channel</label>
+          <p class="setting-description">Where all staff actions are logged</p>
+          <select id="log-channel" class="form-control">
+            <option value="">Select a channel...</option>
+          </select>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Applications Channel</label>
+          <p class="setting-description">Where staff applications are submitted</p>
+          <select id="applications-channel" class="form-control">
+            <option value="">Select a channel...</option>
+          </select>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Announcements Channel</label>
+          <p class="setting-description">For important announcements</p>
+          <select id="announcements-channel" class="form-control">
+            <option value="">Select a channel...</option>
+          </select>
+        </div>
+
+        <div class="save-section">
+          <button class="btn btn-primary" onclick="saveSettings('channels')">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </div>
+
+      <!-- ROLES -->
+      <div id="roles" class="settings-section">
+        <h2><i class="fas fa-shield-alt"></i> Role Configuration</h2>
+        
+        <div class="setting-group">
+          <label class="setting-label">Staff Role</label>
+          <p class="setting-description">Role assigned to all staff members</p>
+          <select id="staff-role" class="form-control">
+            <option value="">Select a role...</option>
+          </select>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Management Role</label>
+          <p class="setting-description">Role for staff managers/leads</p>
+          <select id="management-role" class="form-control">
+            <option value="">Select a role...</option>
+          </select>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Admin Role</label>
+          <p class="setting-description">Role for server admins</p>
+          <select id="admin-role" class="form-control">
+            <option value="">Select a role...</option>
+          </select>
+        </div>
+
+        <div class="save-section">
+          <button class="btn btn-primary" onclick="saveSettings('roles')">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </div>
+
+      <!-- FEATURES -->
+      <div id="features" class="settings-section">
+        <h2><i class="fas fa-star"></i> Feature Management</h2>
+        
+        <div class="setting-group">
+          <label class="setting-label">
+            <div class="toggle-switch">
+              <label class="switch">
+                <input type="checkbox" id="feature-applications">
+                <span class="slider"></span>
+              </label>
+              <span>Staff Applications</span>
+            </div>
+          </label>
+          <p class="setting-description">Allow staff to submit applications</p>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">
+            <div class="toggle-switch">
+              <label class="switch">
+                <input type="checkbox" id="feature-loa">
+                <span class="slider"></span>
+              </label>
+              <span>Leave of Absence</span>
+            </div>
+          </label>
+          <p class="setting-description">Allow staff to request LOA</p>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">
+            <div class="toggle-switch">
+              <label class="switch">
+                <input type="checkbox" id="feature-strikes">
+                <span class="slider"></span>
+              </label>
+              <span>Strike System</span>
+            </div>
+          </label>
+          <p class="setting-description">Enable strike management</p>
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">
+            <div class="toggle-switch">
+              <label class="switch">
+                <input type="checkbox" id="feature-analytics">
+                <span class="slider"></span>
+              </label>
+              <span>Analytics & Reporting</span>
+            </div>
+          </label>
+          <p class="setting-description">Track staff performance metrics</p>
+        </div>
+
+        <div class="save-section">
+          <button class="btn btn-primary" onclick="saveSettings('features')">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </div>
+
+      <!-- MODERATION -->
+      <div id="moderation" class="settings-section">
+        <h2><i class="fas fa-gavel"></i> Moderation Settings</h2>
+        
+        <div class="setting-group">
+          <label class="setting-label">Strike Limit</label>
+          <p class="setting-description">Number of strikes before automatic kick</p>
+          <input type="number" id="strike-limit" class="form-control" min="1" max="10" value="3">
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Strike Expiry (Days)</label>
+          <p class="setting-description">Days until strikes automatically expire</p>
+          <input type="number" id="strike-expiry" class="form-control" min="1" max="365" value="30">
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">
+            <div class="toggle-switch">
+              <label class="switch">
+                <input type="checkbox" id="auto-kick">
+                <span class="slider"></span>
+              </label>
+              <span>Auto-kick on Strike Limit</span>
+            </div>
+          </label>
+          <p class="setting-description">Automatically remove staff when strike limit reached</p>
+        </div>
+
+        <div class="save-section">
+          <button class="btn btn-primary" onclick="saveSettings('moderation')">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </div>
+
+      <!-- BRANDING -->
+      <div id="branding" class="settings-section">
+        <h2><i class="fas fa-palette"></i> Branding</h2>
+        
+        <div class="setting-group">
+          <label class="setting-label">Bot Name (Premium)</label>
+          <p class="setting-description">Custom name for the bot</p>
+          <input type="text" id="bot-name" class="form-control" placeholder="Zenith">
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Embed Color</label>
+          <p class="setting-description">Color for bot embeds (hex code)</p>
+          <input type="color" id="embed-color" class="form-control" value="#d4af37">
+        </div>
+
+        <div class="setting-group">
+          <label class="setting-label">Embed Footer</label>
+          <p class="setting-description">Text shown at bottom of embeds</p>
+          <input type="text" id="embed-footer" class="form-control" placeholder="Zenith Staff Management">
+        </div>
+
+        <div class="save-section">
+          <button class="btn btn-primary" onclick="saveSettings('branding')">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const guildId = new URLSearchParams(window.location.search).get('id');
+
+  function switchTab(tab) {
+    document.querySelectorAll('.settings-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.settings-item').forEach(el => el.classList.remove('active'));
+    document.getElementById(tab).classList.add('active');
+    event.target.closest('.settings-item').classList.add('active');
+  }
+
+  async function saveSettings(section) {
+    const settings = {};
+    
+    if (section === 'general') {
+      settings.serverName = document.getElementById('server-name').value;
+      settings.prefix = document.getElementById('prefix').value;
+      settings.language = document.getElementById('language').value;
+    } else if (section === 'channels') {
+      settings.logChannel = document.getElementById('log-channel').value;
+      settings.applicationsChannel = document.getElementById('applications-channel').value;
+      settings.announcementsChannel = document.getElementById('announcements-channel').value;
+    } else if (section === 'roles') {
+      settings.staffRole = document.getElementById('staff-role').value;
+      settings.managementRole = document.getElementById('management-role').value;
+      settings.adminRole = document.getElementById('admin-role').value;
+    } else if (section === 'features') {
+      settings.applications = document.getElementById('feature-applications').checked;
+      settings.loa = document.getElementById('feature-loa').checked;
+      settings.strikes = document.getElementById('feature-strikes').checked;
+      settings.analytics = document.getElementById('feature-analytics').checked;
+    } else if (section === 'moderation') {
+      settings.strikeLimit = parseInt(document.getElementById('strike-limit').value);
+      settings.strikeExpiry = parseInt(document.getElementById('strike-expiry').value);
+      settings.autoKick = document.getElementById('auto-kick').checked;
+    } else if (section === 'branding') {
+      settings.botName = document.getElementById('bot-name').value;
+      settings.embedColor = document.getElementById('embed-color').value;
+      settings.embedFooter = document.getElementById('embed-footer').value;
+    }
+
+    try {
+      const res = await fetch(`/api/guilds/${guildId}/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      });
+
+      const statusEl = document.getElementById('status-message');
+      if (res.ok) {
+        statusEl.textContent = '✅ Settings saved successfully!';
+        statusEl.className = 'status-message success';
+      } else {
+        statusEl.textContent = '❌ Failed to save settings';
+        statusEl.className = 'status-message error';
+      }
+      setTimeout(() => statusEl.className = 'status-message', 3000);
+    } catch (err) {
+      console.error('Error saving settings:', err);
+      const statusEl = document.getElementById('status-message');
+      statusEl.textContent = '❌ An error occurred';
+      statusEl.className = 'status-message error';
+    }
+  }
+
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/';
+  }
+</script>
+
+</body>
+</html>

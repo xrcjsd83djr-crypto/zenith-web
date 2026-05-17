@@ -513,6 +513,7 @@ app.get('/dashboard', (_req, res) => res.sendFile(join(publicPath, 'dashboard.ht
 app.get('/status', (_req, res) => res.sendFile(join(publicPath, 'status.html')));
 app.get('/premium', (_req, res) => res.sendFile(join(publicPath, 'premium.html')));
 app.get('/settings', (_req, res) => res.sendFile(join(publicPath, 'settings.html')));
+app.get('/server-settings', (_req, res) => res.sendFile(join(publicPath, 'settings-config.html')));
 app.get('/privacy', (_req, res) => res.sendFile(join(publicPath, 'privacy.html')));
 app.get('/tos', (_req, res) => res.sendFile(join(publicPath, 'tos.html')));
 
@@ -756,3 +757,30 @@ app.get('/api/staff/profile/:robloxUsername', async (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
+
+// Settings API
+app.post('/api/guilds/:id/settings', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const settings = req.body;
+  try {
+    await query(
+      `UPDATE servers SET settings = settings || $1 WHERE id = $2`,
+      [JSON.stringify(settings), id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[settings]', err);
+    res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
+app.get('/api/guilds/:id/settings', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await query(`SELECT settings FROM servers WHERE id = $1`, [id]);
+    res.json(result.rows[0]?.settings || {});
+  } catch (err) {
+    console.error('[settings]', err);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});

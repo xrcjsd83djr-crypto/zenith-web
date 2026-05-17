@@ -21,6 +21,8 @@ const pool = new Pool({
   max: 10
 });
 
+export { pool };
+
 export async function query(text, params) {
   return pool.query(text, params);
 }

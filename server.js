@@ -576,6 +576,82 @@ app.post('/api/guilds/:id/config', requireAuth, async (req, res) => {
   }
 });
 
+
+
+  // ── 11b. Post Panel to Discord ────────────────────────────────────────────
+  app.post('/api/guilds/:id/config/post-panel', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { type } = req.body; // 'applications' | 'loa'
+    if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured' });
+    if (!DATABASE_URL) return res.status(400).json({ error: 'Database not configured' });
+    try {
+      const cfgRes = await query('SELECT * FROM server_config WHERE guild_id = $1', [id]);
+      const cfg = cfgRes.rows[0];
+      if (!cfg) return res.status(400).json({ error: 'No configuration saved yet. Save your config first.' });
+
+      let channelId, embed, components;
+
+      if (type === 'applications') {
+        channelId = cfg.applications_channel_id;
+        if (!channelId) return res.status(400).json({ error: 'Applications channel not configured.' });
+        embed = {
+          title: cfg.applications_title || 'Staff Application',
+          description: '**Want to join the team?**\n\nClick the button below to submit a staff application. Our management team will review your application and get back to you.',
+          color: 0xd4af37,
+          footer: { text: cfg.embed_footer || 'Zenith Staff Management' },
+          timestamp: new Date().toISOString(),
+        };
+        components = [{
+          type: 1,
+          components: [{
+            type: 2, style: 1, label: 'Apply Now',
+            custom_id: 'zenith_apply',
+            emoji: { name: '📋' },
+          }],
+        }];
+      } else if (type === 'loa') {
+        channelId = cfg.loa_channel_id;
+        if (!channelId) return res.status(400).json({ error: 'LOA channel not configured.' });
+        embed = {
+          title: 'Leave of Absence Request',
+          description: '**Need to take a break?**\n\nClick the button below to submit a Leave of Absence request. Please include your start date, end date, and reason.',
+          color: 0xd4af37,
+          footer: { text: cfg.embed_footer || 'Zenith Staff Management' },
+          timestamp: new Date().toISOString(),
+        };
+        components = [{
+          type: 1,
+          components: [{
+            type: 2, style: 1, label: 'Request LOA',
+            custom_id: 'zenith_loa',
+            emoji: { name: '📅' },
+          }],
+        }];
+      } else {
+        return res.status(400).json({ error: 'Invalid panel type. Use "applications" or "loa".' });
+      }
+
+      const msgRes = await fetch(`${DISCORD_API}/channels/${channelId}/messages`, {
+        method: 'POST',
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ embeds: [embed], components }),
+      });
+
+      if (!msgRes.ok) {
+        const err = await msgRes.json();
+        const msg = err?.message || 'Discord API error';
+        if (msg.includes('Missing Access')) return res.status(400).json({ error: 'Bot does not have access to that channel. Check channel permissions.' });
+        return res.status(400).json({ error: `Discord error: ${msg}` });
+      }
+
+      await logActivity(id, null, null, 'panel_posted', { type, channel_id: channelId, posted_by: req.session?.user?.id });
+      res.json({ success: true, message: `${type === 'applications' ? 'Application' : 'LOA'} panel posted to <#${channelId}>!` });
+    } catch (err) {
+      console.error('[post-panel]', err);
+      res.status(500).json({ error: 'Failed to post panel: ' + err.message });
+    }
+  });
+  
 // ── 12. Staff CRUD ───────────────────────────────────────────────────────
 app.get('/api/guilds/:id/staff', requireAuth, async (req, res) => {
   const { id } = req.params;

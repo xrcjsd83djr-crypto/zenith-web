@@ -7,6 +7,7 @@ import { ReactNode, useState, useEffect } from "react";
     CalendarClock, ActivitySquare, BadgeCent,
     Settings, Settings2, Star, BarChart2, LogOut, Menu, X,
     AlertOctagon, ShieldBan, ChevronLeft, ArrowLeftRight,
+    TrendingUp, Clock, Layers, Award, Zap,
   } from "lucide-react";
   import { Button } from "./ui/button";
   import {
@@ -51,6 +52,12 @@ import { ReactNode, useState, useEffect } from "react";
       { name: "Ranks",        path: `/dashboard/${guildId}/ranks`,        icon: <BadgeCent className="w-4 h-4" /> },
       { name: "Blacklist",    path: `/dashboard/${guildId}/blacklist`,    icon: <ShieldBan className="w-4 h-4" /> },
       { name: "Bot Customization", path: `/dashboard/${guildId}/bot-customization`, icon: <Settings2 className="w-4 h-4" /> },
+      { name: "Promotions",        path: `/dashboard/${guildId}/promotions`,        icon: <TrendingUp className="w-4 h-4" /> },
+      { name: "Shifts",            path: `/dashboard/${guildId}/shifts`,            icon: <Clock className="w-4 h-4" /> },
+      { name: "Divisions",         path: `/dashboard/${guildId}/divisions`,         icon: <Layers className="w-4 h-4" /> },
+      { name: "Performance",       path: `/dashboard/${guildId}/performance`,       icon: <Award className="w-4 h-4" /> },
+      { name: "Analytics",         path: `/dashboard/${guildId}/analytics`,         icon: <BarChart2 className="w-4 h-4" /> },
+      { name: "Strike Automation", path: `/dashboard/${guildId}/automation`,        icon: <Zap className="w-4 h-4" /> },
     ];
 
     const bottomItems = [

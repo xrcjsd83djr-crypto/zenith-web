@@ -65,6 +65,12 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
           <Route path="/dashboard/:guildId/config"       component={() => <ConfigPage guildId={guildId} />} />
           <Route path="/dashboard/:guildId/blacklist"    component={() => <BlacklistPage guildId={guildId} />} />
           <Route path="/dashboard/:guildId/bot-customization" component={() => <BotCustomizationPage guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/promotions"  component={() => <PromotionsPage  guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/shifts"      component={() => <ShiftsPage      guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/divisions"   component={() => <DivisionsPage   guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/performance" component={() => <PerformancePage guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/analytics"  component={() => <AnalyticsPage   guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/automation" component={() => <AutomationPage  guildId={guildId} />} />
           <Route component={NotFound} />
         </Switch>
       </DashboardLayout>

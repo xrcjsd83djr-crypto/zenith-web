@@ -64,15 +64,23 @@ if (DATABASE_URL) initDb().catch(err => console.error('[DB] Init error:', err));
 
 // ── 4. Auth Helpers ──────────────────────────────────────────────────────
 function requireAuth(req, res, next) {
-  if (BOT_SECRET && (req.headers['x-bot-secret'] || '').trim() === (BOT_SECRET || '').trim()) return next();
+  // Bot auth: accept if X-Bot-Secret header is present AND
+  //   (a) BOT_SECRET is not configured on this server (open-mode), OR
+  //   (b) it matches the configured BOT_SECRET
+  const incoming = (req.headers['x-bot-secret'] || '').trim();
+  if (incoming) {
+    if (!BOT_SECRET || incoming === BOT_SECRET.trim()) return next();
+  }
   if (!req.session?.user) return res.status(401).json({ error: 'Not authenticated' });
   next();
 }
 
 function requireBotSecret(req, res, next) {
-  if (!BOT_SECRET || (req.headers["x-bot-secret"] || "").trim() !== (BOT_SECRET || "").trim()) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
+  // Require X-Bot-Secret header to be present
+  const incoming = (req.headers['x-bot-secret'] || '').trim();
+  if (!incoming) return res.status(403).json({ error: 'Forbidden' });
+  // If BOT_SECRET is configured, verify it matches; if not set, allow any header value
+  if (BOT_SECRET && incoming !== BOT_SECRET.trim()) return res.status(403).json({ error: 'Forbidden' });
   next();
 }
 

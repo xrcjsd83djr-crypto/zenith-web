@@ -1,7 +1,9 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, Zap, Shield, BarChart3, Headphones, Check, ArrowLeft } from "lucide-react";
+import { Star, Zap, Shield, BarChart3, Headphones, Check, ArrowLeft, ExternalLink } from "lucide-react";
+
+const SUPPORT_SERVER = "https://discord.gg/UmDQqXPCfF";
 
 const FEATURES = [
   {
@@ -37,6 +39,7 @@ const PLANS = [
     cta: "Current Plan",
     ctaVariant: "outline" as const,
     disabled: true,
+    href: null,
   },
   {
     name: "Pro",
@@ -53,9 +56,10 @@ const PLANS = [
       "Priority support",
       "All future Pro features",
     ],
-    cta: "Upgrade to Pro",
+    cta: "Get Premium",
     ctaVariant: "default" as const,
     disabled: false,
+    href: SUPPORT_SERVER,
   },
   {
     name: "Enterprise",
@@ -74,6 +78,7 @@ const PLANS = [
     cta: "Contact Us",
     ctaVariant: "outline" as const,
     disabled: false,
+    href: SUPPORT_SERVER,
   },
 ];
 
@@ -147,21 +152,34 @@ export default function PremiumPage() {
                     </li>
                   ))}
                 </ul>
-                <Button
-                  variant={plan.ctaVariant}
-                  className={`w-full font-bold ${plan.badge ? "bg-yellow-500 hover:bg-yellow-600 text-white border-0 shadow-md" : ""}`}
-                  disabled={plan.disabled}
-                >
-                  {plan.cta}
-                </Button>
+                {plan.href ? (
+                  <a href={plan.href} target="_blank" rel="noreferrer" className="block">
+                    <Button
+                      variant={plan.ctaVariant}
+                      className={`w-full font-bold gap-2 ${plan.badge ? "bg-yellow-500 hover:bg-yellow-600 text-white border-0 shadow-md" : ""}`}
+                    >
+                      {plan.cta} <ExternalLink className="w-3.5 h-3.5" />
+                    </Button>
+                  </a>
+                ) : (
+                  <Button
+                    variant={plan.ctaVariant}
+                    className="w-full font-bold"
+                    disabled={plan.disabled}
+                  >
+                    {plan.cta}
+                  </Button>
+                )}
               </div>
             ))}
           </div>
 
           <p className="text-center text-sm text-gray-400 mt-8">
-            Premium is applied per-server. Contact us in our{" "}
-            <a href="#" className="text-primary font-medium hover:underline">Discord server</a>{" "}
-            to upgrade.
+            Premium is applied per-server. Join our{" "}
+            <a href={SUPPORT_SERVER} target="_blank" rel="noreferrer" className="text-primary font-medium hover:underline">
+              Discord support server
+            </a>{" "}
+            to get started — a staff member will activate premium for your server.
           </p>
         </div>
       </div>

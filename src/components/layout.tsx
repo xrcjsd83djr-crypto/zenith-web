@@ -6,9 +6,14 @@ import { ReactNode, useState, useEffect } from "react";
     LayoutDashboard, Users, Inbox, AlertTriangle,
     CalendarClock, ActivitySquare, BadgeCent,
     Settings, Settings2, Star, BarChart2, LogOut, Menu, X,
-    AlertOctagon, ShieldBan, ChevronLeft,
+    AlertOctagon, ShieldBan, ChevronLeft, ArrowLeftRight,
   } from "lucide-react";
   import { Button } from "./ui/button";
+  import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel,
+    AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+    AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  } from "./ui/alert-dialog";
 
   export interface Guild {
     id: string; name: string; icon?: string; iconUrl?: string; isPremium?: boolean;
@@ -138,7 +143,16 @@ import { ReactNode, useState, useEffect } from "react";
         </nav>
 
         {/* User footer */}
-        <div className="px-3 py-3 border-t border-border flex-shrink-0">
+        <div className="px-3 py-3 border-t border-border flex-shrink-0 space-y-1">
+          {/* Switch Server */}
+          <Link href="/servers">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-150 cursor-pointer">
+              <ArrowLeftRight className="w-3.5 h-3.5 flex-shrink-0" />
+              Switch Server
+            </div>
+          </Link>
+
+          {/* Account row */}
           <div className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-muted/50 transition-colors group">
             {user?.avatarUrl ? (
               <img src={user.avatarUrl} alt={user?.username} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
@@ -151,9 +165,23 @@ import { ReactNode, useState, useEffect } from "react";
               <div className="text-xs font-semibold truncate">{user?.username}</div>
               <div className="text-[10px] text-muted-foreground">Logged in</div>
             </div>
-            <button onClick={logout} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500" title="Logout">
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500" title="Log out">
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Log out?</AlertDialogTitle>
+                  <AlertDialogDescription>You'll be signed out of your Zenith session.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={logout} className="bg-red-500 hover:bg-red-600">Log out</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </>
@@ -169,15 +197,16 @@ import { ReactNode, useState, useEffect } from "react";
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <div className="w-6 h-6 rounded-md flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg,#d4af37,#ffd700)' }}>Z</div>
+              {iconUrl ? (
+                <img src={iconUrl} alt={guild.name} className="w-6 h-6 rounded-md object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-6 h-6 rounded-md flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg,#d4af37,#ffd700)' }}>{guild.name.charAt(0)}</div>
+              )}
               <span className="font-semibold text-sm truncate" style={{ color: '#b8941f' }}>
                 {guild.name}
               </span>
             </div>
-            <Link href="/servers" className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
-              <ChevronLeft className="w-4 h-4" />
-            </Link>
           </div>
         )}
 

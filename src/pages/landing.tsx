@@ -24,6 +24,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-6">
             <Link href="/tos" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Terms</Link>
+              <a href="https://discord.gg/UmDQqXPCfF" target="_blank" rel="noreferrer" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Support</a>
             <Link href="/privacy" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Privacy</Link>
             <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Log in</Link>
             <Link href="/servers">

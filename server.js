@@ -243,10 +243,10 @@ app.get('/api/auth/guilds', requireAuth, async (req, res) => {
   app.get('/api/guilds/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     try {
-      // First try DB
+      // First try DB (skip placeholder rows where name was set to the ID itself)
       if (DATABASE_URL) {
         const dbRes = await query('SELECT * FROM servers WHERE id = $1', [id]);
-        if (dbRes.rows.length > 0) {
+        if (dbRes.rows.length > 0 && dbRes.rows[0].name !== id) {
           const row = dbRes.rows[0];
           const icon = row.icon || row.icon_url;
           return res.json({
@@ -266,6 +266,14 @@ app.get('/api/auth/guilds', requireAuth, async (req, res) => {
         });
         if (r.ok) {
           const g = await r.json();
+          // Upsert real name/icon so future DB reads are correct
+          if (DATABASE_URL) {
+            await query(
+              `INSERT INTO servers (id, name, icon) VALUES ($1, $2, $3)
+               ON CONFLICT (id) DO UPDATE SET name = $2, icon = $3, updated_at = NOW()`,
+              [g.id, g.name, g.icon || null]
+            ).catch(() => {});
+          }
           return res.json({
             id: g.id,
             name: g.name,
@@ -752,6 +760,16 @@ app.delete('/api/guilds/:id/staff/:userId', requireAuth, async (req, res) => {
   }
 });
 
+// Get saved staff role IDs
+app.get('/api/guilds/:id/staff-roles', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ staffRoleIds: [] });
+  try {
+    const r = await query(`SELECT staff_role_ids FROM server_config WHERE guild_id = $1`, [id]);
+    res.json({ staffRoleIds: r.rows[0]?.staff_role_ids || [] });
+  } catch { res.json({ staffRoleIds: [] }); }
+});
+
 // Import from role
 app.post('/api/guilds/:id/staff-roles', requireAuth, async (req, res) => {
   const { id } = req.params;
@@ -759,6 +777,13 @@ app.post('/api/guilds/:id/staff-roles', requireAuth, async (req, res) => {
   if (!DISCORD_BOT_TOKEN || !DATABASE_URL) return res.status(400).json({ error: 'Not configured' });
   if (!roleIds?.length) return res.status(400).json({ error: 'No roles selected' });
   try {
+    // Persist selected role IDs to server_config so they survive page reloads
+    await query(
+      `INSERT INTO server_config (guild_id, staff_role_ids) VALUES ($1, $2)
+       ON CONFLICT (guild_id) DO UPDATE SET staff_role_ids = $2, updated_at = NOW()`,
+      [id, roleIds]
+    ).catch(() => {});
+
     const [membersR, rolesR] = await Promise.all([
       fetch(`${DISCORD_API}/guilds/${id}/members?limit=1000`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } }),
       fetch(`${DISCORD_API}/guilds/${id}/roles`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } }),

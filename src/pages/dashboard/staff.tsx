@@ -1,268 +1,215 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState, useEffect, useCallback } from "react";
+  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+  import { Badge } from "@/components/ui/badge";
+  import { Button } from "@/components/ui/button";
+  import { Input } from "@/components/ui/input";
+  import { Label } from "@/components/ui/label";
+  import { Users, Search, RefreshCw, Loader2, CheckCircle, UserCheck, AlertCircle, Shield, ChevronDown, X } from "lucide-react";
 
-interface StaffMember {
-  id: string;
-  userId: string;
-  username: string;
-  displayName: string;
-  avatar: string;
-  rank: string;
-  division: string;
-  status: "active" | "inactive" | "on_leave";
-  joinedAt: string;
-  strikes: number;
-  loaStatus: string;
-}
+  interface StaffMember { id: string; userId: string; username: string; displayName?: string; avatar?: string; rank?: string; }
+  interface Role { id: string; name: string; color?: number; }
 
-interface ServerRole {
-  id: string;
-  name: string;
-  color: number;
-}
+  function roleColor(color?: number) {
+    if (!color) return '#94a3b8';
+    return '#' + color.toString(16).padStart(6, '0');
+  }
 
-export default function StaffPage({ guildId }: { guildId: string }) {
-  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
-  const [selectedMember, setSelectedMember] = useState<StaffMember | null>(null);
-  const [serverRoles, setServerRoles] = useState<ServerRole[]>([]);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showRoleSelection, setShowRoleSelection] = useState(true);
+  export default function StaffPage({ guildId }: { guildId: string }) {
+    const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+    const [roles, setRoles] = useState<Role[]>([]);
+    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+    const [search, setSearch] = useState('');
+    const [roleSearch, setRoleSearch] = useState('');
+    const [roleOpen, setRoleOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [membersLoading, setMembersLoading] = useState(false);
+    const [staffLoaded, setStaffLoaded] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
+    const fetchRoles = useCallback(async () => {
       try {
-        setIsLoading(true);
-        // Fetch server roles
-        const rolesRes = await fetch(`/api/guild/${guildId}/roles`);
-        if (rolesRes.ok) {
-          const roles = await rolesRes.json();
-          setServerRoles(roles);
+        // FIXED: /api/guilds/ (not /api/guild/)
+        const res = await fetch(`/api/guilds/${guildId}/roles`, { credentials: 'include' });
+        if (res.ok) setRoles(await res.json());
+      } catch { }
+      setIsLoading(false);
+    }, [guildId]);
+
+    useEffect(() => { fetchRoles(); }, [fetchRoles]);
+
+    const loadStaff = async () => {
+      if (selectedRoles.length === 0) return;
+      setMembersLoading(true);
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/members`, { credentials: 'include' });
+        if (res.ok) {
+          const members = await res.json();
+          // Filter members who have at least one selected role
+          const staffWithRoles = members.filter((m: any) => {
+            const memberRoles: string[] = m.roles || [];
+            return selectedRoles.some(r => memberRoles.includes(r));
+          });
+          setStaffMembers(staffWithRoles);
+          setStaffLoaded(true);
         }
-      } catch (error) {
-        console.error("Failed to fetch data:", error);
-      } finally {
-        setIsLoading(false);
-      }
+      } catch { }
+      setMembersLoading(false);
     };
 
-    fetchData();
-  }, [guildId]);
+    const toggleRole = (id: string) => {
+      setSelectedRoles(prev => prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]);
+      setStaffLoaded(false);
+    };
 
-  const handleRoleSelect = (roleId: string) => {
-    setSelectedRoles((prev) =>
-      prev.includes(roleId) ? prev.filter((r) => r !== roleId) : [...prev, roleId]
+    const filteredRoles = roles.filter(r => r.name.toLowerCase().includes(roleSearch.toLowerCase()));
+    const selectedRoleObjects = roles.filter(r => selectedRoles.includes(r.id));
+
+    const filteredStaff = staffMembers.filter(m =>
+      (m.username || '').toLowerCase().includes(search.toLowerCase()) ||
+      (m.displayName || '').toLowerCase().includes(search.toLowerCase())
     );
-  };
 
-  const handleSaveRoles = async () => {
-    try {
-      const res = await fetch(`/api/guild/${guildId}/staff/roles`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roles: selectedRoles }),
-      });
-
-      if (res.ok) {
-        const staff = await res.json();
-        setStaffMembers(staff);
-        setShowRoleSelection(false);
-      }
-    } catch (error) {
-      console.error("Failed to save roles:", error);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-pulse text-center">
-          <div className="w-12 h-12 bg-gray-200 rounded-lg mx-auto mb-4" />
-          <p className="text-gray-500">Loading staff data...</p>
-        </div>
+    if (isLoading) return (
+      <div className="flex justify-center items-center py-20">
+        <div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#d4af37', borderTopColor: 'transparent' }} />
       </div>
     );
-  }
 
-  if (showRoleSelection) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-5 max-w-4xl">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Select Staff Roles</h2>
-          <p className="text-gray-500 mt-1">
-            Choose which roles should be considered as staff roles. Staff members with these roles will appear in the overview.
-          </p>
+          <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
+            <Users className="w-6 h-6" style={{ color: '#d4af37' }} /> Staff Directory
+          </h2>
+          <p className="text-muted-foreground mt-0.5 text-sm">Select the Discord roles that represent your staff tiers to load members.</p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Server Roles</CardTitle>
-            <CardDescription>Select one or more roles</CardDescription>
+        {/* Role picker */}
+        <Card className="border-border bg-white shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-bold">Select Staff Roles</CardTitle>
+            <p className="text-xs text-muted-foreground">Choose which roles should be considered as staff. Members with these roles will appear in the directory.</p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {serverRoles.map((role) => (
-                <div
-                  key={role.id}
-                  className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                  onClick={() => handleRoleSelect(role.id)}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedRoles.includes(role.id)}
-                    onChange={() => handleRoleSelect(role.id)}
-                    className="w-4 h-4 rounded"
-                  />
-                  <span
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: `#${role.color.toString(16).padStart(6, "0")}` }}
-                  />
-                  <span className="font-medium text-sm">{role.name}</span>
-                </div>
-              ))}
+          <CardContent className="space-y-3">
+            {/* Selected role badges */}
+            {selectedRoleObjects.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {selectedRoleObjects.map(r => (
+                  <div key={r.id} className="flex items-center gap-1 px-2 py-1 rounded-full border border-border bg-muted/30 text-xs font-medium">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: roleColor(r.color) }} />
+                    @{r.name}
+                    <button onClick={() => toggleRole(r.id)} className="ml-0.5 text-muted-foreground hover:text-red-500 transition-colors">
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Searchable role dropdown */}
+            <div className="relative">
+              <Button variant="outline" size="sm" onClick={() => setRoleOpen(o => !o)}
+                className="w-full sm:w-72 justify-between gap-2 font-normal text-xs h-9 bg-white border-border">
+                <span className="flex items-center gap-1.5">
+                  <Shield size={12} className="text-muted-foreground" />
+                  {selectedRoles.length > 0 ? `${selectedRoles.length} role${selectedRoles.length !== 1 ? 's' : ''} selected` : 'Add a staff role...'}
+                </span>
+                <ChevronDown size={12} className="text-muted-foreground" />
+              </Button>
+              {roleOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setRoleOpen(false)} />
+                  <div className="absolute top-full left-0 mt-1 w-full sm:w-80 bg-white border border-border rounded-xl shadow-xl z-20 overflow-hidden">
+                    <div className="p-2 border-b border-border">
+                      <Input value={roleSearch} onChange={e => setRoleSearch(e.target.value)}
+                        placeholder="Search roles..." className="h-7 text-xs bg-white border-border" autoFocus />
+                    </div>
+                    <div className="max-h-52 overflow-y-auto py-1">
+                      {filteredRoles.length === 0 ? (
+                        <div className="px-3 py-3 text-xs text-muted-foreground text-center">
+                          {roleSearch ? 'No roles found' : 'No roles available'}
+                        </div>
+                      ) : filteredRoles.map(r => (
+                        <button key={r.id} onClick={() => { toggleRole(r.id); setRoleSearch(''); }}
+                          className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-muted/40 text-xs text-left transition-colors ${selectedRoles.includes(r.id) ? 'bg-amber-50' : ''}`}>
+                          <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: roleColor(r.color) }} />
+                          <span className="flex-1 truncate">@{r.name}</span>
+                          {selectedRoles.includes(r.id) && <CheckCircle size={11} className="text-amber-600 flex-shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
-            <div className="flex gap-3 pt-4">
-              <Button onClick={handleSaveRoles} disabled={selectedRoles.length === 0}>
-                Save & Load Staff
-              </Button>
-            </div>
+            <Button onClick={loadStaff} disabled={selectedRoles.length === 0 || membersLoading}
+              style={{ background: 'linear-gradient(135deg,#d4af37,#ffd700)', color: '#5a3e10', border: 'none' }}
+              size="sm" className="font-semibold gap-1.5">
+              {membersLoading ? <><Loader2 size={13} className="animate-spin" />Loading...</> : <><UserCheck size={13} />Save & Load Staff</>}
+            </Button>
           </CardContent>
         </Card>
+
+        {/* Staff list */}
+        {staffLoaded && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <p className="text-sm font-semibold">{filteredStaff.length} staff member{filteredStaff.length !== 1 ? 's' : ''}</p>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search staff..." className="pl-8 h-8 text-xs w-48 bg-white border-border" />
+                </div>
+                <Button variant="outline" size="sm" onClick={() => { setStaffLoaded(false); setSearch(''); setSelectedRoles([]); }}><RefreshCw size={12} /></Button>
+              </div>
+            </div>
+
+            {filteredStaff.length === 0 ? (
+              <Card className="border-border bg-white shadow-sm">
+                <CardContent className="py-14 text-center">
+                  <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-muted-foreground">
+                    {search ? 'No matching staff members' : 'No staff found with the selected roles'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {search ? 'Try a different search term' : 'Make sure your staff have the selected roles in Discord'}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {filteredStaff.map(member => {
+                  const memberRoles = selectedRoleObjects.filter(r => (member as any).roles?.includes(r.id));
+                  return (
+                    <Card key={member.id || member.userId} className="border-border bg-white shadow-sm hover:shadow-md transition-shadow">
+                      <CardContent className="p-3 flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0 text-sm font-bold text-amber-700">
+                          {(member.displayName || member.username || '?')[0].toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-sm truncate">{member.displayName || member.username}</div>
+                          {member.displayName && member.username && member.displayName !== member.username && (
+                            <div className="text-xs text-muted-foreground truncate">@{member.username}</div>
+                          )}
+                          {memberRoles.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {memberRoles.slice(0, 2).map(r => (
+                                <span key={r.id} className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: roleColor(r.color) + '20', color: roleColor(r.color) }}>
+                                  {r.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">Staff Overview</h2>
-        <p className="text-gray-500 mt-1">
-          Manage your staff team members and their details
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Staff List */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Staff Members</CardTitle>
-              <CardDescription>{staffMembers.length} members</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {staffMembers.map((member) => (
-                <div
-                  key={member.id}
-                  onClick={() => setSelectedMember(member)}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                    selectedMember?.id === member.id
-                      ? "bg-blue-50 border-2 border-blue-500"
-                      : "hover:bg-gray-50 border border-gray-200"
-                  }`}
-                >
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={member.avatar} />
-                      <AvatarFallback>{member.username.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{member.displayName}</p>
-                      <p className="text-xs text-gray-500 truncate">@{member.username}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Member Details */}
-        <div className="lg:col-span-2">
-          {selectedMember ? (
-            <Card>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-4">
-                    <Avatar className="h-16 w-16">
-                      <AvatarImage src={selectedMember.avatar} />
-                      <AvatarFallback>{selectedMember.username.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <CardTitle>{selectedMember.displayName}</CardTitle>
-                      <CardDescription>@{selectedMember.username}</CardDescription>
-                    </div>
-                  </div>
-                  <Badge
-                    variant={
-                      selectedMember.status === "active"
-                        ? "default"
-                        : selectedMember.status === "on_leave"
-                          ? "secondary"
-                          : "outline"
-                    }
-                  >
-                    {selectedMember.status.replace("_", " ")}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <Tabs defaultValue="info" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="info">Info</TabsTrigger>
-                    <TabsTrigger value="discipline">Discipline</TabsTrigger>
-                    <TabsTrigger value="activity">Activity</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="info" className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-500">Rank</p>
-                        <p className="font-medium">{selectedMember.rank || "No rank"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Division</p>
-                        <p className="font-medium">{selectedMember.division || "None"}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Joined</p>
-                        <p className="font-medium">
-                          {new Date(selectedMember.joinedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">LOA Status</p>
-                        <p className="font-medium">{selectedMember.loaStatus || "Active"}</p>
-                      </div>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="discipline" className="space-y-4">
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">Active Strikes</p>
-                      <Badge variant="destructive">{selectedMember.strikes}</Badge>
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="activity" className="space-y-4">
-                    <p className="text-sm text-gray-500">Activity tracking coming soon</p>
-                  </TabsContent>
-                </Tabs>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="flex items-center justify-center h-96">
-              <div className="text-center">
-                <p className="text-gray-500">Select a staff member to view details</p>
-              </div>
-            </Card>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+  

@@ -1095,6 +1095,7 @@ app.get('/api/guilds/:id/applications-config', requireAuth, async (req, res) => 
       `SELECT sc.applications_enabled, sc.applications_channel_id, sc.applications_review_channel_id,
               sc.applications_title, sc.applications_questions, sc.require_recommendations, sc.auto_reject,
               sc.panel_description, sc.button_label, sc.account_age_limit, sc.server_time_limit, sc.rejection_cooldown,
+              sc.applications_embed_color,
               s.reviewer_role_ids, s.apak_key, s.name
        FROM servers s LEFT JOIN server_config sc ON s.id = sc.guild_id WHERE s.id = $1`, [id]
     );
@@ -1116,6 +1117,7 @@ app.get('/api/guilds/:id/applications-config', requireAuth, async (req, res) => 
       rejectionCooldown: row.rejection_cooldown || 0,
       reviewerRoleIds: row.reviewer_role_ids || [],
       apakKey: row.apak_key || null,
+      embedColor: row.applications_embed_color || '#d4af37',
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch' });
@@ -1128,7 +1130,8 @@ app.post('/api/guilds/:id/applications-config', requireAuth, async (req, res) =>
     enabled, channel, reviewChannel, title, questions = [], 
     requireRecommendations = false, autoReject = false, reviewerRoleIds = [],
     panelDescription = '', buttonLabel = 'Apply Now', 
-    accountAgeLimit = 0, serverTimeLimit = 0, rejectionCooldown = 0
+    accountAgeLimit = 0, serverTimeLimit = 0, rejectionCooldown = 0,
+    embedColor = '#d4af37'
   } = req.body;
   if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
   try {
@@ -1144,20 +1147,22 @@ app.post('/api/guilds/:id/applications-config', requireAuth, async (req, res) =>
       `INSERT INTO server_config (guild_id, applications_enabled, applications_channel_id,
          applications_review_channel_id, applications_title, applications_questions,
          require_recommendations, auto_reject, panel_description, button_label,
-         account_age_limit, server_time_limit, rejection_cooldown)
-       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13)
+         account_age_limit, server_time_limit, rejection_cooldown, applications_embed_color)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14)
        ON CONFLICT (guild_id) DO UPDATE SET
          applications_enabled = $2, applications_channel_id = $3,
          applications_review_channel_id = $4, applications_title = $5,
          applications_questions = $6::jsonb, require_recommendations = $7,
          auto_reject = $8, panel_description = $9, button_label = $10,
          account_age_limit = $11, server_time_limit = $12, rejection_cooldown = $13,
+         applications_embed_color = $14,
          updated_at = NOW()`,
       [
         id, !!enabled, channel || null, reviewChannel || null, title || null,
         JSON.stringify(questions), !!requireRecommendations, !!autoReject,
         panelDescription || null, buttonLabel || 'Apply Now',
-        parseInt(accountAgeLimit) || 0, parseInt(serverTimeLimit) || 0, parseInt(rejectionCooldown) || 0
+        parseInt(accountAgeLimit) || 0, parseInt(serverTimeLimit) || 0, parseInt(rejectionCooldown) || 0,
+        embedColor || '#d4af37'
       ]
     );
 

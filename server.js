@@ -2454,6 +2454,738 @@ const publicPath = join(__dirname, 'dist');
 
   app.use(express.static(publicPath));
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ZENITH EXTENDED FEATURES — injected block
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── DB migrations for new tables ──────────────────────────────────────────
+(async () => {
+  if (!DATABASE_URL) return;
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS staff_notes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        target_user_id TEXT NOT NULL,
+        target_username TEXT NOT NULL,
+        content TEXT NOT NULL,
+        author_id TEXT NOT NULL,
+        author_username TEXT NOT NULL,
+        is_private BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS server_announcements (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        author_id TEXT NOT NULL,
+        author_username TEXT NOT NULL,
+        channel_id TEXT,
+        sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS duty_roster (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        username TEXT NOT NULL,
+        role TEXT DEFAULT 'Staff',
+        on_duty BOOLEAN DEFAULT TRUE,
+        checked_in_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        checked_out_at TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS commendations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        target_user_id TEXT NOT NULL,
+        target_username TEXT NOT NULL,
+        given_by_id TEXT NOT NULL,
+        given_by_username TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS rank_requests (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        username TEXT NOT NULL,
+        current_rank TEXT,
+        requested_rank TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        reviewed_by TEXT,
+        reviewed_by_name TEXT,
+        reviewed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS warning_escalation (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL UNIQUE,
+        enabled BOOLEAN DEFAULT FALSE,
+        warnings_to_strike INTEGER DEFAULT 3,
+        reset_after_days INTEGER DEFAULT 30,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS staff_handbook (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        section TEXT DEFAULT 'General',
+        sort_order INTEGER DEFAULT 0,
+        is_premium BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS weekly_schedule (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        username TEXT NOT NULL,
+        day_of_week INTEGER NOT NULL,
+        start_time TEXT NOT NULL,
+        end_time TEXT NOT NULL,
+        timezone TEXT DEFAULT 'UTC',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS custom_commands (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        response TEXT NOT NULL,
+        embed_title TEXT,
+        embed_color TEXT DEFAULT '#5865F2',
+        requires_role TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(guild_id, name)
+      );
+      CREATE TABLE IF NOT EXISTS inactivity_scans (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        username TEXT NOT NULL,
+        last_activity TIMESTAMP,
+        days_inactive INTEGER,
+        status TEXT DEFAULT 'flagged',
+        dismissed_at TIMESTAMP,
+        scanned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS auto_promotion_rules (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        from_rank TEXT NOT NULL,
+        to_rank TEXT NOT NULL,
+        min_shift_hours INTEGER DEFAULT 0,
+        min_days_at_rank INTEGER DEFAULT 0,
+        require_no_strikes BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS embed_configs (
+        guild_id TEXT PRIMARY KEY,
+        color TEXT DEFAULT '#d4af37',
+        footer TEXT DEFAULT 'Zenith Staff Management',
+        thumbnail_url TEXT,
+        show_timestamp BOOLEAN DEFAULT TRUE,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log('[DB] Extended tables migrated');
+  } catch (err) {
+    console.error('[DB] Extended migration error:', err.message);
+  }
+})();
+
+// ── Image Upload (base64 inline, no external deps) ────────────────────────
+app.post('/api/upload/image', requireAuth, (req, res) => {
+  const { base64, filename } = req.body;
+  if (!base64) return res.status(400).json({ error: 'No image data' });
+  const maxSize = 2 * 1024 * 1024; // 2MB base64 limit
+  if (base64.length > maxSize) return res.status(400).json({ error: 'Image too large (max 2MB)' });
+  // Just return the base64 data URI directly — stored in DB as-is
+  const mimeMatch = base64.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+  if (!mimeMatch) return res.status(400).json({ error: 'Invalid image format' });
+  res.json({ url: base64, success: true });
+});
+
+// ── Staff Notes ───────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/notes', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.query;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(
+      userId
+        ? `SELECT * FROM staff_notes WHERE guild_id = $1 AND target_user_id = $2 ORDER BY created_at DESC`
+        : `SELECT * FROM staff_notes WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 100`,
+      userId ? [id, userId] : [id]
+    );
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/guilds/:id/notes', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { targetUserId, targetUsername, content, authorId, authorUsername, isPrivate } = req.body;
+  if (!content?.trim() || !targetUserId) return res.status(400).json({ error: 'Missing required fields' });
+  try {
+    const r = await query(
+      `INSERT INTO staff_notes (guild_id, target_user_id, target_username, content, author_id, author_username, is_private)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [id, targetUserId, targetUsername, content.trim(), authorId, authorUsername, !!isPrivate]
+    );
+    await logActivity(id, authorId, authorUsername, 'note_added', { target: targetUsername });
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/guilds/:id/notes/:noteId', requireAuth, async (req, res) => {
+  const { id, noteId } = req.params;
+  try {
+    await query(`DELETE FROM staff_notes WHERE id = $1 AND guild_id = $2`, [noteId, id]);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'Failed to delete note' }); }
+});
+
+// ── Announcements ─────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/announcements', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(`SELECT * FROM server_announcements WHERE guild_id = $1 ORDER BY sent_at DESC LIMIT 50`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/guilds/:id/announcements', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { title, content, channelId, authorId, authorUsername, sendToDiscord } = req.body;
+  if (!title?.trim() || !content?.trim()) return res.status(400).json({ error: 'Title and content required' });
+  try {
+    const r = await query(
+      `INSERT INTO server_announcements (guild_id, title, content, author_id, author_username, channel_id)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [id, title.trim(), content.trim(), authorId, authorUsername, channelId || null]
+    );
+    // Optionally post to Discord channel
+    if (sendToDiscord && channelId && process.env.DISCORD_BOT_TOKEN) {
+      try {
+        await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+          method: 'POST',
+          headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            embeds: [{
+              title: `📢 ${title}`,
+              description: content,
+              color: 0xD4AF37,
+              footer: { text: `Announced by ${authorUsername}` },
+              timestamp: new Date().toISOString(),
+            }]
+          }),
+        });
+      } catch {}
+    }
+    await logActivity(id, authorId, authorUsername, 'announcement', { title });
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Duty Roster ───────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/roster', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(
+      `SELECT * FROM duty_roster WHERE guild_id = $1 AND on_duty = TRUE ORDER BY checked_in_at DESC`,
+      [id]
+    );
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.get('/api/guilds/:id/roster/history', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(
+      `SELECT * FROM duty_roster WHERE guild_id = $1 ORDER BY checked_in_at DESC LIMIT 100`,
+      [id]
+    );
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/guilds/:id/roster/checkin', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId, username, role } = req.body;
+  try {
+    // End any existing open duty
+    await query(
+      `UPDATE duty_roster SET on_duty = FALSE, checked_out_at = NOW() WHERE guild_id = $1 AND user_id = $2 AND on_duty = TRUE`,
+      [id, userId]
+    ).catch(() => {});
+    const r = await query(
+      `INSERT INTO duty_roster (guild_id, user_id, username, role, on_duty) VALUES ($1,$2,$3,$4,TRUE) RETURNING *`,
+      [id, userId, username, role || 'Staff']
+    );
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/guilds/:id/roster/checkout', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.body;
+  try {
+    await query(
+      `UPDATE duty_roster SET on_duty = FALSE, checked_out_at = NOW() WHERE guild_id = $1 AND user_id = $2 AND on_duty = TRUE`,
+      [id, userId]
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Commendations ─────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/commendations', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(`SELECT * FROM commendations WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 100`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.get('/api/guilds/:id/commendations/leaderboard', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(
+      `SELECT target_user_id, target_username, COUNT(*) as count FROM commendations WHERE guild_id = $1 GROUP BY target_user_id, target_username ORDER BY count DESC LIMIT 10`,
+      [id]
+    );
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/guilds/:id/commendations', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { targetUserId, targetUsername, givenById, givenByUsername, reason } = req.body;
+  if (!reason?.trim() || !targetUserId) return res.status(400).json({ error: 'Missing fields' });
+  try {
+    const r = await query(
+      `INSERT INTO commendations (guild_id, target_user_id, target_username, given_by_id, given_by_username, reason)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [id, targetUserId, targetUsername, givenById, givenByUsername, reason.trim()]
+    );
+    await logActivity(id, givenById, givenByUsername, 'commendation', { target: targetUsername, reason: reason.trim() });
+    // Optionally notify via Discord
+    if (process.env.DISCORD_BOT_TOKEN) {
+      try {
+        const cfgR = await query(`SELECT logs_channel_id FROM server_config WHERE guild_id = $1`, [id]);
+        const ch = cfgR.rows[0]?.logs_channel_id;
+        if (ch) {
+          await fetch(`https://discord.com/api/v10/channels/${ch}/messages`, {
+            method: 'POST',
+            headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ embeds: [{ title: '🌟 Commendation Issued', description: `**${targetUsername}** received a commendation from **${givenByUsername}**\n\n${reason}`, color: 0xFFD700, timestamp: new Date().toISOString() }] }),
+          });
+        }
+      } catch {}
+    }
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Rank Requests ─────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/rank-requests', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(`SELECT * FROM rank_requests WHERE guild_id = $1 ORDER BY created_at DESC`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/guilds/:id/rank-requests', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId, username, currentRank, requestedRank, reason } = req.body;
+  if (!requestedRank || !reason?.trim()) return res.status(400).json({ error: 'Missing fields' });
+  try {
+    // Only 1 pending request per user
+    const existing = await query(`SELECT id FROM rank_requests WHERE guild_id = $1 AND user_id = $2 AND status = 'pending'`, [id, userId]);
+    if (existing.rows.length > 0) return res.status(400).json({ error: 'You already have a pending rank request' });
+    const r = await query(
+      `INSERT INTO rank_requests (guild_id, user_id, username, current_rank, requested_rank, reason)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [id, userId, username, currentRank || null, requestedRank, reason.trim()]
+    );
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/guilds/:id/rank-requests/:reqId', requireAuth, async (req, res) => {
+  const { id, reqId } = req.params;
+  const { status, reviewedBy, reviewedByName } = req.body;
+  if (!['approved', 'denied'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+  try {
+    const r = await query(
+      `UPDATE rank_requests SET status = $1, reviewed_by = $2, reviewed_by_name = $3, reviewed_at = NOW() WHERE id = $4 AND guild_id = $5 RETURNING *`,
+      [status, reviewedBy, reviewedByName, reqId, id]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Warning Escalation Config ─────────────────────────────────────────────
+app.get('/api/guilds/:id/warning-escalation', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ enabled: false, warnings_to_strike: 3, reset_after_days: 30 });
+  try {
+    const r = await query(`SELECT * FROM warning_escalation WHERE guild_id = $1`, [id]);
+    res.json(r.rows[0] || { enabled: false, warnings_to_strike: 3, reset_after_days: 30 });
+  } catch { res.json({ enabled: false, warnings_to_strike: 3, reset_after_days: 30 }); }
+});
+
+app.post('/api/guilds/:id/warning-escalation', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { enabled, warningsToStrike, resetAfterDays } = req.body;
+  try {
+    const r = await query(
+      `INSERT INTO warning_escalation (guild_id, enabled, warnings_to_strike, reset_after_days)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (guild_id) DO UPDATE SET enabled = $2, warnings_to_strike = $3, reset_after_days = $4, updated_at = NOW()
+       RETURNING *`,
+      [id, !!enabled, warningsToStrike || 3, resetAfterDays || 30]
+    );
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Staff Handbook ────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/handbook', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(`SELECT * FROM staff_handbook WHERE guild_id = $1 ORDER BY sort_order ASC, created_at ASC`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/guilds/:id/handbook', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { title, content, section, sortOrder } = req.body;
+  if (!title?.trim() || !content?.trim()) return res.status(400).json({ error: 'Title and content required' });
+  try {
+    const r = await query(
+      `INSERT INTO staff_handbook (guild_id, title, content, section, sort_order)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [id, title.trim(), content.trim(), section || 'General', sortOrder || 0]
+    );
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/guilds/:id/handbook/:entryId', requireAuth, async (req, res) => {
+  const { id, entryId } = req.params;
+  const { title, content, section, sortOrder } = req.body;
+  try {
+    const r = await query(
+      `UPDATE staff_handbook SET title = COALESCE($1, title), content = COALESCE($2, content), section = COALESCE($3, section), sort_order = COALESCE($4, sort_order), updated_at = NOW()
+       WHERE id = $5 AND guild_id = $6 RETURNING *`,
+      [title || null, content || null, section || null, sortOrder ?? null, entryId, id]
+    );
+    res.json(r.rows[0] || { error: 'Not found' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/guilds/:id/handbook/:entryId', requireAuth, async (req, res) => {
+  const { id, entryId } = req.params;
+  try {
+    await query(`DELETE FROM staff_handbook WHERE id = $1 AND guild_id = $2`, [entryId, id]);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'Failed' }); }
+});
+
+// ── Weekly Schedule ───────────────────────────────────────────────────────
+app.get('/api/guilds/:id/schedule', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(`SELECT * FROM weekly_schedule WHERE guild_id = $1 ORDER BY day_of_week, start_time`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/guilds/:id/schedule', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId, username, dayOfWeek, startTime, endTime, timezone } = req.body;
+  try {
+    const r = await query(
+      `INSERT INTO weekly_schedule (guild_id, user_id, username, day_of_week, start_time, end_time, timezone)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [id, userId, username, dayOfWeek, startTime, endTime, timezone || 'UTC']
+    );
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/guilds/:id/schedule/:slotId', requireAuth, async (req, res) => {
+  const { id, slotId } = req.params;
+  try {
+    await query(`DELETE FROM weekly_schedule WHERE id = $1 AND guild_id = $2`, [slotId, id]);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'Failed' }); }
+});
+
+// ── Custom Commands (Premium) ─────────────────────────────────────────────
+app.get('/api/guilds/:id/custom-commands', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(`SELECT * FROM custom_commands WHERE guild_id = $1 ORDER BY name`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/guilds/:id/custom-commands', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { name, description, response, embedTitle, embedColor, requiresRole } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  const pR = await query(`SELECT is_premium FROM servers WHERE id = $1`, [id]).catch(() => ({ rows: [] }));
+  if (!pR.rows[0]?.is_premium) return res.status(403).json({ error: 'Premium required for custom commands' });
+  if (!name?.trim() || !response?.trim()) return res.status(400).json({ error: 'Name and response required' });
+  try {
+    const r = await query(
+      `INSERT INTO custom_commands (guild_id, name, description, response, embed_title, embed_color, requires_role)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (guild_id, name) DO UPDATE SET description=$3, response=$4, embed_title=$5, embed_color=$6, requires_role=$7
+       RETURNING *`,
+      [id, name.trim().toLowerCase(), description || '', response.trim(), embedTitle || null, embedColor || '#5865F2', requiresRole || null]
+    );
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/guilds/:id/custom-commands/:cmdId', requireAuth, async (req, res) => {
+  const { id, cmdId } = req.params;
+  try {
+    await query(`DELETE FROM custom_commands WHERE id = $1 AND guild_id = $2`, [cmdId, id]);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'Failed' }); }
+});
+
+// Fetch custom commands for bot runtime
+app.get('/api/guilds/:id/custom-commands/bot', requireBotSecret, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(`SELECT * FROM custom_commands WHERE guild_id = $1`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+// ── Inactivity Scanner (Premium) ──────────────────────────────────────────
+app.get('/api/guilds/:id/inactivity', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const pR = await query(`SELECT is_premium FROM servers WHERE id = $1`, [id]).catch(() => ({ rows: [] }));
+    if (!pR.rows[0]?.is_premium) return res.status(403).json({ error: 'Premium required' });
+    // Calculate inactivity from activity log + shifts
+    const r = await query(
+      `SELECT s.user_id, s.username, s.rank,
+         MAX(a.created_at) as last_activity,
+         EXTRACT(EPOCH FROM (NOW() - MAX(a.created_at))) / 86400 as days_inactive
+       FROM staff_members s
+       LEFT JOIN activity_log a ON a.guild_id = s.guild_id AND a.user_id = s.user_id
+       WHERE s.guild_id = $1 AND s.is_active = TRUE
+       GROUP BY s.user_id, s.username, s.rank
+       ORDER BY days_inactive DESC NULLS FIRST`,
+      [id]
+    );
+    res.json(r.rows.map(row => ({
+      ...row,
+      days_inactive: row.days_inactive ? Math.round(parseFloat(row.days_inactive)) : null,
+      flagged: row.days_inactive === null || parseFloat(row.days_inactive) > 7,
+    })));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Mass DM (Premium) ─────────────────────────────────────────────────────
+app.post('/api/guilds/:id/mass-dm', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { message, title, authorId, authorUsername } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  try {
+    const pR = await query(`SELECT is_premium FROM servers WHERE id = $1`, [id]).catch(() => ({ rows: [] }));
+    if (!pR.rows[0]?.is_premium) return res.status(403).json({ error: 'Premium required' });
+    if (!message?.trim()) return res.status(400).json({ error: 'Message required' });
+    // Get all active staff Discord IDs
+    const staffR = await query(`SELECT user_id FROM staff_members WHERE guild_id = $1 AND is_active = TRUE`, [id]);
+    let sent = 0, failed = 0;
+    if (process.env.DISCORD_BOT_TOKEN) {
+      for (const s of staffR.rows) {
+        try {
+          const dmRes = await fetch(`https://discord.com/api/v10/users/@me/channels`, {
+            method: 'POST',
+            headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipient_id: s.user_id }),
+          });
+          if (dmRes.ok) {
+            const dm = await dmRes.json();
+            await fetch(`https://discord.com/api/v10/channels/${dm.id}/messages`, {
+              method: 'POST',
+              headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ embeds: [{ title: title || '📢 Staff Announcement', description: message, color: 0xD4AF37, footer: { text: `From ${authorUsername}` }, timestamp: new Date().toISOString() }] }),
+            });
+            sent++;
+          } else { failed++; }
+          await new Promise(r => setTimeout(r, 200)); // rate limit
+        } catch { failed++; }
+      }
+    } else { sent = -1; } // bot not configured
+    await logActivity(id, authorId, authorUsername, 'mass_dm', { message: message.slice(0, 100), sent, failed });
+    res.json({ success: true, sent, failed, total: staffR.rows.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Auto-Promotion Rules (Premium) ────────────────────────────────────────
+app.get('/api/guilds/:id/auto-promo-rules', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(`SELECT * FROM auto_promotion_rules WHERE guild_id = $1 ORDER BY from_rank`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/guilds/:id/auto-promo-rules', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { fromRank, toRank, minShiftHours, minDaysAtRank, requireNoStrikes } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  const pR = await query(`SELECT is_premium FROM servers WHERE id = $1`, [id]).catch(() => ({ rows: [] }));
+  if (!pR.rows[0]?.is_premium) return res.status(403).json({ error: 'Premium required' });
+  try {
+    const r = await query(
+      `INSERT INTO auto_promotion_rules (guild_id, from_rank, to_rank, min_shift_hours, min_days_at_rank, require_no_strikes)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [id, fromRank, toRank, minShiftHours || 0, minDaysAtRank || 0, requireNoStrikes !== false]
+    );
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/guilds/:id/auto-promo-rules/:ruleId', requireAuth, async (req, res) => {
+  const { id, ruleId } = req.params;
+  try {
+    await query(`DELETE FROM auto_promotion_rules WHERE id = $1 AND guild_id = $2`, [ruleId, id]);
+    res.json({ success: true });
+  } catch { res.status(500).json({ error: 'Failed' }); }
+});
+
+// ── Embed Config (per-server) ─────────────────────────────────────────────
+app.get('/api/guilds/:id/embed-config', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ color: '#d4af37', footer: 'Zenith Staff Management', show_timestamp: true });
+  try {
+    const r = await query(`SELECT * FROM embed_configs WHERE guild_id = $1`, [id]);
+    res.json(r.rows[0] || { color: '#d4af37', footer: 'Zenith Staff Management', show_timestamp: true });
+  } catch { res.json({ color: '#d4af37', footer: 'Zenith Staff Management', show_timestamp: true }); }
+});
+
+app.post('/api/guilds/:id/embed-config', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { color, footer, thumbnailUrl, showTimestamp } = req.body;
+  try {
+    const r = await query(
+      `INSERT INTO embed_configs (guild_id, color, footer, thumbnail_url, show_timestamp)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (guild_id) DO UPDATE SET color=$2, footer=$3, thumbnail_url=$4, show_timestamp=$5, updated_at=NOW()
+       RETURNING *`,
+      [id, color || '#d4af37', footer || 'Zenith Staff Management', thumbnailUrl || null, showTimestamp !== false]
+    );
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Bot fetches embed config for all its embeds
+app.get('/api/guilds/:id/embed-config/bot', requireBotSecret, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ color: '#d4af37', footer: 'Zenith Staff Management', show_timestamp: true });
+  try {
+    const cfgR = await query(`SELECT embed_color, embed_footer FROM server_config WHERE guild_id = $1`, [id]);
+    const embedR = await query(`SELECT * FROM embed_configs WHERE guild_id = $1`, [id]);
+    const cfg = cfgR.rows[0] || {};
+    const embed = embedR.rows[0] || {};
+    res.json({
+      color: embed.color || cfg.embed_color || '#d4af37',
+      footer: embed.footer || cfg.embed_footer || 'Zenith Staff Management',
+      thumbnailUrl: embed.thumbnail_url || null,
+      showTimestamp: embed.show_timestamp !== false,
+    });
+  } catch { res.json({ color: '#d4af37', footer: 'Zenith Staff Management', show_timestamp: true }); }
+});
+
+// ── Changelog / Status ────────────────────────────────────────────────────
+const CHANGELOG = [
+  { version: '2.3.0', date: '2026-05-18', type: 'feature', changes: ['Added Duty Roster — check in/out of active duty', 'Added Staff Handbook — configurable docs for your server', 'Added Commendations — recognize outstanding staff', 'Added Rank Requests — staff can request promotions via dashboard', 'Added Weekly Schedule planner', 'Added Strike Automation config page (Premium)', 'Added Advanced Analytics with 7-day trends (Premium)', 'Added Custom Commands builder (Premium)', 'Added Inactivity Scanner (Premium)', 'Added Mass DM to all staff (Premium)'] },
+  { version: '2.2.0', date: '2026-05-17', type: 'feature', changes: ['Promotions & Demotion history page', 'Shift tracking with live timer', 'Divisions system with Discord role sync', 'Performance reviews with leaderboard', 'Analytics dashboard', 'Auth fix: bot commands now work without BOT_SECRET on web service'] },
+  { version: '2.1.0', date: '2026-05-15', type: 'fix', changes: ['Fixed 403/401 bot command errors', 'Premium grant now works end-to-end', 'Improved embed colors', 'Added /analytics, /schedule, /performance, /divisions commands'] },
+  { version: '2.0.0', date: '2026-05-10', type: 'major', changes: ['Complete rewrite — Express 5 backend', 'New React dashboard with Vite', 'Discord OAuth2 authentication', 'Full strike, LOA, application, warning systems', 'Real-time Discord bot integration'] },
+];
+
+app.get('/api/changelog', (_req, res) => res.json(CHANGELOG));
+
+app.get('/api/status', async (_req, res) => {
+  const status = { api: 'operational', database: 'unknown', bot: 'unknown', timestamp: new Date().toISOString() };
+  if (DATABASE_URL) {
+    try { await query('SELECT 1'); status.database = 'operational'; } catch { status.database = 'degraded'; }
+  } else { status.database = 'not_configured'; }
+  res.json(status);
+});
+
+// ── Bot Customization (extended — embed settings + image upload) ───────────
+app.post('/api/guilds/:id/bot-customization/image', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { base64, type } = req.body; // type: 'avatar' | 'thumbnail'
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  const pR = await query(`SELECT is_premium FROM servers WHERE id = $1`, [id]).catch(() => ({ rows: [] }));
+  if (!pR.rows[0]?.is_premium) return res.status(403).json({ error: 'Premium required' });
+  if (!base64) return res.status(400).json({ error: 'No image data' });
+  if (base64.length > 3 * 1024 * 1024) return res.status(400).json({ error: 'Image too large (max 2MB)' });
+  try {
+    const col = type === 'thumbnail' ? 'custom_bot_thumbnail' : 'custom_bot_avatar';
+    // Add column if not exists
+    await query(`ALTER TABLE servers ADD COLUMN IF NOT EXISTS ${col} TEXT`).catch(() => {});
+    await query(`UPDATE servers SET ${col} = $1 WHERE id = $2`, [base64, id]);
+    res.json({ success: true, url: base64 });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Extended bot customization GET (includes all settings)
+app.get('/api/guilds/:id/bot-customization/extended', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ isPremium: false });
+  try {
+    const [sR, cfgR] = await Promise.all([
+      query(`SELECT is_premium, custom_bot_name, custom_bot_avatar, custom_bot_status FROM servers WHERE id = $1`, [id]),
+      query(`SELECT embed_color, embed_footer FROM server_config WHERE guild_id = $1`, [id]),
+    ]);
+    const row = sR.rows[0] || {};
+    const cfg = cfgR.rows[0] || {};
+    res.json({
+      isPremium: !!row.is_premium,
+      customBotName: row.custom_bot_name || '',
+      customBotAvatar: row.custom_bot_avatar || '',
+      customBotStatus: row.custom_bot_status || '',
+      embedColor: cfg.embed_color || '#d4af37',
+      embedFooter: cfg.embed_footer || 'Zenith Staff Management',
+    });
+  } catch (err) { res.status(500).json({ error: 'Failed' }); }
+});
+
+
 const pages = [
   ['/select-server', 'select-server.html'], ['/staff-portal', 'staff-portal.html'],
   ['/staff-dashboard', 'staff-dashboard.html'], ['/admin-portal', 'admin-portal.html'],

@@ -8,6 +8,7 @@ import { ReactNode, useState, useEffect } from "react";
     Settings, Settings2, Star, BarChart2, LogOut, Menu, X,
     AlertOctagon, ShieldBan, ChevronLeft, ArrowLeftRight,
     TrendingUp, Clock, Layers, Award, Zap,
+    Crown, StickyNote, Megaphone, BookOpen, ClipboardList, UserX, Sparkles,
   } from "lucide-react";
   import { Button } from "./ui/button";
   import {
@@ -58,11 +59,19 @@ import { ReactNode, useState, useEffect } from "react";
       { name: "Performance",       path: `/dashboard/${guildId}/performance`,       icon: <Award className="w-4 h-4" /> },
       { name: "Analytics",         path: `/dashboard/${guildId}/analytics`,         icon: <BarChart2 className="w-4 h-4" /> },
       { name: "Strike Automation", path: `/dashboard/${guildId}/automation`,        icon: <Zap className="w-4 h-4" /> },
+      { name: "Commendations",     path: `/dashboard/${guildId}/commendations`,     icon: <Award className="w-4 h-4" /> },
+      { name: "Staff Notes",       path: `/dashboard/${guildId}/notes`,             icon: <StickyNote className="w-4 h-4" /> },
+      { name: "Announcements",     path: `/dashboard/${guildId}/announcements`,     icon: <Megaphone className="w-4 h-4" /> },
+      { name: "Duty Roster",       path: `/dashboard/${guildId}/roster`,            icon: <ClipboardList className="w-4 h-4" /> },
+      { name: "Handbook",          path: `/dashboard/${guildId}/handbook`,          icon: <BookOpen className="w-4 h-4" /> },
+      { name: "Rank Requests",     path: `/dashboard/${guildId}/rank-requests`,     icon: <TrendingUp className="w-4 h-4" /> },
+      { name: "Custom Commands",   path: `/dashboard/${guildId}/custom-commands`,   icon: <Sparkles className="w-4 h-4" /> },
+      { name: "Inactivity Scan",   path: `/dashboard/${guildId}/inactivity`,        icon: <UserX className="w-4 h-4" /> },
     ];
 
     const bottomItems = [
       { name: "Configuration", path: `/dashboard/${guildId}/config`, matchFn: (l: string) => l.includes("/config"), icon: <Settings className="w-4 h-4" /> },
-      { name: "Premium",       path: "/premium", matchFn: (l: string) => l === "/premium", icon: <Star className="w-4 h-4" /> },
+      { name: "Manage Premium", path: `/dashboard/${guildId}/manage-premium`, matchFn: (l: string) => l.includes("/manage-premium"), icon: <Crown className="w-4 h-4" /> },
     ];
 
     const checkActive = (item: { path: string; exact?: boolean }) =>

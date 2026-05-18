@@ -26,6 +26,16 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
   import PrivacyPage from "@/pages/privacy";
   import PremiumPage from "@/pages/premium";
   import PortalPage from "@/pages/portal";
+import StatusPage from "@/pages/status";
+import ManagePremiumPage from "@/pages/dashboard/manage-premium";
+import NotesPage from "@/pages/dashboard/notes";
+import AnnouncementsPage from "@/pages/dashboard/announcements";
+import RosterPage from "@/pages/dashboard/roster";
+import HandbookPage from "@/pages/dashboard/handbook";
+import CommendationsPage from "@/pages/dashboard/commendations";
+import RankRequestsPage from "@/pages/dashboard/rank-requests";
+import CustomCommandsPage from "@/pages/dashboard/custom-commands";
+import InactivityPage from "@/pages/dashboard/inactivity";
 
   const queryClient = new QueryClient();
 
@@ -70,7 +80,16 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
           <Route path="/dashboard/:guildId/divisions"   component={() => <DivisionsPage   guildId={guildId} />} />
           <Route path="/dashboard/:guildId/performance" component={() => <PerformancePage guildId={guildId} />} />
           <Route path="/dashboard/:guildId/analytics"  component={() => <AnalyticsPage   guildId={guildId} />} />
-          <Route path="/dashboard/:guildId/automation" component={() => <AutomationPage  guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/automation"      component={() => <AutomationPage      guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/manage-premium"   component={() => <ManagePremiumPage   guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/notes"            component={() => <NotesPage           guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/announcements"    component={() => <AnnouncementsPage   guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/roster"           component={() => <RosterPage          guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/handbook"         component={() => <HandbookPage        guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/commendations"    component={() => <CommendationsPage   guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/rank-requests"    component={() => <RankRequestsPage    guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/custom-commands"  component={() => <CustomCommandsPage  guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/inactivity"       component={() => <InactivityPage      guildId={guildId} />} />
           <Route component={NotFound} />
         </Switch>
       </DashboardLayout>
@@ -86,6 +105,7 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/premium" component={PremiumPage} />
         <Route path="/portal/:apak" component={({ params }) => <PortalPage apak={params.apak} />} />
+        <Route path="/status" component={StatusPage} />
         <Route path="/servers" component={() => <ProtectedRoute component={ServersPage} />} />
         <Route path="/dashboard/:guildId/*?" component={({ params }) => <ProtectedRoute component={() => <DashboardRoutes params={params as any} />} />} />
         <Route component={NotFound} />

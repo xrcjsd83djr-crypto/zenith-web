@@ -1,0 +1,529 @@
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── NEW FEATURES: FREE + FREEMIUM + PREMIUM ─────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── ADMIN: Global Stats (used by /support stats command) ─────────────────
+app.get('/api/admin/stats', requireBotSecret, async (_req, res) => {
+  if (!DATABASE_URL) return res.json({ totalGuilds: 0, premiumGuilds: 0, totalStaff: 0, totalStrikes: 0, totalWarnings: 0, totalActiveLoa: 0 });
+  try {
+    const [gR, pgR, sR, stR, wR, lR] = await Promise.all([
+      query('SELECT COUNT(*) FROM servers'),
+      query('SELECT COUNT(*) FROM servers WHERE is_premium = TRUE'),
+      query('SELECT COUNT(*) FROM staff_members WHERE is_active = TRUE'),
+      query('SELECT COUNT(*) FROM strikes WHERE active = TRUE'),
+      query('SELECT COUNT(*) FROM warnings WHERE active = TRUE'),
+      query("SELECT COUNT(*) FROM loa_requests WHERE status IN ('pending','approved','active')"),
+    ]);
+    res.json({
+      totalGuilds:    parseInt(gR.rows[0].count)  || 0,
+      premiumGuilds:  parseInt(pgR.rows[0].count) || 0,
+      totalStaff:     parseInt(sR.rows[0].count)  || 0,
+      totalStrikes:   parseInt(stR.rows[0].count) || 0,
+      totalWarnings:  parseInt(wR.rows[0].count)  || 0,
+      totalActiveLoa: parseInt(lR.rows[0].count)  || 0,
+    });
+  } catch (err) {
+    console.error('[admin/stats]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── ADMIN: Announce to all guilds (queued, bot picks up via webhook) ──────
+const announceQueue = [];
+app.post('/api/admin/announce', requireBotSecret, async (req, res) => {
+  const { message, sentBy } = req.body;
+  if (!message) return res.status(400).json({ error: 'message required' });
+  try {
+    const targetCount = DATABASE_URL
+      ? parseInt((await query('SELECT COUNT(*) FROM servers WHERE bot_added = TRUE')).rows[0].count) || 0
+      : 0;
+    announceQueue.push({ message, sentBy, timestamp: new Date(), targetCount });
+    res.json({ ok: true, targetCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+app.get('/api/admin/announce-queue', requireBotSecret, (_req, res) => {
+  res.json(announceQueue.splice(0, 5)); // drain queue up to 5 items
+});
+
+// ── FEATURE 1 (FREE): Promotion/Demotion History ─────────────────────────
+app.get('/api/guilds/:id/promotions', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(
+      `SELECT * FROM promotion_history WHERE guild_id = $1 ORDER BY created_at DESC LIMIT 100`,
+      [id]
+    );
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/guilds/:id/promotions', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId, username, type, fromRank, toRank, reason, promotedBy, promotedByName, discordRoleId } = req.body;
+  if (!userId || !type || !toRank) return res.status(400).json({ error: 'Missing required fields' });
+  try {
+    // Update staff member rank
+    await query(
+      `UPDATE staff_members SET rank = $1, role = $1, updated_at = NOW() WHERE guild_id = $2 AND user_id = $3`,
+      [toRank, id, userId]
+    );
+    // Log it
+    const r = await query(
+      `INSERT INTO promotion_history (guild_id, user_id, username, type, from_rank, to_rank, reason, promoted_by, promoted_by_name)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [id, userId, username, type || 'promotion', fromRank || null, toRank, reason || null, promotedBy, promotedByName]
+    );
+    // Sync Discord role if configured and bot token available
+    if (discordRoleId && DISCORD_BOT_TOKEN) {
+      await fetch(`${DISCORD_API}/guilds/${id}/members/${userId}/roles/${discordRoleId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json', 'X-Audit-Log-Reason': `${type} to ${toRank} — Zenith` },
+        body: '{}',
+      }).catch(() => {});
+    }
+    await logActivity(id, promotedBy, promotedByName, `staff_${type || 'promotion'}`, { userId, fromRank, toRank });
+    res.json(r.rows[0]);
+  } catch (err) {
+    console.error('[promotions]', err);
+    res.status(500).json({ error: 'Failed to record promotion' });
+  }
+});
+
+// ── FEATURE 2 (FREEMIUM): Shift Tracking ─────────────────────────────────
+// Free: last 10 shifts stored. Premium: unlimited retention.
+app.get('/api/guilds/:id/shifts', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.query;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const isPremQ = await query('SELECT is_premium, premium_expires_at FROM servers WHERE id = $1', [id]);
+    const isPrem  = !!isPremQ.rows[0]?.is_premium && (!isPremQ.rows[0]?.premium_expires_at || new Date(isPremQ.rows[0].premium_expires_at) > new Date());
+    const limit   = isPrem ? 'ALL' : '50';
+    const r = userId
+      ? await query(`SELECT * FROM shifts WHERE guild_id=$1 AND user_id=$2 ORDER BY started_at DESC LIMIT ${limit}`, [id, userId])
+      : await query(`SELECT * FROM shifts WHERE guild_id=$1 ORDER BY started_at DESC LIMIT ${limit}`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/guilds/:id/shifts/start', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId, username } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  try {
+    // End any open shift first
+    await query(`UPDATE shifts SET ended_at = NOW(), duration_mins = EXTRACT(EPOCH FROM (NOW() - started_at))/60 WHERE guild_id=$1 AND user_id=$2 AND ended_at IS NULL`, [id, userId]).catch(() => {});
+    const r = await query(
+      `INSERT INTO shifts (guild_id, user_id, username, started_at) VALUES ($1,$2,$3,NOW()) RETURNING *`,
+      [id, userId, username]
+    );
+    await logActivity(id, userId, username, 'shift_start', {});
+    res.json(r.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to start shift' });
+  }
+});
+
+app.post('/api/guilds/:id/shifts/end', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  try {
+    const r = await query(
+      `UPDATE shifts SET ended_at = NOW(), duration_mins = EXTRACT(EPOCH FROM (NOW() - started_at))/60
+       WHERE guild_id=$1 AND user_id=$2 AND ended_at IS NULL RETURNING *`,
+      [id, userId]
+    );
+    if (!r.rows[0]) return res.status(404).json({ error: 'No active shift found' });
+    res.json(r.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to end shift' });
+  }
+});
+
+app.get('/api/guilds/:id/shifts/active', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(`SELECT * FROM shifts WHERE guild_id=$1 AND ended_at IS NULL`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+// ── FEATURE 3 (PREMIUM): Divisions System ────────────────────────────────
+app.get('/api/guilds/:id/divisions', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(`SELECT * FROM divisions WHERE guild_id=$1 AND is_active=TRUE ORDER BY name ASC`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/guilds/:id/divisions', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { name, description, discordRoleId, color } = req.body;
+  if (!name) return res.status(400).json({ error: 'name required' });
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  try {
+    const pR = await query('SELECT is_premium, premium_expires_at FROM servers WHERE id=$1', [id]);
+    const isPrem = !!pR.rows[0]?.is_premium && (!pR.rows[0]?.premium_expires_at || new Date(pR.rows[0].premium_expires_at) > new Date());
+    if (!isPrem) {
+      const count = await query('SELECT COUNT(*) FROM divisions WHERE guild_id=$1 AND is_active=TRUE', [id]);
+      if (parseInt(count.rows[0].count) >= 3) {
+        return res.status(403).json({ error: 'Free plan limited to 3 divisions. Upgrade to Premium for unlimited divisions.' });
+      }
+    }
+    const r = await query(
+      `INSERT INTO divisions (guild_id, name, description, discord_role_id, color)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [id, name, description || null, discordRoleId || null, color || '#5865F2']
+    );
+    res.json(r.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create division' });
+  }
+});
+
+app.patch('/api/guilds/:id/divisions/:divId', requireAuth, async (req, res) => {
+  const { id, divId } = req.params;
+  const { name, description, discordRoleId, color } = req.body;
+  try {
+    const r = await query(
+      `UPDATE divisions SET name=COALESCE($3,name), description=COALESCE($4,description), discord_role_id=COALESCE($5,discord_role_id), color=COALESCE($6,color)
+       WHERE id=$2 AND guild_id=$1 RETURNING *`,
+      [id, divId, name||null, description||null, discordRoleId||null, color||null]
+    );
+    res.json(r.rows[0]);
+  } catch (err) { res.status(500).json({ error: 'Failed to update division' }); }
+});
+
+app.delete('/api/guilds/:id/divisions/:divId', requireAuth, async (req, res) => {
+  const { id, divId } = req.params;
+  try {
+    await query(`UPDATE divisions SET is_active=FALSE WHERE id=$1 AND guild_id=$2`, [divId, id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: 'Failed to delete division' }); }
+});
+
+// Assign division to a staff member
+app.patch('/api/guilds/:id/staff/:userId/division', requireAuth, async (req, res) => {
+  const { id, userId } = req.params;
+  const { divisionId, divisionName } = req.body;
+  try {
+    await query(`UPDATE staff_members SET division=$3, updated_at=NOW() WHERE guild_id=$1 AND user_id=$2`, [id, userId, divisionName || null]);
+    if (divisionId && DISCORD_BOT_TOKEN) {
+      const divR = await query('SELECT discord_role_id FROM divisions WHERE id=$1', [divisionId]);
+      const roleId = divR.rows[0]?.discord_role_id;
+      if (roleId) {
+        await fetch(`${DISCORD_API}/guilds/${id}/members/${userId}/roles/${roleId}`, {
+          method: 'PUT', headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json', 'X-Audit-Log-Reason': 'Division assigned — Zenith' }, body: '{}',
+        }).catch(() => {});
+      }
+    }
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: 'Failed to assign division' }); }
+});
+
+// ── FEATURE 4 (PREMIUM): Performance Reviews ─────────────────────────────
+app.get('/api/guilds/:id/performance', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.query;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = userId
+      ? await query(`SELECT * FROM performance_reviews WHERE guild_id=$1 AND target_user_id=$2 ORDER BY created_at DESC`, [id, userId])
+      : await query(`SELECT * FROM performance_reviews WHERE guild_id=$1 ORDER BY created_at DESC LIMIT 100`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.get('/api/guilds/:id/performance/leaderboard', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(
+      `SELECT target_user_id, target_username, AVG(rating) as avg_rating, COUNT(*) as review_count
+       FROM performance_reviews WHERE guild_id=$1
+       GROUP BY target_user_id, target_username ORDER BY avg_rating DESC LIMIT 10`,
+      [id]
+    );
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/guilds/:id/performance', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { targetUserId, targetUsername, rating, comments, reviewerUsername, reviewerId } = req.body;
+  if (!targetUserId || !rating) return res.status(400).json({ error: 'Missing fields' });
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  try {
+    const pR = await query('SELECT is_premium, premium_expires_at FROM servers WHERE id=$1', [id]);
+    const isPrem = !!pR.rows[0]?.is_premium && (!pR.rows[0]?.premium_expires_at || new Date(pR.rows[0].premium_expires_at) > new Date());
+    if (!isPrem) {
+      // Free: max 3 reviews per staff member
+      const count = await query('SELECT COUNT(*) FROM performance_reviews WHERE guild_id=$1 AND target_user_id=$2', [id, targetUserId]);
+      if (parseInt(count.rows[0].count) >= 3) {
+        return res.status(403).json({ error: 'Free plan: max 3 reviews per staff member. Upgrade to Premium for unlimited reviews.' });
+      }
+    }
+    const r = await query(
+      `INSERT INTO performance_reviews (guild_id, target_user_id, target_username, reviewer_id, reviewer_username, rating, comments)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [id, targetUserId, targetUsername, reviewerId, reviewerUsername, Math.min(5, Math.max(1, rating)), comments || '']
+    );
+    await logActivity(id, reviewerId, reviewerUsername, 'performance_review', { targetUserId, rating });
+    res.json(r.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to submit review' });
+  }
+});
+
+// ── FEATURE 5 (PREMIUM): Strike Automation ───────────────────────────────
+app.get('/api/guilds/:id/strike-automation', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ enabled: false });
+  try {
+    const pR = await query('SELECT is_premium, premium_expires_at FROM servers WHERE id=$1', [id]);
+    const isPrem = !!pR.rows[0]?.is_premium && (!pR.rows[0]?.premium_expires_at || new Date(pR.rows[0].premium_expires_at) > new Date());
+    if (!isPrem) return res.status(403).json({ error: 'Strike Automation is a Premium feature.' });
+    const r = await query('SELECT * FROM strike_automation WHERE guild_id=$1', [id]);
+    res.json(r.rows[0] || { enabled: false, threshold: 3, action: 'dm_warn', dm_message: '' });
+  } catch { res.json({ enabled: false }); }
+});
+
+app.post('/api/guilds/:id/strike-automation', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { enabled, threshold, action, dmMessage, removeRoleId } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  try {
+    const pR = await query('SELECT is_premium, premium_expires_at FROM servers WHERE id=$1', [id]);
+    const isPrem = !!pR.rows[0]?.is_premium && (!pR.rows[0]?.premium_expires_at || new Date(pR.rows[0].premium_expires_at) > new Date());
+    if (!isPrem) return res.status(403).json({ error: 'Strike Automation is a Premium feature.' });
+    await query(
+      `INSERT INTO strike_automation (guild_id, enabled, threshold, action, dm_message, remove_role_id)
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (guild_id) DO UPDATE SET enabled=$2, threshold=$3, action=$4, dm_message=$5, remove_role_id=$6`,
+      [id, !!enabled, threshold || 3, action || 'dm_warn', dmMessage || '', removeRoleId || null]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save automation config' });
+  }
+});
+
+// Bot calls this after issuing a strike to check if automation should trigger
+app.post('/api/guilds/:id/strike-automation/check', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId, username } = req.body;
+  if (!DATABASE_URL) return res.json({ triggered: false });
+  try {
+    const [autoR, countR] = await Promise.all([
+      query('SELECT * FROM strike_automation WHERE guild_id=$1 AND enabled=TRUE', [id]),
+      query('SELECT COUNT(*) FROM strikes WHERE guild_id=$1 AND user_id=$2 AND active=TRUE', [id, userId]),
+    ]);
+    const auto = autoR.rows[0];
+    const count = parseInt(countR.rows[0].count);
+    if (!auto || count < auto.threshold) return res.json({ triggered: false, count });
+
+    // Trigger the automation
+    const actions = [];
+    if (DISCORD_BOT_TOKEN) {
+      if (auto.action === 'dm_warn' || auto.action === 'dm_and_role') {
+        // Send DM
+        const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
+          method: 'POST', headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recipient_id: userId }),
+        }).catch(() => null);
+        if (dmRes?.ok) {
+          const dm = await dmRes.json();
+          await fetch(`${DISCORD_API}/channels/${dm.id}/messages`, {
+            method: 'POST', headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: auto.dm_message || `⚠️ You have reached ${count} active strikes. Please contact management immediately.` }),
+          }).catch(() => {});
+          actions.push('dm_sent');
+        }
+      }
+      if ((auto.action === 'remove_role' || auto.action === 'dm_and_role') && auto.remove_role_id) {
+        await fetch(`${DISCORD_API}/guilds/${id}/members/${userId}/roles/${auto.remove_role_id}`, {
+          method: 'DELETE', headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'X-Audit-Log-Reason': `Strike threshold reached — Zenith` },
+        }).catch(() => {});
+        actions.push('role_removed');
+      }
+    }
+    await logActivity(id, null, 'Zenith Automation', 'strike_automation_triggered', { userId, username, count, actions });
+    res.json({ triggered: true, count, actions });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── FEATURE 6 (PREMIUM): Advanced Analytics ──────────────────────────────
+app.get('/api/guilds/:id/analytics', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  try {
+    const pR = await query('SELECT is_premium, premium_expires_at FROM servers WHERE id=$1', [id]);
+    const isPrem = !!pR.rows[0]?.is_premium && (!pR.rows[0]?.premium_expires_at || new Date(pR.rows[0].premium_expires_at) > new Date());
+
+    const [staffR, strikesR, loaR, promoR, activityR, shiftsR] = await Promise.all([
+      query('SELECT COUNT(*) FROM staff_members WHERE guild_id=$1 AND is_active=TRUE', [id]),
+      query('SELECT COUNT(*) FROM strikes WHERE guild_id=$1 AND active=TRUE', [id]),
+      query("SELECT COUNT(*) FROM loa_requests WHERE guild_id=$1 AND status IN ('approved','active')", [id]),
+      query("SELECT COUNT(*) FROM promotion_history WHERE guild_id=$1 AND created_at > NOW() - INTERVAL '30 days'", [id]),
+      query('SELECT action, COUNT(*) FROM activity_logs WHERE guild_id=$1 GROUP BY action ORDER BY count DESC LIMIT 10', [id]),
+      query('SELECT SUM(duration_mins) as total_mins, COUNT(*) as total_shifts FROM shifts WHERE guild_id=$1', [id]),
+    ]);
+
+    // Premium: include trend data (last 7 days)
+    let trends = [];
+    if (isPrem) {
+      const tR = await query(
+        `SELECT DATE(created_at) as date, COUNT(*) as count FROM activity_logs WHERE guild_id=$1 AND created_at > NOW() - INTERVAL '7 days' GROUP BY DATE(created_at) ORDER BY date`,
+        [id]
+      );
+      trends = tR.rows;
+    }
+
+    // Top performers (staff with most shifts)
+    const topR = await query(
+      `SELECT sm.username, sm.user_id, COALESCE(SUM(sh.duration_mins),0) as total_mins, COALESCE(COUNT(sh.id),0) as shift_count,
+              sm.strikes as strike_count
+       FROM staff_members sm LEFT JOIN shifts sh ON sh.guild_id=sm.guild_id AND sh.user_id=sm.user_id AND sh.ended_at IS NOT NULL
+       WHERE sm.guild_id=$1 AND sm.is_active=TRUE GROUP BY sm.user_id, sm.username, sm.strikes ORDER BY total_mins DESC LIMIT 5`,
+      [id]
+    );
+
+    res.json({
+      isPremium: isPrem,
+      summary: {
+        totalStaff:       parseInt(staffR.rows[0].count)   || 0,
+        activeStrikes:    parseInt(strikesR.rows[0].count) || 0,
+        activeLoa:        parseInt(loaR.rows[0].count)     || 0,
+        recentPromotions: parseInt(promoR.rows[0].count)   || 0,
+        totalShiftMins:   Math.round(parseFloat(shiftsR.rows[0].total_mins) || 0),
+        totalShifts:      parseInt(shiftsR.rows[0].total_shifts) || 0,
+      },
+      activityBreakdown: activityR.rows,
+      topPerformers: topR.rows,
+      trends: isPrem ? trends : [],
+    });
+  } catch (err) {
+    console.error('[analytics]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── FEATURE 7 (FREEMIUM): Premium Status Check (enhanced) ────────────────
+app.get('/api/guilds/:id/premium-features', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ isPremium: false, features: {} });
+  try {
+    const r = await query('SELECT is_premium, premium_expires_at FROM servers WHERE id=$1', [id]);
+    const row = r.rows[0] || {};
+    const isPrem = !!row.is_premium && (!row.premium_expires_at || new Date(row.premium_expires_at) > new Date());
+    const [ranksR, divsR, blacklistR] = await Promise.all([
+      query('SELECT COUNT(*) FROM ranks WHERE guild_id=$1', [id]),
+      query('SELECT COUNT(*) FROM divisions WHERE guild_id=$1 AND is_active=TRUE', [id]),
+      query('SELECT COUNT(*) FROM blacklist WHERE guild_id=$1 AND active=TRUE', [id]),
+    ]);
+    res.json({
+      isPremium: isPrem,
+      expiresAt: row.premium_expires_at || null,
+      features: {
+        ranks:         { used: parseInt(ranksR.rows[0].count)||0,     limit: isPrem ? null : 5,  unlimited: isPrem },
+        divisions:     { used: parseInt(divsR.rows[0].count)||0,      limit: isPrem ? null : 3,  unlimited: isPrem },
+        blacklist:     { used: parseInt(blacklistR.rows[0].count)||0, limit: isPrem ? null : 25, unlimited: isPrem },
+        botCustomization: { enabled: isPrem },
+        strikeAutomation: { enabled: isPrem },
+        advancedAnalytics:{ enabled: isPrem },
+        performanceReviews:{ enabled: true, limit: isPrem ? null : 3 },
+        shiftTracking:    { enabled: true,  limit: isPrem ? null : 50 },
+        activityLogs:     { enabled: true,  retentionDays: isPrem ? 90 : 7 },
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── DB: Migrations for new tables ─────────────────────────────────────────
+if (DATABASE_URL) {
+  (async () => {
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS promotion_history (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          guild_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          username TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'promotion',
+          from_rank TEXT,
+          to_rank TEXT NOT NULL,
+          reason TEXT,
+          promoted_by TEXT,
+          promoted_by_name TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS shifts (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          guild_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          username TEXT,
+          started_at TIMESTAMP NOT NULL DEFAULT NOW(),
+          ended_at TIMESTAMP,
+          duration_mins NUMERIC
+        );
+        CREATE TABLE IF NOT EXISTS divisions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          guild_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT,
+          discord_role_id TEXT,
+          color TEXT DEFAULT '#5865F2',
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS performance_reviews (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          guild_id TEXT NOT NULL,
+          target_user_id TEXT NOT NULL,
+          target_username TEXT,
+          reviewer_id TEXT,
+          reviewer_username TEXT,
+          rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+          comments TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS strike_automation (
+          guild_id TEXT PRIMARY KEY,
+          enabled BOOLEAN DEFAULT FALSE,
+          threshold INTEGER DEFAULT 3,
+          action TEXT DEFAULT 'dm_warn',
+          dm_message TEXT,
+          remove_role_id TEXT,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS staff_portal_sessions (
+          user_id TEXT NOT NULL,
+          guild_id TEXT NOT NULL,
+          roblox_verified_at TIMESTAMP,
+          PRIMARY KEY (user_id, guild_id)
+        );
+        ALTER TABLE servers ADD COLUMN IF NOT EXISTS bot_added BOOLEAN DEFAULT FALSE;
+        ALTER TABLE servers ADD COLUMN IF NOT EXISTS owner_id TEXT;
+      `);
+      console.log('[DB] New feature tables migrated');
+    } catch (e) {
+      console.log('[DB] Migration note:', e.message);
+    }
+  })();
+}
+
+// ── Premium: enforce rank limit (5 free / unlimited premium) ─────────────
+// Patch the existing rank creation to check premium
+// (This is handled by overriding ranks POST via middleware)

@@ -1378,9 +1378,12 @@ const publicPath = join(__dirname, 'dist');
   // ── 22. Warnings ──────────────────────────────────────────────────────
   app.get('/api/guilds/:id/warnings', requireAuth, async (req, res) => {
     const { id } = req.params;
+    const { userId } = req.query;
     if (!DATABASE_URL) return res.json([]);
     try {
-      const r = await query(`SELECT * FROM warnings WHERE guild_id = $1 ORDER BY created_at DESC`, [id]);
+      const r = userId
+        ? await query(`SELECT * FROM warnings WHERE guild_id = $1 AND user_id = $2 ORDER BY created_at DESC`, [id, userId])
+        : await query(`SELECT * FROM warnings WHERE guild_id = $1 ORDER BY created_at DESC`, [id]);
       res.json(r.rows);
     } catch { res.json([]); }
   });
@@ -1424,6 +1427,24 @@ const publicPath = join(__dirname, 'dist');
     }
   });
 
+  // Clear all warnings for a specific Discord user (bot uses this)
+  app.delete('/api/guilds/:id/warnings/clear/:userId', requireAuth, async (req, res) => {
+    const { id, userId } = req.params;
+    try {
+      const r = await query(
+        `UPDATE warnings SET active=FALSE WHERE guild_id=$1 AND user_id=$2 AND active=TRUE RETURNING id`,
+        [id, userId]
+      );
+      await query(
+        `UPDATE staff_members SET warnings = 0 WHERE guild_id=$1 AND user_id=$2`,
+        [id, userId]
+      ).catch(() => {});
+      res.json({ success: true, cleared: r.rowCount });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to clear warnings' });
+    }
+  });
+
   app.delete('/api/guilds/:id/warnings/:warningId', requireAuth, async (req, res) => {
     const { id, warningId } = req.params;
     try {
@@ -1460,6 +1481,31 @@ const publicPath = join(__dirname, 'dist');
     } catch (err) {
       console.error('[blacklist add]', err);
       res.status(500).json({ error: 'Failed to add to blacklist' });
+    }
+  });
+
+  // Get blacklist entry by Discord user ID (bot uses this for /blacklist check)
+  app.get('/api/guilds/:id/blacklist/user/:userId', requireAuth, async (req, res) => {
+    const { id, userId } = req.params;
+    if (!DATABASE_URL) return res.status(404).json({ error: 'Not found' });
+    try {
+      const r = await query(
+        `SELECT * FROM blacklist WHERE guild_id=$1 AND user_id=$2 AND active=TRUE ORDER BY created_at DESC LIMIT 1`,
+        [id, userId]
+      );
+      if (!r.rows.length) return res.status(404).json({ error: 'Not blacklisted' });
+      res.json(r.rows[0]);
+    } catch { res.status(500).json({ error: 'Failed to check blacklist' }); }
+  });
+
+  // Remove blacklist entry by Discord user ID (bot uses this for /blacklist remove)
+  app.delete('/api/guilds/:id/blacklist/user/:userId', requireAuth, async (req, res) => {
+    const { id, userId } = req.params;
+    try {
+      await query(`UPDATE blacklist SET active=FALSE WHERE guild_id=$1 AND user_id=$2`, [id, userId]);
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to remove from blacklist' });
     }
   });
 

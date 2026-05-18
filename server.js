@@ -11,6 +11,12 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 8080;
 const DISCORD_API = 'https://discord.com/api/v10';
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '1501773810368643172';
+  const DISCORD_BOT_INVITE = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}`;
+  const SUPPORT_SERVER_ID = '1501905192277377214';
+  const SUPPORT_SERVER_INVITE = 'https://discord.gg/UmDQqXPCfF';
+  const PREMIUM_ROLE_ID = '1505732884168704050';
+  const INTERACTIONS_PUBLIC_KEY = process.env.INTERACTIONS_PUBLIC_KEY || '';
 
 const AUDIT_ACTION_MAP = {
   1: 'GUILD_UPDATE', 10: 'CHANNEL_CREATE', 11: 'CHANNEL_UPDATE', 12: 'CHANNEL_DELETE',
@@ -1387,7 +1393,42 @@ const publicPath = join(__dirname, 'dist');
   });
 
   // ── 25. Discord Interactions Handler ─────────────────────────────────
+
+  // ── Per-guild stats overview ──────────────────────────────────────────────
+  app.get('/api/guilds/:id/stats', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    if (!DATABASE_URL) return res.json({ totalStaff: 0, activeStaff: 0, pendingApplications: 0, activeStrikes: 0, activeLoa: 0, recentPromotions: 0, recentHires: 0, avgActivityScore: 0 });
+    try {
+      const [appsR, strikesR, loaR, actR] = await Promise.all([
+        query('SELECT COUNT(*) FROM applications WHERE guild_id = $1 AND status = $2', [id, 'pending']),
+        query('SELECT COUNT(*) FROM strikes WHERE guild_id = $1 AND active = true', [id]),
+        query("SELECT COUNT(*) FROM loa_requests WHERE guild_id = $1 AND status IN ('approved','active')", [id]),
+        query('SELECT AVG(score) AS avg FROM activity_log WHERE guild_id = $1', [id]),
+      ]);
+      res.json({
+        totalStaff: 0, activeStaff: 0,
+        pendingApplications: parseInt(appsR.rows[0]?.count) || 0,
+        activeStrikes: parseInt(strikesR.rows[0]?.count) || 0,
+        activeLoa: parseInt(loaR.rows[0]?.count) || 0,
+        recentPromotions: 0, recentHires: 0,
+        avgActivityScore: Math.round(parseFloat(actR.rows[0]?.avg) || 0),
+      });
+    } catch { res.json({ totalStaff: 0, activeStaff: 0, pendingApplications: 0, activeStrikes: 0, activeLoa: 0, recentPromotions: 0, recentHires: 0, avgActivityScore: 0 }); }
+  });
+  
   app.post('/api/interactions', express.raw({ type: '*/*' }), async (req, res) => {
+    // ── Discord Ed25519 signature verification ─────────────────────────────
+      if (INTERACTIONS_PUBLIC_KEY) {
+        const sig = req.headers['x-signature-ed25519'];
+        const ts  = req.headers['x-signature-timestamp'];
+        if (!sig || !ts) return res.status(401).json({ error: 'Missing signature headers' });
+        try {
+          const { subtle } = await import('node:crypto');
+          const key = await subtle.importKey('raw', Buffer.from(INTERACTIONS_PUBLIC_KEY, 'hex'), { name: 'Ed25519' }, false, ['verify']);
+          const valid = await subtle.verify('Ed25519', key, Buffer.from(sig, 'hex'), new TextEncoder().encode(ts + req.body.toString()));
+          if (!valid) return res.status(401).json({ error: 'Invalid request signature' });
+        } catch { return res.status(401).json({ error: 'Signature verification error' }); }
+      }
     let body;
     try { body = JSON.parse(req.body.toString()); } catch { return res.status(400).end(); }
 

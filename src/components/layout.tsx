@@ -5,7 +5,7 @@ import { ReactNode, useState, useEffect } from "react";
   import {
     LayoutDashboard, Users, Inbox, AlertTriangle,
     CalendarClock, ActivitySquare, BadgeCent,
-    Settings, Star, BarChart2, LogOut, Menu, X,
+    Settings, Settings2, Star, BarChart2, LogOut, Menu, X,
     AlertOctagon, ShieldBan, ChevronLeft,
   } from "lucide-react";
   import { Button } from "./ui/button";

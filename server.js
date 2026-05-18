@@ -11,13 +11,6 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 8080;
 const DISCORD_API = 'https://discord.com/api/v10';
-const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '1501773810368643172';
-  const DISCORD_BOT_INVITE = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}`;
-  const SUPPORT_SERVER_ID = '1501905192277377214';
-  const SUPPORT_SERVER_INVITE = 'https://discord.gg/UmDQqXPCfF';
-  const PREMIUM_ROLE_ID = '1505732884168704050';
-  const INTERACTIONS_PUBLIC_KEY = process.env.INTERACTIONS_PUBLIC_KEY || '';
-
 const AUDIT_ACTION_MAP = {
   1: 'GUILD_UPDATE', 10: 'CHANNEL_CREATE', 11: 'CHANNEL_UPDATE', 12: 'CHANNEL_DELETE',
   20: 'MEMBER_KICK', 21: 'MEMBER_PRUNE', 22: 'MEMBER_BAN_ADD', 23: 'MEMBER_BAN_REMOVE',
@@ -42,6 +35,12 @@ const {
   DATABASE_URL,
   BOT_SECRET,
 } = process.env;
+
+const DISCORD_BOT_INVITE = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=8&scope=bot%20applications.commands`;
+const SUPPORT_SERVER_ID   = process.env.SUPPORT_SERVER_ID || '1501905192277377214';
+const SUPPORT_SERVER_INVITE = 'https://discord.gg/UmDQqXPCfF';
+const PREMIUM_ROLE_ID     = process.env.PREMIUM_ROLE_ID || '1505732884168704050';
+const INTERACTIONS_PUBLIC_KEY = process.env.INTERACTIONS_PUBLIC_KEY || '';
 
 // ── 2. Middleware ─────────────────────────────────────────────────────────
 app.set('trust proxy', 1);

@@ -45,6 +45,7 @@ import { ReactNode, useState, useEffect } from "react";
       { name: "Statistics",   path: `/dashboard/${guildId}/stats`,        icon: <BarChart2 className="w-4 h-4" /> },
       { name: "Ranks",        path: `/dashboard/${guildId}/ranks`,        icon: <BadgeCent className="w-4 h-4" /> },
       { name: "Blacklist",    path: `/dashboard/${guildId}/blacklist`,    icon: <ShieldBan className="w-4 h-4" /> },
+      { name: "Bot Customization", path: `/dashboard/${guildId}/bot-customization`, icon: <Settings2 className="w-4 h-4" /> },
     ];
 
     const bottomItems = [

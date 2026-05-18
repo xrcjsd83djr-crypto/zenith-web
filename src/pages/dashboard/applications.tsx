@@ -18,16 +18,20 @@ import { Plus, Trash2, Loader2, RefreshCw, CheckCircle, Hash, GripVertical, Sett
     questions: Question[];
     requireRecommendations: boolean;
     autoReject: boolean;
+    reviewerRoleIds: string[];
+    apakKey: string | null;
   }
 
   const DEFAULT_CFG: AppConfig = {
     enabled: false, channel: null, reviewChannel: null, title: '',
     questions: [], requireRecommendations: false, autoReject: false,
+    reviewerRoleIds: [], apakKey: null,
   };
 
   export default function ApplicationsPage({ guildId }: { guildId: string }) {
     const [cfg, setCfg] = useState<AppConfig>(DEFAULT_CFG);
     const [channels, setChannels] = useState<Channel[]>([]);
+    const [roles, setRoles] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
@@ -38,10 +42,15 @@ import { Plus, Trash2, Loader2, RefreshCw, CheckCircle, Hash, GripVertical, Sett
       setLoading(true);
       setFetchError('');
       try {
-        const [cfgRes, chanRes] = await Promise.all([
+        const [cfgRes, chanRes, roleRes] = await Promise.all([
           fetch(`/api/guilds/${guildId}/applications-config`, { credentials: 'include' }),
           fetch(`/api/guilds/${guildId}/channels`, { credentials: 'include' }),
+          fetch(`/api/guilds/${guildId}/roles`, { credentials: 'include' }),
         ]);
+        if (roleRes.ok) {
+          const d = await roleRes.json();
+          setRoles(Array.isArray(d) ? d : []);
+        }
         if (cfgRes.ok) {
           const d = await cfgRes.json();
           setCfg({ ...DEFAULT_CFG, ...d });
@@ -214,53 +223,195 @@ import { Plus, Trash2, Loader2, RefreshCw, CheckCircle, Hash, GripVertical, Sett
               </CardContent>
             </Card>
 
-            {/* Title */}
+            {/* Panel Customization */}
             <Card className="border-border bg-white shadow-sm">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Application Title</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Settings2 className="w-4 h-4" style={{ color: '#d4af37' }} /> Panel Customization
+                </CardTitle>
                 <CardDescription>
-                  Shown in the Discord embed when the panel is posted.
+                  Customize the message and appearance of the application panel in Discord.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <Input
-                  value={cfg.title}
-                  onChange={e => setCfg(c => ({ ...c, title: e.target.value }))}
-                  placeholder="e.g. Staff Application — Zenith Roleplay"
-                  className="bg-white border-border"
-                />
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Application Title</Label>
+                  <Input
+                    value={cfg.title}
+                    onChange={e => setCfg(c => ({ ...c, title: e.target.value }))}
+                    placeholder="e.g. Staff Application — Zenith Roleplay"
+                    className="bg-white border-border"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Panel Message (Description)</Label>
+                  <textarea
+                    value={(cfg as any).panelDescription || ''}
+                    onChange={e => setCfg(c => ({ ...c, panelDescription: e.target.value } as any))}
+                    placeholder="Enter the message that will appear on the application panel..."
+                    className="w-full min-h-[100px] p-3 text-sm bg-white border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-[#d4af37]/20"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Button Label</Label>
+                    <Input
+                      value={(cfg as any).buttonLabel || 'Apply Now'}
+                      onChange={e => setCfg(c => ({ ...c, buttonLabel: e.target.value } as any))}
+                      placeholder="e.g. Apply Now"
+                      className="bg-white border-border"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Embed Color (Hex)</Label>
+                    <div className="flex gap-2">
+                      <div className="w-10 h-10 rounded border border-border flex-shrink-0" style={{ backgroundColor: (cfg as any).embedColor || '#d4af37' }} />
+                      <Input
+                        value={(cfg as any).embedColor || '#d4af37'}
+                        onChange={e => setCfg(c => ({ ...c, embedColor: e.target.value } as any))}
+                        placeholder="#d4af37"
+                        className="bg-white border-border"
+                      />
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
+
+            {/* Reviewer Roles */}
+            <Card className="border-border bg-white shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Reviewer Roles</CardTitle>
+                <CardDescription>Select up to 4 roles that can access the application review portal.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[0, 1, 2, 3].map(i => (
+                    <div key={i} className="space-y-1.5">
+                      <Label className="text-xs font-semibold">Reviewer Role {i + 1}</Label>
+                      <Select
+                        value={cfg.reviewerRoleIds[i] || 'none'}
+                        onValueChange={v => {
+                          const newRoles = [...cfg.reviewerRoleIds];
+                          if (v === 'none') {
+                            newRoles.splice(i, 1);
+                          } else {
+                            newRoles[i] = v;
+                          }
+                          setCfg({ ...cfg, reviewerRoleIds: newRoles });
+                        }}
+                      >
+                        <SelectTrigger className="bg-white border-border text-sm">
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border-border max-h-60 overflow-y-auto">
+                          <SelectItem value="none">None</SelectItem>
+                          {roles.map(r => (
+                            <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* APAK */}
+            {cfg.apakKey && (
+              <Card className="border-border bg-white shadow-sm border-l-4 border-l-[#d4af37]">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-[#d4af37]" /> Application Portal Access Key (APAK)
+                  </CardTitle>
+                  <CardDescription>Share this link with your staff to access the review portal.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-2">
+                    <Input
+                      readOnly
+                      value={`${window.location.origin}/portal/${cfg.apakKey}`}
+                      className="bg-muted/50 font-mono text-xs"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/portal/${cfg.apakKey}`);
+                        alert('Link copied to clipboard!');
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Settings */}
             <Card className="border-border bg-white shadow-sm">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Settings</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {[
-                  {
-                    key: 'requireRecommendations',
-                    label: 'Require a Staff Recommendation',
-                    desc: 'Applicants must name an existing staff member who vouches for them.',
-                  },
-                  {
-                    key: 'autoReject',
-                    label: 'Auto-Reject Stale Applications',
-                    desc: 'Automatically deny applications with no review action after 7 days. (Premium)',
-                  },
-                ].map(opt => (
-                  <div key={opt.key} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30 gap-4">
-                    <div>
-                      <p className="text-sm font-semibold">{opt.label}</p>
-                      <p className="text-muted-foreground text-xs mt-0.5">{opt.desc}</p>
-                    </div>
-                    <Switch
-                      checked={!!(cfg as any)[opt.key]}
-                      onCheckedChange={v => setCfg(c => ({ ...c, [opt.key]: v }))}
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Account Age Limit (Days)</Label>
+                    <Input
+                      type="number"
+                      value={(cfg as any).accountAgeLimit || 0}
+                      onChange={e => setCfg(c => ({ ...c, accountAgeLimit: parseInt(e.target.value) } as any))}
+                      className="bg-white border-border"
                     />
+                    <p className="text-[10px] text-muted-foreground">Minimum Discord account age to apply.</p>
                   </div>
-                ))}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Server Time Limit (Days)</Label>
+                    <Input
+                      type="number"
+                      value={(cfg as any).serverTimeLimit || 0}
+                      onChange={e => setCfg(c => ({ ...c, serverTimeLimit: parseInt(e.target.value) } as any))}
+                      className="bg-white border-border"
+                    />
+                    <p className="text-[10px] text-muted-foreground">Minimum time in server to apply.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Rejection Cooldown (Days)</Label>
+                    <Input
+                      type="number"
+                      value={(cfg as any).rejectionCooldown || 0}
+                      onChange={e => setCfg(c => ({ ...c, rejectionCooldown: parseInt(e.target.value) } as any))}
+                      className="bg-white border-border"
+                    />
+                    <p className="text-[10px] text-muted-foreground">Days to wait before re-applying if rejected.</p>
+                  </div>
+                </div>
+
+                <div className="pt-2 space-y-3">
+                  {[
+                    {
+                      key: 'requireRecommendations',
+                      label: 'Require a Staff Recommendation',
+                      desc: 'Applicants must name an existing staff member who vouches for them.',
+                    },
+                    {
+                      key: 'autoReject',
+                      label: 'Auto-Reject Stale Applications',
+                      desc: 'Automatically deny applications with no review action after 7 days. (Premium)',
+                    },
+                  ].map(opt => (
+                    <div key={opt.key} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30 gap-4">
+                      <div>
+                        <p className="text-sm font-semibold">{opt.label}</p>
+                        <p className="text-muted-foreground text-xs mt-0.5">{opt.desc}</p>
+                      </div>
+                      <Switch
+                        checked={!!(cfg as any)[opt.key]}
+                        onCheckedChange={v => setCfg(c => ({ ...c, [opt.key]: v }))}
+                      />
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
 

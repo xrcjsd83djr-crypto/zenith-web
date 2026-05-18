@@ -21,9 +21,11 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
   import RanksPage from "@/pages/dashboard/ranks";
   import ConfigPage from "@/pages/dashboard/config";
   import BlacklistPage from "@/pages/dashboard/blacklist";
+  import BotCustomizationPage from "@/pages/dashboard/bot-customization";
   import TOSPage from "@/pages/tos";
   import PrivacyPage from "@/pages/privacy";
   import PremiumPage from "@/pages/premium";
+  import PortalPage from "@/pages/portal";
 
   const queryClient = new QueryClient();
 
@@ -62,6 +64,7 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
           <Route path="/dashboard/:guildId/ranks"        component={() => <RanksPage guildId={guildId} />} />
           <Route path="/dashboard/:guildId/config"       component={() => <ConfigPage guildId={guildId} />} />
           <Route path="/dashboard/:guildId/blacklist"    component={() => <BlacklistPage guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/bot-customization" component={() => <BotCustomizationPage guildId={guildId} />} />
           <Route component={NotFound} />
         </Switch>
       </DashboardLayout>
@@ -76,6 +79,7 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
         <Route path="/tos" component={TOSPage} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/premium" component={PremiumPage} />
+        <Route path="/portal/:apak" component={({ params }) => <PortalPage apak={params.apak} />} />
         <Route path="/servers" component={() => <ProtectedRoute component={ServersPage} />} />
         <Route path="/dashboard/:guildId/*?" component={({ params }) => <ProtectedRoute component={() => <DashboardRoutes params={params as any} />} />} />
         <Route component={NotFound} />

@@ -1062,9 +1062,10 @@ app.get('/api/guilds/:id/applications-config', requireAuth, async (req, res) => 
   if (!DATABASE_URL) return res.json({ enabled: false, channel: '', questions: [] });
   try {
     const r = await query(
-      `SELECT applications_enabled, applications_channel_id, applications_review_channel_id,
-              applications_title, applications_questions, require_recommendations, auto_reject
-       FROM server_config WHERE guild_id = $1`, [id]
+      `SELECT sc.applications_enabled, sc.applications_channel_id, sc.applications_review_channel_id,
+              sc.applications_title, sc.applications_questions, sc.require_recommendations, sc.auto_reject,
+              s.reviewer_role_ids, s.apak_key
+       FROM server_config sc JOIN servers s ON sc.guild_id = s.id WHERE sc.guild_id = $1`, [id]
     );
     const row = r.rows[0] || {};
     res.json({
@@ -1072,6 +1073,8 @@ app.get('/api/guilds/:id/applications-config', requireAuth, async (req, res) => 
       reviewChannel: row.applications_review_channel_id || '',
       title: row.applications_title || '', questions: row.applications_questions || [],
       requireRecommendations: !!row.require_recommendations, autoReject: !!row.auto_reject,
+      reviewerRoleIds: row.reviewer_role_ids || [],
+      apakKey: row.apak_key || null,
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch' });
@@ -1080,9 +1083,17 @@ app.get('/api/guilds/:id/applications-config', requireAuth, async (req, res) => 
 
 app.post('/api/guilds/:id/applications-config', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { enabled, channel, reviewChannel, title, questions = [], requireRecommendations = false, autoReject = false } = req.body;
+  const { enabled, channel, reviewChannel, title, questions = [], requireRecommendations = false, autoReject = false, reviewerRoleIds = [] } = req.body;
   if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
   try {
+    // Generate APAK if not exists
+    const sR = await query(`SELECT apak_key FROM servers WHERE id = $1`, [id]);
+    let apak = sR.rows[0]?.apak_key;
+    if (!apak) {
+      apak = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      await query(`UPDATE servers SET apak_key = $1 WHERE id = $2`, [apak, id]);
+    }
+
     await query(
       `INSERT INTO server_config (guild_id, applications_enabled, applications_channel_id,
          applications_review_channel_id, applications_title, applications_questions,
@@ -1096,9 +1107,49 @@ app.post('/api/guilds/:id/applications-config', requireAuth, async (req, res) =>
       [id, !!enabled, channel || null, reviewChannel || null, title || null,
        JSON.stringify(questions), !!requireRecommendations, !!autoReject]
     );
-    res.json({ success: true });
+
+    await query(`UPDATE servers SET reviewer_role_ids = $1 WHERE id = $2`, [reviewerRoleIds, id]);
+
+    res.json({ success: true, apakKey: apak });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save applications config' });
+  }
+});
+
+// ── 18.5 Bot Customization ──────────────────────────────────────────────
+app.get('/api/guilds/:id/bot-customization', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ isPremium: false });
+  try {
+    const r = await query(`SELECT is_premium, custom_bot_name, custom_bot_avatar, custom_bot_status FROM servers WHERE id = $1`, [id]);
+    const row = r.rows[0] || {};
+    res.json({
+      isPremium: !!row.is_premium,
+      customBotName: row.custom_bot_name || '',
+      customBotAvatar: row.custom_bot_avatar || '',
+      customBotStatus: row.custom_bot_status || '',
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch bot customization' });
+  }
+});
+
+app.post('/api/guilds/:id/bot-customization', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { customBotName, customBotAvatar, customBotStatus } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  try {
+    // Verify premium first
+    const pR = await query(`SELECT is_premium FROM servers WHERE id = $1`, [id]);
+    if (!pR.rows[0]?.is_premium) return res.status(403).json({ error: 'Premium required' });
+
+    await query(
+      `UPDATE servers SET custom_bot_name = $1, custom_bot_avatar = $2, custom_bot_status = $3, updated_at = NOW() WHERE id = $4`,
+      [customBotName || null, customBotAvatar || null, customBotStatus || null, id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save bot customization' });
   }
 });
 
@@ -1136,6 +1187,63 @@ app.get('/api/bot/stats', async (_req, res) => {
     ]);
     res.json({ guilds: gR.rows[0].count, users: uR.rows[0].count, status: 'Online' });
   } catch { res.json({ guilds: 0, users: 0, status: 'Online' }); }
+});
+
+// ── 20.5 Application Portal (APAK) ──────────────────────────────────────
+app.get('/api/portal/:apak/access', requireAuth, async (req, res) => {
+  const { apak } = req.params;
+  const userId = req.session.user.id;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+
+  try {
+    const gR = await query(`SELECT id, name, reviewer_role_ids, owner_id FROM servers WHERE apak_key = $1`, [apak]);
+    if (gR.rows.length === 0) return res.status(404).json({ error: 'Portal not found' });
+    const guild = gR.rows[0];
+
+    // Check if owner
+    if (guild.owner_id === userId) return res.json({ guild });
+
+    // Check roles
+    const reviewerRoles = guild.reviewer_role_ids || [];
+    if (reviewerRoles.length === 0) return res.status(403).json({ error: 'No reviewer roles configured' });
+
+    // Fetch user roles in that guild
+    const mR = await fetch(`${DISCORD_API}/guilds/${guild.id}/members/${userId}`, {
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+    });
+    if (!mR.ok) return res.status(403).json({ error: 'You are not a member of this server' });
+    const member = await mR.json();
+    const userRoles = member.roles || [];
+
+    const isReviewer = userRoles.some(r => reviewerRoles.includes(r));
+    if (!isReviewer) {
+      return res.status(403).json({ 
+        error: 'You do not have any of the required roles to access this portal.',
+        requiredRoles: reviewerRoles 
+      });
+    }
+
+    res.json({ guild });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/api/portal/:apak/submissions', requireAuth, async (req, res) => {
+  const { apak } = req.params;
+  try {
+    const gR = await query(`SELECT id FROM servers WHERE apak_key = $1`, [apak]);
+    if (gR.rows.length === 0) return res.status(404).json({ error: 'Portal not found' });
+    const guildId = gR.rows[0].id;
+
+    const sR = await query(
+      `SELECT * FROM application_submissions WHERE guild_id = $1 AND status = 'pending' ORDER BY created_at DESC`,
+      [guildId]
+    );
+    res.json(sR.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch submissions' });
+  }
 });
 
 // ── 21. Staff Portal ────────────────────────────────────────────────────

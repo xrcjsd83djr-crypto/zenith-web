@@ -65,8 +65,43 @@ import pg from 'pg';
           is_premium BOOLEAN DEFAULT FALSE,
           premium_expires_at TIMESTAMP,
           settings JSONB DEFAULT '{}',
+          reviewer_role_ids TEXT[] DEFAULT '{}',
+          apak_key TEXT UNIQUE,
+          custom_bot_name TEXT,
+          custom_bot_avatar TEXT,
+          custom_bot_status TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS application_forms (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          guild_id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT,
+          questions JSONB DEFAULT '[]',
+          enabled BOOLEAN DEFAULT TRUE,
+          role_requirements TEXT[] DEFAULT '{}',
+          account_age_limit INTEGER DEFAULT 0,
+          server_time_limit INTEGER DEFAULT 0,
+          rejection_cooldown INTEGER DEFAULT 0,
+          custom_slug TEXT UNIQUE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS application_submissions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          form_id UUID REFERENCES application_forms(id) ON DELETE CASCADE,
+          guild_id TEXT NOT NULL,
+          user_id TEXT NOT NULL,
+          username TEXT NOT NULL,
+          answers JSONB DEFAULT '[]',
+          status TEXT DEFAULT 'pending',
+          reviewer_id TEXT,
+          review_notes TEXT,
+          reviewed_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE IF NOT EXISTS server_config (
@@ -206,6 +241,12 @@ import pg from 'pg';
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS admin_role_ids TEXT[] DEFAULT '{}';
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS management_role_ids TEXT[] DEFAULT '{}';
         ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS warnings INTEGER DEFAULT 0;
+        
+        ALTER TABLE servers ADD COLUMN IF NOT EXISTS reviewer_role_ids TEXT[] DEFAULT '{}';
+        ALTER TABLE servers ADD COLUMN IF NOT EXISTS apak_key TEXT UNIQUE;
+        ALTER TABLE servers ADD COLUMN IF NOT EXISTS custom_bot_name TEXT;
+        ALTER TABLE servers ADD COLUMN IF NOT EXISTS custom_bot_avatar TEXT;
+        ALTER TABLE servers ADD COLUMN IF NOT EXISTS custom_bot_status TEXT;
       `).catch(e => console.log('[DB] Migration note:', e.message));
 
       console.log('[DB] Schema initialized');

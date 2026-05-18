@@ -27,9 +27,20 @@ import { useState, useEffect, useCallback } from "react";
 
     const fetchRoles = useCallback(async () => {
       try {
-        // FIXED: /api/guilds/ (not /api/guild/)
-        const res = await fetch(`/api/guilds/${guildId}/roles`, { credentials: 'include' });
-        if (res.ok) setRoles(await res.json());
+        const [rolesRes, savedRolesRes, staffRes] = await Promise.all([
+          fetch(`/api/guilds/${guildId}/roles`, { credentials: 'include' }),
+          fetch(`/api/guilds/${guildId}/staff-roles`, { credentials: 'include' }),
+          fetch(`/api/guilds/${guildId}/staff`, { credentials: 'include' }),
+        ]);
+        if (rolesRes.ok) setRoles(await rolesRes.json());
+        if (savedRolesRes.ok) {
+          const { staffRoleIds } = await savedRolesRes.json();
+          if (staffRoleIds?.length > 0) setSelectedRoles(staffRoleIds);
+        }
+        if (staffRes.ok) {
+          const members = await staffRes.json();
+          if (members?.length > 0) { setStaffMembers(members); setStaffLoaded(true); }
+        }
       } catch { }
       setIsLoading(false);
     }, [guildId]);
@@ -40,16 +51,18 @@ import { useState, useEffect, useCallback } from "react";
       if (selectedRoles.length === 0) return;
       setMembersLoading(true);
       try {
-        const res = await fetch(`/api/guilds/${guildId}/members`, { credentials: 'include' });
-        if (res.ok) {
-          const members = await res.json();
-          // Filter members who have at least one selected role
-          const staffWithRoles = members.filter((m: any) => {
-            const memberRoles: string[] = m.roles || [];
-            return selectedRoles.some(r => memberRoles.includes(r));
-          });
-          setStaffMembers(staffWithRoles);
-          setStaffLoaded(true);
+        const saveRes = await fetch(`/api/guilds/${guildId}/staff-roles`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ roleIds: selectedRoles }),
+        });
+        if (saveRes.ok) {
+          const staffRes = await fetch(`/api/guilds/${guildId}/staff`, { credentials: 'include' });
+          if (staffRes.ok) {
+            setStaffMembers(await staffRes.json());
+            setStaffLoaded(true);
+          }
         }
       } catch { }
       setMembersLoading(false);

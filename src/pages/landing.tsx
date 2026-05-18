@@ -56,9 +56,11 @@ export default function LandingPage() {
                 Get Started <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
-            <Button size="lg" variant="outline" className="h-12 px-8 text-base font-semibold bg-white border-gray-200">
-              View Documentation
-            </Button>
+            <a href="https://discord.com/oauth2/authorize?client_id=1501773810368643172" target="_blank" rel="noreferrer">
+              <Button size="lg" variant="outline" className="h-12 px-8 text-base font-semibold bg-white border-gray-200">
+                Add to Discord
+              </Button>
+            </a>
           </div>
         </div>
       </section>
@@ -162,7 +164,13 @@ export default function LandingPage() {
             </div>
             <span className="font-semibold text-gray-900">Zenith</span>
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="flex items-center gap-5 flex-wrap justify-center">
+            <a href="https://discord.com/oauth2/authorize?client_id=1501773810368643172" target="_blank" rel="noreferrer" className="text-sm font-semibold hover:underline" style={{ color: '#d4af37' }}>Add to Discord</a>
+            <a href="https://discord.gg/UmDQqXPCfF" target="_blank" rel="noreferrer" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">Support Server</a>
+            <Link href="/tos" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">Terms</Link>
+            <Link href="/privacy" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">Privacy</Link>
+          </div>
+          <div className="text-sm text-gray-400">
             © {new Date().getFullYear()} Zenith. Not affiliated with Discord or ERLC.
           </div>
         </div>

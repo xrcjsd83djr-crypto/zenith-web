@@ -36,6 +36,12 @@ import CommendationsPage from "@/pages/dashboard/commendations";
 import RankRequestsPage from "@/pages/dashboard/rank-requests";
 import CustomCommandsPage from "@/pages/dashboard/custom-commands";
 import InactivityPage from "@/pages/dashboard/inactivity";
+  import PromotionsPage from "@/pages/dashboard/promotions";
+  import ShiftsPage from "@/pages/dashboard/shifts";
+  import DivisionsPage from "@/pages/dashboard/divisions";
+  import PerformancePage from "@/pages/dashboard/performance";
+  import AnalyticsPage from "@/pages/dashboard/analytics";
+  import AutomationPage from "@/pages/dashboard/automation";
 
   const queryClient = new QueryClient();
 

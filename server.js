@@ -1057,6 +1057,11 @@ app.get('/api/guilds/:id/audit-logs', requireAuth, async (req, res) => {
 });
 
 // ── 18. Applications Config ───────────────────────────────────────────────
+const DEFAULT_APP_CFG = {
+  enabled: false, channel: '', reviewChannel: '', title: '', questions: [],
+  requireRecommendations: false, autoReject: false, reviewerRoleIds: [], apakKey: null
+};
+
 app.get('/api/guilds/:id/applications-config', requireAuth, async (req, res) => {
   const { id } = req.params;
   if (!DATABASE_URL) return res.json({ enabled: false, channel: '', questions: [] });
@@ -1064,15 +1069,26 @@ app.get('/api/guilds/:id/applications-config', requireAuth, async (req, res) => 
     const r = await query(
       `SELECT sc.applications_enabled, sc.applications_channel_id, sc.applications_review_channel_id,
               sc.applications_title, sc.applications_questions, sc.require_recommendations, sc.auto_reject,
-              s.reviewer_role_ids, s.apak_key
-       FROM server_config sc JOIN servers s ON sc.guild_id = s.id WHERE sc.guild_id = $1`, [id]
+              sc.panel_description, sc.button_label, sc.account_age_limit, sc.server_time_limit, sc.rejection_cooldown,
+              s.reviewer_role_ids, s.apak_key, s.name
+       FROM servers s LEFT JOIN server_config sc ON s.id = sc.guild_id WHERE s.id = $1`, [id]
     );
-    const row = r.rows[0] || {};
+    if (r.rows.length === 0) {
+      // Create server entry if it doesn't exist
+      await query(`INSERT INTO servers (id, name) VALUES ($1, $1) ON CONFLICT DO NOTHING`, [id]);
+      return res.json(DEFAULT_APP_CFG);
+    }
+    const row = r.rows[0];
     res.json({
       enabled: !!row.applications_enabled, channel: row.applications_channel_id || '',
       reviewChannel: row.applications_review_channel_id || '',
       title: row.applications_title || '', questions: row.applications_questions || [],
       requireRecommendations: !!row.require_recommendations, autoReject: !!row.auto_reject,
+      panelDescription: row.panel_description || '',
+      buttonLabel: row.button_label || 'Apply Now',
+      accountAgeLimit: row.account_age_limit || 0,
+      serverTimeLimit: row.server_time_limit || 0,
+      rejectionCooldown: row.rejection_cooldown || 0,
       reviewerRoleIds: row.reviewer_role_ids || [],
       apakKey: row.apak_key || null,
     });
@@ -1083,7 +1099,12 @@ app.get('/api/guilds/:id/applications-config', requireAuth, async (req, res) => 
 
 app.post('/api/guilds/:id/applications-config', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { enabled, channel, reviewChannel, title, questions = [], requireRecommendations = false, autoReject = false, reviewerRoleIds = [] } = req.body;
+  const { 
+    enabled, channel, reviewChannel, title, questions = [], 
+    requireRecommendations = false, autoReject = false, reviewerRoleIds = [],
+    panelDescription = '', buttonLabel = 'Apply Now', 
+    accountAgeLimit = 0, serverTimeLimit = 0, rejectionCooldown = 0
+  } = req.body;
   if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
   try {
     // Generate APAK if not exists
@@ -1097,15 +1118,22 @@ app.post('/api/guilds/:id/applications-config', requireAuth, async (req, res) =>
     await query(
       `INSERT INTO server_config (guild_id, applications_enabled, applications_channel_id,
          applications_review_channel_id, applications_title, applications_questions,
-         require_recommendations, auto_reject)
-       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8)
+         require_recommendations, auto_reject, panel_description, button_label,
+         account_age_limit, server_time_limit, rejection_cooldown)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13)
        ON CONFLICT (guild_id) DO UPDATE SET
          applications_enabled = $2, applications_channel_id = $3,
          applications_review_channel_id = $4, applications_title = $5,
          applications_questions = $6::jsonb, require_recommendations = $7,
-         auto_reject = $8, updated_at = NOW()`,
-      [id, !!enabled, channel || null, reviewChannel || null, title || null,
-       JSON.stringify(questions), !!requireRecommendations, !!autoReject]
+         auto_reject = $8, panel_description = $9, button_label = $10,
+         account_age_limit = $11, server_time_limit = $12, rejection_cooldown = $13,
+         updated_at = NOW()`,
+      [
+        id, !!enabled, channel || null, reviewChannel || null, title || null,
+        JSON.stringify(questions), !!requireRecommendations, !!autoReject,
+        panelDescription || null, buttonLabel || 'Apply Now',
+        parseInt(accountAgeLimit) || 0, parseInt(serverTimeLimit) || 0, parseInt(rejectionCooldown) || 0
+      ]
     );
 
     await query(`UPDATE servers SET reviewer_role_ids = $1 WHERE id = $2`, [reviewerRoleIds, id]);

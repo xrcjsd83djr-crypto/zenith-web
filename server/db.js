@@ -247,6 +247,12 @@ import pg from 'pg';
         ALTER TABLE servers ADD COLUMN IF NOT EXISTS custom_bot_name TEXT;
         ALTER TABLE servers ADD COLUMN IF NOT EXISTS custom_bot_avatar TEXT;
         ALTER TABLE servers ADD COLUMN IF NOT EXISTS custom_bot_status TEXT;
+        
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS panel_description TEXT;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS button_label TEXT DEFAULT 'Apply Now';
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS account_age_limit INTEGER DEFAULT 0;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS server_time_limit INTEGER DEFAULT 0;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS rejection_cooldown INTEGER DEFAULT 0;
       `).catch(e => console.log('[DB] Migration note:', e.message));
 
       console.log('[DB] Schema initialized');

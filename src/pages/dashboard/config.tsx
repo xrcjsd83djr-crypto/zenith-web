@@ -169,33 +169,91 @@ import { useState, useEffect, useCallback } from "react";
       return [];
     };
 
-    const ChannelSelect = ({ label, desc, cfgKey }: { label: string; desc?: string; cfgKey: string }) => (
-      <div className="space-y-1.5">
-        <Label className="text-sm font-semibold">{label}</Label>
-        {desc && <p className="text-xs text-muted-foreground">{desc}</p>}
-        <Select value={chanVal(cfgKey)} onValueChange={v => updateConfig(cfgKey, v === 'none' ? null : v)}>
-          <SelectTrigger className="bg-white border-border text-sm"><SelectValue placeholder="Select channel" /></SelectTrigger>
-          <SelectContent className="bg-white border-border">
-            <SelectItem value="none">Not set</SelectItem>
-            {channels.map(c => <SelectItem key={c.id} value={c.id}>#{c.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-    );
+    const ChannelSelect = ({ label, desc, cfgKey }: { label: string; desc?: string; cfgKey: string }) => {
+      const [csOpen, setCsOpen] = useState(false);
+      const [csSearch, setCsSearch] = useState('');
+      const currentChan = channels.find(c => c.id === chanVal(cfgKey));
+      const filteredChans = channels.filter(c => c.name.toLowerCase().includes(csSearch.toLowerCase()));
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-sm font-semibold">{label}</Label>
+          {desc && <p className="text-xs text-muted-foreground">{desc}</p>}
+          <div className="relative">
+            <button type="button" onClick={() => setCsOpen(o => !o)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm bg-white border border-border rounded-md hover:bg-muted/20 transition-colors text-left">
+              <Hash size={13} className="text-muted-foreground flex-shrink-0" />
+              <span className="flex-1 truncate">{currentChan ? currentChan.name : <span className="text-muted-foreground">Not set</span>}</span>
+            </button>
+            {csOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => { setCsOpen(false); setCsSearch(''); }} />
+                <div className="absolute top-full left-0 mt-1 w-full bg-white border border-border rounded-xl shadow-xl z-20 overflow-hidden">
+                  <div className="p-2 border-b border-border">
+                    <Input value={csSearch} onChange={e => setCsSearch(e.target.value)} placeholder="Search channels..." className="h-7 text-xs bg-white border-border" autoFocus />
+                  </div>
+                  <div className="max-h-52 overflow-y-auto py-1">
+                    <button type="button" onClick={() => { updateConfig(cfgKey, null); setCsOpen(false); setCsSearch(''); }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/40 text-xs text-left text-muted-foreground transition-colors">Not set</button>
+                    {filteredChans.map(c => (
+                      <button type="button" key={c.id} onClick={() => { updateConfig(cfgKey, c.id); setCsOpen(false); setCsSearch(''); }}
+                        className={`w-full flex items-center gap-2 px-3 py-1.5 hover:bg-amber-50 text-xs text-left transition-colors ${chanVal(cfgKey) === c.id ? 'bg-amber-50 font-medium text-amber-700' : ''}`}>
+                        <Hash size={10} className="flex-shrink-0 text-muted-foreground" /><span className="truncate">{c.name}</span>
+                      </button>
+                    ))}
+                    {filteredChans.length === 0 && csSearch && <div className="px-3 py-2 text-xs text-muted-foreground">No channels found</div>}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    };
 
-    const RoleSelect = ({ label, desc, cfgKey }: { label: string; desc?: string; cfgKey: string }) => (
-      <div className="space-y-1.5">
-        <Label className="text-sm font-semibold">{label}</Label>
-        {desc && <p className="text-xs text-muted-foreground">{desc}</p>}
-        <Select value={roleVal(cfgKey)} onValueChange={v => updateConfig(cfgKey, v === 'none' ? null : v)}>
-          <SelectTrigger className="bg-white border-border text-sm"><SelectValue placeholder="Select role" /></SelectTrigger>
-          <SelectContent className="bg-white border-border">
-            <SelectItem value="none">Not set</SelectItem>
-            {roles.map(r => <SelectItem key={r.id} value={r.id}>@{r.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-    );
+    const RoleSelect = ({ label, desc, cfgKey }: { label: string; desc?: string; cfgKey: string }) => {
+      const [rsOpen, setRsOpen] = useState(false);
+      const [rsSearch, setRsSearch] = useState('');
+      const currentRole = roles.find(r => r.id === roleVal(cfgKey));
+      const filteredRoles2 = roles.filter(r => r.name.toLowerCase().includes(rsSearch.toLowerCase()));
+      const rc = (c?: number) => c ? '#' + c.toString(16).padStart(6,'0') : '#94a3b8';
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-sm font-semibold">{label}</Label>
+          {desc && <p className="text-xs text-muted-foreground">{desc}</p>}
+          <div className="relative">
+            <button type="button" onClick={() => setRsOpen(o => !o)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm bg-white border border-border rounded-md hover:bg-muted/20 transition-colors text-left">
+              {currentRole
+                ? <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: rc(currentRole.color) }} />
+                : <Shield size={13} className="text-muted-foreground flex-shrink-0" />}
+              <span className="flex-1 truncate">{currentRole ? `@${currentRole.name}` : <span className="text-muted-foreground">Not set</span>}</span>
+            </button>
+            {rsOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => { setRsOpen(false); setRsSearch(''); }} />
+                <div className="absolute top-full left-0 mt-1 w-full bg-white border border-border rounded-xl shadow-xl z-20 overflow-hidden">
+                  <div className="p-2 border-b border-border">
+                    <Input value={rsSearch} onChange={e => setRsSearch(e.target.value)} placeholder="Search roles..." className="h-7 text-xs bg-white border-border" autoFocus />
+                  </div>
+                  <div className="max-h-52 overflow-y-auto py-1">
+                    <button type="button" onClick={() => { updateConfig(cfgKey, null); setRsOpen(false); setRsSearch(''); }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/40 text-xs text-left text-muted-foreground transition-colors">Not set</button>
+                    {filteredRoles2.map(r => (
+                      <button type="button" key={r.id} onClick={() => { updateConfig(cfgKey, r.id); setRsOpen(false); setRsSearch(''); }}
+                        className={`w-full flex items-center gap-2 px-3 py-1.5 hover:bg-amber-50 text-xs text-left transition-colors ${roleVal(cfgKey) === r.id ? 'bg-amber-50 font-medium text-amber-700' : ''}`}>
+                        <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: rc(r.color) }} />
+                        <span className="truncate">@{r.name}</span>
+                      </button>
+                    ))}
+                    {filteredRoles2.length === 0 && rsSearch && <div className="px-3 py-2 text-xs text-muted-foreground">No roles found</div>}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    };
 
     return (
       <div className="space-y-5 max-w-4xl">

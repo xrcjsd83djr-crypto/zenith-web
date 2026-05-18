@@ -253,6 +253,7 @@ import pg from 'pg';
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS account_age_limit INTEGER DEFAULT 0;
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS server_time_limit INTEGER DEFAULT 0;
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS rejection_cooldown INTEGER DEFAULT 0;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS applications_embed_color TEXT DEFAULT '#d4af37';
       `).catch(e => console.log('[DB] Migration note:', e.message));
 
       console.log('[DB] Schema initialized');

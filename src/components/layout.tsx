@@ -91,102 +91,6 @@ import { ReactNode, useState, useEffect } from "react";
       </Link>
     );
 
-    const SidebarInner = () => (
-      <>
-        {/* Logo row */}
-        <div className="px-4 py-4 border-b border-border flex items-center gap-2.5 flex-shrink-0">
-          <Link href="/servers" className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
-            <ChevronLeft className="w-4 h-4" />
-          </Link>
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#d4af37,#ffd700)' }}>Z</div>
-            <span className="font-bold text-sm tracking-tight" style={{ color: '#b8941f' }}>Zenith</span>
-          </div>
-          {isMobile && (
-            <button onClick={() => setSidebarOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Server pill */}
-        <div className="px-3 py-3 border-b border-border flex-shrink-0">
-          <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-muted/40 border border-border">
-            {iconUrl ? (
-              <img src={iconUrl} alt={guild.name} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" style={{ outline: '2px solid rgba(212,175,55,.3)' }} />
-            ) : (
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg,#d4af37,#ffd700)' }}>{guild.name.charAt(0)}</div>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold truncate">{guild.name}</div>
-              {guild.isPremium ? (
-                <div className="text-[10px] font-bold flex items-center gap-0.5 uppercase tracking-wider mt-0.5" style={{ color: '#d4af37' }}>
-                  <Star className="w-2.5 h-2.5 fill-current" /> Pro
-                </div>
-              ) : (
-                <div className="text-[10px] text-muted-foreground font-medium mt-0.5">Free Plan</div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Nav links */}
-        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-          {navItems.map(item => <NavLink key={item.path} item={item} isActive={checkActive(item)} />)}
-          <div className="pt-2 mt-2 border-t border-border space-y-0.5">
-            {bottomItems.map(item => (
-              <NavLink key={item.path} item={item} isActive={item.matchFn(location)} />
-            ))}
-          </div>
-        </nav>
-
-        {/* User footer */}
-        <div className="px-3 py-3 border-t border-border flex-shrink-0 space-y-1">
-          {/* Switch Server */}
-          <Link href="/servers">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-150 cursor-pointer">
-              <ArrowLeftRight className="w-3.5 h-3.5 flex-shrink-0" />
-              Switch Server
-            </div>
-          </Link>
-
-          {/* Account row */}
-          <div className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-muted/50 transition-colors group">
-            {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt={user?.username} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-            ) : (
-              <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-bold flex-shrink-0">
-                {user?.username?.charAt(0) || '?'}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold truncate">{user?.username}</div>
-              <div className="text-[10px] text-muted-foreground">Logged in</div>
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <button className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500" title="Log out">
-                  <LogOut className="w-3.5 h-3.5" />
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Log out?</AlertDialogTitle>
-                  <AlertDialogDescription>You'll be signed out of your Zenith session.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={logout} className="bg-red-500 hover:bg-red-600">Log out</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </>
-    );
-
     return (
       <div className="min-h-screen bg-background flex">
         {/* Mobile top bar */}
@@ -210,12 +114,16 @@ import { ReactNode, useState, useEffect } from "react";
           </div>
         )}
 
-        {/* Mobile overlay backdrop */}
+        {/* Mobile overlay backdrop — sits above top bar, below sidebar */}
         {isMobile && sidebarOpen && (
-          <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setSidebarOpen(false)} />
+          <div
+            className="fixed inset-0 z-40 bg-black/50"
+            style={{ touchAction: 'none' }}
+            onClick={() => setSidebarOpen(false)}
+          />
         )}
 
-        {/* Sidebar */}
+        {/* Sidebar — inlined JSX (no sub-component) so React never unmounts/remounts it */}
         <aside
           className={`${
             isMobile
@@ -224,7 +132,101 @@ import { ReactNode, useState, useEffect } from "react";
           } bg-white flex flex-col overflow-hidden shadow-sm`}
           style={{ borderRight: '2px solid rgba(212,175,55,.35)' }}
         >
-          <SidebarInner />
+          {/* Logo row */}
+          <div className="px-4 py-4 border-b border-border flex items-center gap-2.5 flex-shrink-0">
+            <Link href="/servers" className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+              <ChevronLeft className="w-4 h-4" />
+            </Link>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg,#d4af37,#ffd700)' }}>Z</div>
+              <span className="font-bold text-sm tracking-tight" style={{ color: '#b8941f' }}>Zenith</span>
+            </div>
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Server pill */}
+          <div className="px-3 py-3 border-b border-border flex-shrink-0">
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-muted/40 border border-border">
+              {iconUrl ? (
+                <img src={iconUrl} alt={guild.name} className="w-8 h-8 rounded-lg object-cover flex-shrink-0" style={{ outline: '2px solid rgba(212,175,55,.3)' }} />
+              ) : (
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg,#d4af37,#ffd700)' }}>{guild.name.charAt(0)}</div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-bold truncate">{guild.name}</div>
+                {guild.isPremium ? (
+                  <div className="text-[10px] font-bold flex items-center gap-0.5 uppercase tracking-wider mt-0.5" style={{ color: '#d4af37' }}>
+                    <Star className="w-2.5 h-2.5 fill-current" /> Pro
+                  </div>
+                ) : (
+                  <div className="text-[10px] text-muted-foreground font-medium mt-0.5">Free Plan</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Nav links */}
+          <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+            {navItems.map(item => <NavLink key={item.path} item={item} isActive={checkActive(item)} />)}
+            <div className="pt-2 mt-2 border-t border-border space-y-0.5">
+              {bottomItems.map(item => (
+                <NavLink key={item.path} item={item} isActive={item.matchFn(location)} />
+              ))}
+            </div>
+          </nav>
+
+          {/* User footer */}
+          <div className="px-3 py-3 border-t border-border flex-shrink-0 space-y-1">
+            {/* Switch Server */}
+            <Link href="/servers">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-150 cursor-pointer">
+                <ArrowLeftRight className="w-3.5 h-3.5 flex-shrink-0" />
+                Switch Server
+              </div>
+            </Link>
+
+            {/* Account row */}
+            <div className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-muted/50 transition-colors group">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user?.username} className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-xs font-bold flex-shrink-0">
+                  {user?.username?.charAt(0) || '?'}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold truncate">{user?.username}</div>
+                <div className="text-[10px] text-muted-foreground">Logged in</div>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500" title="Log out">
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Log out?</AlertDialogTitle>
+                    <AlertDialogDescription>You'll be signed out of your Zenith session.</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={logout} className="bg-red-500 hover:bg-red-600">Log out</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
         </aside>
 
         {/* Main content */}
@@ -236,4 +238,3 @@ import { ReactNode, useState, useEffect } from "react";
       </div>
     );
   }
-  

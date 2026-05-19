@@ -261,50 +261,48 @@ import pg from 'pg';
       `);
 
       const migrations = [
-
-          CREATE TABLE IF NOT EXISTS application_panels (
+          `CREATE TABLE IF NOT EXISTS application_panels (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(), guild_id TEXT NOT NULL,
             title TEXT NOT NULL, description TEXT, button_label TEXT DEFAULT 'Apply Now',
             questions JSONB DEFAULT '[]', review_role_ids TEXT[] DEFAULT '{}',
             review_channel_id TEXT, enabled BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          );
-          CREATE TABLE IF NOT EXISTS application_submissions (
+          )`,
+          `CREATE TABLE IF NOT EXISTS application_panel_submissions (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(), guild_id TEXT NOT NULL,
             panel_id UUID REFERENCES application_panels(id) ON DELETE CASCADE,
             panel_title TEXT, user_id TEXT NOT NULL, username TEXT NOT NULL,
             answers JSONB DEFAULT '{}', status TEXT DEFAULT 'pending',
             reviewer_id TEXT, reviewer_username TEXT, reviewer_notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, reviewed_at TIMESTAMP
-          );
-          CREATE TABLE IF NOT EXISTS training_programs (
+          )`,
+          `CREATE TABLE IF NOT EXISTS training_programs (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(), guild_id TEXT NOT NULL,
             name TEXT NOT NULL, description TEXT, category TEXT DEFAULT 'general',
             required BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          );
-          CREATE TABLE IF NOT EXISTS training_completions (
+          )`,
+          `CREATE TABLE IF NOT EXISTS training_completions (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(), guild_id TEXT NOT NULL,
             program_id UUID REFERENCES training_programs(id) ON DELETE CASCADE,
             program_name TEXT NOT NULL, user_id TEXT, username TEXT NOT NULL,
             completed_by TEXT, completed_by_name TEXT, score FLOAT, notes TEXT,
             completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          );
-          CREATE TABLE IF NOT EXISTS incident_reports (
+          )`,
+          `CREATE TABLE IF NOT EXISTS incident_reports (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(), guild_id TEXT NOT NULL,
             title TEXT NOT NULL, description TEXT NOT NULL, severity TEXT DEFAULT 'medium',
             involved_staff TEXT, location TEXT, reported_by TEXT, reported_by_name TEXT,
             status TEXT DEFAULT 'open', resolution TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          );
-          CREATE TABLE IF NOT EXISTS staff_goals (
+          )`,
+          `CREATE TABLE IF NOT EXISTS staff_goals (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(), guild_id TEXT NOT NULL,
             title TEXT NOT NULL, description TEXT, target_value FLOAT, current_value FLOAT DEFAULT 0,
             unit TEXT, due_date TIMESTAMP, status TEXT DEFAULT 'active',
             user_id TEXT, username TEXT, created_by TEXT, created_by_name TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          );
-  
-        "ALTER TABLE servers ADD COLUMN IF NOT EXISTS reviewer_role_ids TEXT[] DEFAULT '{}'",
+          )`,
+          "ALTER TABLE servers ADD COLUMN IF NOT EXISTS reviewer_role_ids TEXT[] DEFAULT '{}'",
         "ALTER TABLE servers ADD COLUMN IF NOT EXISTS apak_key TEXT",
         "ALTER TABLE servers ADD COLUMN IF NOT EXISTS custom_bot_name TEXT",
         "ALTER TABLE servers ADD COLUMN IF NOT EXISTS custom_bot_avatar TEXT",

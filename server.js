@@ -3059,7 +3059,12 @@ app.get('/api/guilds/:id/commendations/leaderboard', requireAuth, async (req, re
 
 app.post('/api/guilds/:id/commendations', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { targetUserId, targetUsername, givenById, givenByUsername, reason } = req.body;
+  // Support both naming conventions: bot uses issuedById, dashboard uses givenById
+  const targetUserId = req.body.targetUserId;
+  const targetUsername = req.body.targetUsername;
+  const givenById = req.body.givenById || req.body.issuedById || req.session?.user?.id;
+  const givenByUsername = req.body.givenByUsername || req.body.issuedByUsername || req.session?.user?.username;
+  const reason = req.body.reason || req.body.description;
   if (!reason?.trim() || !targetUserId) return res.status(400).json({ error: 'Missing fields' });
   try {
     const r = await query(
@@ -3250,32 +3255,35 @@ app.get('/api/guilds/:id/custom-commands', requireAuth, async (req, res) => {
 
 app.post('/api/guilds/:id/custom-commands', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { name, description, response, embedTitle, embedColor, requiresRole } = req.body;
+  const { name, description, response, embedTitle, embedColor, requiresRole, isEmbed } = req.body;
   if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
-  const pR = await query(`SELECT is_premium FROM servers WHERE id = $1`, [id]).catch(() => ({ rows: [] }));
-  if (!pR.rows[0]?.is_premium) return res.status(403).json({ error: 'Premium required for custom commands' });
   if (!name?.trim() || !response?.trim()) return res.status(400).json({ error: 'Name and response required' });
   try {
-    const r = await query(
-      `INSERT INTO custom_commands (guild_id, name, description, response, embed_title, embed_color, requires_role)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       ON CONFLICT (guild_id, name) DO UPDATE SET description=$3, response=$4, embed_title=$5, embed_color=$6, requires_role=$7
-       RETURNING *`,
-      [id, name.trim().toLowerCase(), description || '', response.trim(), embedTitle || null, embedColor || '#5865F2', requiresRole || null]
-    );
-      // Auto-register as guild slash command in Discord
-      const ccRow = r.rows[0];
-      if (process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_APPLICATION_ID && ccRow) {
-        fetch(`https://discord.com/api/v10/applications/${process.env.DISCORD_APPLICATION_ID}/guilds/${id}/commands`, {
-          method: 'POST',
-          headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: ccRow.name.toLowerCase().replace(/[^a-z0-9_-]/g, '-').slice(0, 32),
-            description: ccRow.description.slice(0, 100),
-            type: 1,
-          })
-        }).catch(() => {}); // fire-and-forget
+    const pR = await query(`SELECT is_premium FROM servers WHERE id = $1`, [id]).catch(() => ({ rows: [] }));
+    const isPrem = !!pR.rows[0]?.is_premium;
+    if (!isPrem) {
+      const cnt = await query(`SELECT COUNT(*) FROM custom_commands WHERE guild_id=$1 AND is_active=TRUE`, [id]);
+      if (parseInt(cnt.rows[0]?.count || '0') >= 5) {
+        return res.status(403).json({ error: 'Free tier: max 5 custom commands. Upgrade to Premium for unlimited.' });
       }
+    }
+    const safeName = name.trim().toLowerCase().replace(/^\//,'').replace(/[^a-z0-9_-]/g, '-').slice(0, 32);
+    const r = await query(
+      `INSERT INTO custom_commands (guild_id, name, description, response, embed_title, embed_color, is_embed, requires_role, is_active)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,TRUE)
+       ON CONFLICT (guild_id, name) DO UPDATE SET description=$3, response=$4, embed_title=$5, embed_color=$6, is_embed=$7, requires_role=$8, is_active=TRUE
+       RETURNING *`,
+      [id, safeName, description || '', response.trim(), embedTitle || null, embedColor || '#5865F2', !!isEmbed, requiresRole || null]
+    );
+    // Auto-register as guild slash command in Discord
+    const ccRow = r.rows[0];
+    if (DISCORD_BOT_TOKEN && process.env.DISCORD_APPLICATION_ID && ccRow) {
+      fetch(`${DISCORD_API}/applications/${process.env.DISCORD_APPLICATION_ID}/guilds/${id}/commands`, {
+        method: 'POST',
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: ccRow.name, description: (ccRow.description || 'Custom command').slice(0, 100), type: 1 }),
+      }).catch(() => {});
+    }
     res.json(r.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -3302,12 +3310,12 @@ app.delete('/api/guilds/:id/custom-commands/:cmdId', requireAuth, async (req, re
   });
   
 
-// Fetch custom commands for bot runtime
+// Fetch custom commands for bot runtime — is_active filter + use_count support
 app.get('/api/guilds/:id/custom-commands/bot', requireBotSecret, async (req, res) => {
   const { id } = req.params;
   if (!DATABASE_URL) return res.json([]);
   try {
-    const r = await query(`SELECT * FROM custom_commands WHERE guild_id = $1`, [id]);
+    const r = await query(`SELECT * FROM custom_commands WHERE guild_id=$1 AND is_active=TRUE ORDER BY name`, [id]);
     res.json(r.rows);
   } catch { res.json([]); }
 });
@@ -3815,16 +3823,6 @@ app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
     catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  // ─── Custom Commands Bot Endpoint (for bot to fetch) ─────────────────────
-  app.get('/api/guilds/:id/custom-commands/bot', requireBotSecret, async (req, res) => {
-    const { id } = req.params;
-    if (!DATABASE_URL) return res.json([]);
-    try {
-      const r = await query('SELECT * FROM custom_commands WHERE guild_id=$1 AND is_active=TRUE ORDER BY name', [id]);
-      res.json(r.rows);
-    } catch { res.json([]); }
-  });
-
   // ─── Fix Performance POST ─────────────────────────────────────────────────
   app.post('/api/guilds/:id/performance', requireAuth, async (req, res) => {
     const { id } = req.params;
@@ -3842,26 +3840,6 @@ app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  // ─── Fix custom-commands to work for free tier too (5 limit) ─────────────
-  app.post('/api/guilds/:id/custom-commands', requireAuth, async (req, res) => {
-    const { id } = req.params;
-    const { name, description, response, embedTitle, embedColor, requiresRole, isEmbed } = req.body;
-    if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
-    if (!name?.trim() || !response?.trim()) return res.status(400).json({ error: 'Name and response required' });
-    try {
-      const pR = await query('SELECT is_premium FROM servers WHERE id=$1', [id]).catch(() => ({ rows: [] }));
-      const isPrem = !!pR.rows[0]?.is_premium;
-      if (!isPrem) {
-        const cnt = await query('SELECT COUNT(*) FROM custom_commands WHERE guild_id=$1 AND is_active=TRUE', [id]);
-        if (parseInt(cnt.rows[0].count) >= 5) return res.status(403).json({ error: 'Free tier: max 5 custom commands. Upgrade to Premium for unlimited.' });
-      }
-      const r = await query(
-        'INSERT INTO custom_commands (guild_id, name, description, response, embed_title, embed_color, is_embed, requires_role) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (guild_id, name) DO UPDATE SET description=$3, response=$4, embed_title=$5, embed_color=$6, is_embed=$7, requires_role=$8 RETURNING *',
-        [id, name.trim().toLowerCase().replace(/^\//,''), description || '', response.trim(), embedTitle || null, embedColor || '#5865F2', !!isEmbed, requiresRole || null]
-      );
-      res.json(r.rows[0]);
-    } catch (err) { res.status(500).json({ error: err.message }); }
-  });
 
   // ─── Shift Send Cards ─────────────────────────────────────────────────────
   app.post('/api/guilds/:id/shifts/send-cards', requireAuth, async (req, res) => {

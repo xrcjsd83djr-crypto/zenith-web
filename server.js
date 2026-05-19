@@ -2165,6 +2165,11 @@ if (DATABASE_URL) {
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS embed_color TEXT DEFAULT '#d4af37';
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS embed_footer TEXT DEFAULT 'Zenith Staff Management';
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS staff_role_ids TEXT[] DEFAULT '{}';
+        ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP;
+        ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS panel_title TEXT;
+        ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+        ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS last_active TIMESTAMP;
+        ALTER TABLE incident_reports ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
       `);
       console.log('[DB] New feature tables migrated');
     } catch (e) {

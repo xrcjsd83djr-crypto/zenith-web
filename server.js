@@ -2989,31 +2989,33 @@ app.post('/api/guilds/:id/announcements', requireAuth, async (req, res) => {
 });
 
 // ── Duty Roster ───────────────────────────────────────────────────────────
-app.get('/api/guilds/:id/roster', requireAuth, async (req, res) => {
+app.get('/api/guilds/:id/roster', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   if (!DATABASE_URL) return res.json([]);
   try {
     const r = await query(
-      `SELECT * FROM duty_roster WHERE guild_id = $1 AND on_duty = TRUE ORDER BY checked_in_at DESC`,
+      `SELECT id, user_id, username, avatar_url, role, duty_type, notes, on_duty, checked_in_at, checked_out_at, duration_mins
+       FROM duty_roster WHERE guild_id = $1 AND on_duty = TRUE ORDER BY checked_in_at DESC`,
       [id]
     );
     res.json(r.rows);
   } catch { res.json([]); }
 });
 
-app.get('/api/guilds/:id/roster/history', requireAuth, async (req, res) => {
+app.get('/api/guilds/:id/roster/history', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   if (!DATABASE_URL) return res.json([]);
   try {
     const r = await query(
-      `SELECT * FROM duty_roster WHERE guild_id = $1 ORDER BY checked_in_at DESC LIMIT 100`,
+      `SELECT id, user_id, username, avatar_url, role, duty_type, notes, on_duty, checked_in_at, checked_out_at, duration_mins
+       FROM duty_roster WHERE guild_id = $1 ORDER BY checked_in_at DESC LIMIT 200`,
       [id]
     );
     res.json(r.rows);
   } catch { res.json([]); }
 });
 
-app.post('/api/guilds/:id/roster/checkin', requireAuth, async (req, res) => {
+app.post('/api/guilds/:id/roster/checkin', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   const { userId, username, role, dutyType, avatarUrl, notes } = req.body;
   if (!userId) return res.status(400).json({ error: 'userId required' });
@@ -3040,7 +3042,7 @@ app.post('/api/guilds/:id/roster/checkin', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/guilds/:id/roster/checkout', requireAuth, async (req, res) => {
+app.post('/api/guilds/:id/roster/checkout', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   const { userId } = req.body;
   if (!userId) return res.status(400).json({ error: 'userId required' });

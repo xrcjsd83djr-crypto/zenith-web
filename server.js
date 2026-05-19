@@ -1058,12 +1058,25 @@ app.post('/api/guilds/:id/strikes', requireAuth, async (req, res) => {
 
 app.delete('/api/guilds/:id/strikes/:strikeId', requireAuth, async (req, res) => {
   const { id, strikeId } = req.params;
+  const { removedBy, removedByName, removalReason } = req.body || {};
+  const removerId = removedBy || req.session?.user?.id || 'system';
+  const removerName = removedByName || req.session?.user?.username || 'system';
   try {
     await query(
-      `UPDATE strikes SET active = FALSE, removed_at = NOW(), removed_by = $3
+      `UPDATE strikes SET active = FALSE, removed_at = NOW(), removed_by = $3,
+       removed_by_name = $4, removal_reason = $5
        WHERE id = $1 AND guild_id = $2`,
-      [strikeId, id, req.session?.user?.id || 'system']
+      [strikeId, id, removerId, removerName, removalReason || null]
     );
+    // Update strike count on staff member
+    const strikeRow = await query(`SELECT user_id FROM strikes WHERE id=$1`, [strikeId]).catch(() => ({ rows: [] }));
+    if (strikeRow.rows[0]?.user_id) {
+      await query(
+        `UPDATE staff_members SET strikes = (SELECT COUNT(*) FROM strikes WHERE guild_id=$1 AND user_id=$2 AND active=TRUE)
+         WHERE guild_id=$1 AND user_id=$2`,
+        [id, strikeRow.rows[0].user_id]
+      ).catch(() => {});
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to revoke strike' });

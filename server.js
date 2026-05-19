@@ -3205,6 +3205,259 @@ for (const [route, file] of pages) {
 app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
 
 // ── 24. Start ────────────────────────────────────────────────────────────
+
+  // ─── Application Panels ───────────────────────────────────────────────────
+  app.get('/api/guilds/:id/application-panels', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    if (!DATABASE_URL) return res.json([]);
+    try {
+      const panels = await query('SELECT * FROM application_panels WHERE guild_id=$1 ORDER BY created_at', [id]);
+      const panelsWithCounts = await Promise.all(panels.rows.map(async p => {
+        const cnt = await query('SELECT COUNT(*) FROM application_submissions WHERE panel_id=$1', [p.id]).catch(() => ({ rows: [{ count: '0' }] }));
+        return { ...p, submission_count: parseInt(cnt.rows[0]?.count || '0') };
+      }));
+      res.json(panelsWithCounts);
+    } catch { res.json([]); }
+  });
+
+  app.post('/api/guilds/:id/application-panels', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { title, description, buttonLabel, questions, reviewRoleIds, reviewChannelId, enabled } = req.body;
+    if (!DATABASE_URL || !title) return res.status(400).json({ error: 'Title required' });
+    try {
+      const r = await query(
+        'INSERT INTO application_panels (guild_id, title, description, button_label, questions, review_role_ids, review_channel_id, enabled) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+        [id, title, description || '', buttonLabel || 'Apply Now', JSON.stringify(questions || []), reviewRoleIds || [], reviewChannelId || null, enabled !== false]
+      );
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.put('/api/guilds/:id/application-panels/:panelId', requireAuth, async (req, res) => {
+    const { id, panelId } = req.params;
+    const { title, description, buttonLabel, questions, reviewRoleIds, reviewChannelId, enabled } = req.body;
+    try {
+      const r = await query(
+        'UPDATE application_panels SET title=$1, description=$2, button_label=$3, questions=$4, review_role_ids=$5, review_channel_id=$6, enabled=$7 WHERE id=$8 AND guild_id=$9 RETURNING *',
+        [title, description || '', buttonLabel || 'Apply Now', JSON.stringify(questions || []), reviewRoleIds || [], reviewChannelId || null, enabled !== false, panelId, id]
+      );
+      if (!r.rows.length) return res.status(404).json({ error: 'Panel not found' });
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.delete('/api/guilds/:id/application-panels/:panelId', requireAuth, async (req, res) => {
+    const { id, panelId } = req.params;
+    try { await query('DELETE FROM application_panels WHERE id=$1 AND guild_id=$2', [panelId, id]); res.json({ ok: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ─── Application Submissions ──────────────────────────────────────────────
+  app.get('/api/guilds/:id/applications', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    if (!DATABASE_URL) return res.json([]);
+    try {
+      const r = await query('SELECT * FROM application_submissions WHERE guild_id=$1 ORDER BY created_at DESC LIMIT 200', [id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  app.post('/api/guilds/:id/applications/:subId/review', requireAuth, async (req, res) => {
+    const { id, subId } = req.params;
+    const { status, reviewerNotes, reviewerId, reviewerUsername } = req.body;
+    if (!['accepted','rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    try {
+      const r = await query(
+        'UPDATE application_submissions SET status=$1, reviewer_notes=$2, reviewer_id=$3, reviewer_username=$4, reviewed_at=NOW() WHERE id=$5 AND guild_id=$6 RETURNING *',
+        [status, reviewerNotes || '', reviewerId || null, reviewerUsername || null, subId, id]
+      );
+      if (!r.rows.length) return res.status(404).json({ error: 'Submission not found' });
+      await logActivity(id, req.session?.user?.id, req.session?.user?.username, 'application_' + status, { submissionId: subId }).catch(() => {});
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ─── Training ─────────────────────────────────────────────────────────────
+  app.get('/api/guilds/:id/training/programs', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    if (!DATABASE_URL) return res.json([]);
+    try {
+      const p = await query('SELECT tp.*, (SELECT COUNT(*) FROM training_completions WHERE program_id=tp.id) as completion_count FROM training_programs tp WHERE tp.guild_id=$1 ORDER BY tp.name', [id]);
+      res.json(p.rows);
+    } catch { res.json([]); }
+  });
+
+  app.post('/api/guilds/:id/training/programs', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { name, description, category, required } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name required' });
+    try {
+      const r = await query('INSERT INTO training_programs (guild_id, name, description, category, required) VALUES ($1,$2,$3,$4,$5) RETURNING *', [id, name, description || '', category || 'general', !!required]);
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.delete('/api/guilds/:id/training/programs/:progId', requireAuth, async (req, res) => {
+    const { id, progId } = req.params;
+    try { await query('DELETE FROM training_programs WHERE id=$1 AND guild_id=$2', [progId, id]); res.json({ ok: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.get('/api/guilds/:id/training/completions', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    if (!DATABASE_URL) return res.json([]);
+    try {
+      const r = await query('SELECT * FROM training_completions WHERE guild_id=$1 ORDER BY completed_at DESC LIMIT 200', [id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  app.post('/api/guilds/:id/training/completions', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { programId, username, score, notes, completedByName } = req.body;
+    if (!programId || !username) return res.status(400).json({ error: 'programId and username required' });
+    try {
+      const prog = await query('SELECT name FROM training_programs WHERE id=$1', [programId]);
+      const progName = prog.rows[0]?.name || 'Unknown';
+      const r = await query(
+        'INSERT INTO training_completions (guild_id, program_id, program_name, username, completed_by_name, score, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+        [id, programId, progName, username, completedByName || '', score ? parseFloat(score) : null, notes || '']
+      );
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ─── Incident Reports ─────────────────────────────────────────────────────
+  app.get('/api/guilds/:id/incidents', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    if (!DATABASE_URL) return res.json([]);
+    try {
+      const r = await query('SELECT * FROM incident_reports WHERE guild_id=$1 ORDER BY created_at DESC LIMIT 200', [id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  app.post('/api/guilds/:id/incidents', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { title, description, severity, involvedStaff, location, reportedByName } = req.body;
+    if (!title || !description) return res.status(400).json({ error: 'Title and description required' });
+    try {
+      const r = await query(
+        'INSERT INTO incident_reports (guild_id, title, description, severity, involved_staff, location, reported_by_name, reported_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+        [id, title, description, severity || 'medium', involvedStaff || '', location || '', reportedByName || '', req.session?.user?.id || '']
+      );
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ─── Staff Goals ──────────────────────────────────────────────────────────
+  app.get('/api/guilds/:id/goals', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    if (!DATABASE_URL) return res.json([]);
+    try {
+      const r = await query('SELECT * FROM staff_goals WHERE guild_id=$1 ORDER BY created_at DESC', [id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  app.post('/api/guilds/:id/goals', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { title, description, targetValue, unit, dueDate, username, createdByName } = req.body;
+    if (!title) return res.status(400).json({ error: 'Title required' });
+    try {
+      const r = await query(
+        'INSERT INTO staff_goals (guild_id, title, description, target_value, unit, due_date, username, created_by, created_by_name) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *',
+        [id, title, description || '', targetValue || null, unit || '', dueDate || null, username || null, req.session?.user?.id || '', createdByName || req.session?.user?.username || '']
+      );
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.patch('/api/guilds/:id/goals/:goalId', requireAuth, async (req, res) => {
+    const { id, goalId } = req.params;
+    const { currentValue } = req.body;
+    try {
+      const r = await query('UPDATE staff_goals SET current_value=$1, status=CASE WHEN $1::float >= COALESCE(target_value,0) AND target_value IS NOT NULL THEN 'completed' ELSE status END WHERE id=$2 AND guild_id=$3 RETURNING *', [currentValue, goalId, id]);
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.delete('/api/guilds/:id/goals/:goalId', requireAuth, async (req, res) => {
+    const { id, goalId } = req.params;
+    try { await query('DELETE FROM staff_goals WHERE id=$1 AND guild_id=$2', [goalId, id]); res.json({ ok: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ─── Custom Commands Bot Endpoint (for bot to fetch) ─────────────────────
+  app.get('/api/guilds/:id/custom-commands/bot', requireBotSecret, async (req, res) => {
+    const { id } = req.params;
+    if (!DATABASE_URL) return res.json([]);
+    try {
+      const r = await query('SELECT * FROM custom_commands WHERE guild_id=$1 AND is_active=TRUE ORDER BY name', [id]);
+      res.json(r.rows);
+    } catch { res.json([]); }
+  });
+
+  // ─── Fix Performance POST ─────────────────────────────────────────────────
+  app.post('/api/guilds/:id/performance', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { targetUserId, targetUsername, rating, strengths, improvements, notes, period, reviewerUsername, reviewerId, isPublic } = req.body;
+    if (!targetUserId || !targetUsername || !rating) return res.status(400).json({ error: 'targetUserId, targetUsername, and rating required' });
+    try {
+      const rId = reviewerId || req.session?.user?.id || 'unknown';
+      const rName = reviewerUsername || req.session?.user?.username || 'Unknown';
+      const r = await query(
+        'INSERT INTO performance_reviews (guild_id, target_user_id, target_username, reviewer_id, reviewer_username, rating, strengths, improvements, notes, period, is_public) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *',
+        [id, targetUserId, targetUsername, rId, rName, parseInt(rating), strengths || '', improvements || '', notes || '', period || '', isPublic !== false]
+      );
+      await logActivity(id, rId, rName, 'performance_review', { target: targetUsername, rating }).catch(() => {});
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ─── Fix custom-commands to work for free tier too (5 limit) ─────────────
+  app.post('/api/guilds/:id/custom-commands', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { name, description, response, embedTitle, embedColor, requiresRole, isEmbed } = req.body;
+    if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+    if (!name?.trim() || !response?.trim()) return res.status(400).json({ error: 'Name and response required' });
+    try {
+      const pR = await query('SELECT is_premium FROM servers WHERE id=$1', [id]).catch(() => ({ rows: [] }));
+      const isPrem = !!pR.rows[0]?.is_premium;
+      if (!isPrem) {
+        const cnt = await query('SELECT COUNT(*) FROM custom_commands WHERE guild_id=$1 AND is_active=TRUE', [id]);
+        if (parseInt(cnt.rows[0].count) >= 5) return res.status(403).json({ error: 'Free tier: max 5 custom commands. Upgrade to Premium for unlimited.' });
+      }
+      const r = await query(
+        'INSERT INTO custom_commands (guild_id, name, description, response, embed_title, embed_color, is_embed, requires_role) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (guild_id, name) DO UPDATE SET description=$3, response=$4, embed_title=$5, embed_color=$6, is_embed=$7, requires_role=$8 RETURNING *',
+        [id, name.trim().toLowerCase().replace(/^\//,''), description || '', response.trim(), embedTitle || null, embedColor || '#5865F2', !!isEmbed, requiresRole || null]
+      );
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ─── Shift Send Cards ─────────────────────────────────────────────────────
+  app.post('/api/guilds/:id/shifts/send-cards', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { period, channelId, sendDm } = req.body;
+    if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+    const pR = await query('SELECT is_premium FROM servers WHERE id=$1', [id]).catch(() => ({ rows: [] }));
+    const isPrem = !!pR.rows[0]?.is_premium;
+    if (!isPrem && !sendDm) return res.status(403).json({ error: 'Premium required for channel shift cards' });
+    try {
+      let interval = '1 day';
+      if (period === 'yesterday') interval = '2 days';
+      else if (period === 'week') interval = '7 days';
+      else if (period === 'month') interval = '30 days';
+      const r = await query(
+        'SELECT user_id, username, SUM(duration_mins) as total_mins, COUNT(*) as shifts, MIN(started_at) as first_shift, MAX(ended_at) as last_shift FROM shifts WHERE guild_id=$1 AND ended_at IS NOT NULL AND started_at > NOW() - $2::interval GROUP BY user_id, username',
+        [id, interval]
+      );
+      await logActivity(id, req.session?.user?.id, req.session?.user?.username, 'shift_cards_sent', { count: r.rows.length, period }).catch(() => {});
+      res.json({ ok: true, count: r.rows.length, period });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+  
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);
 });

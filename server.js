@@ -3683,11 +3683,53 @@ app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
     try {
       const r = await query(
         'UPDATE application_submissions SET status=$1, reviewer_notes=$2, reviewer_id=$3, reviewer_username=$4, reviewed_at=NOW() WHERE id=$5 AND guild_id=$6 RETURNING *',
-        [status, reviewerNotes || '', reviewerId || null, reviewerUsername || null, subId, id]
+        [status, reviewerNotes || '', reviewerId || req.session?.user?.id || null, reviewerUsername || req.session?.user?.username || null, subId, id]
       );
       if (!r.rows.length) return res.status(404).json({ error: 'Submission not found' });
-      await logActivity(id, req.session?.user?.id, req.session?.user?.username, 'application_' + status, { submissionId: subId }).catch(() => {});
-      res.json(r.rows[0]);
+      const sub = r.rows[0];
+      await logActivity(id, req.session?.user?.id, req.session?.user?.username, 'application_' + status, { submissionId: subId, applicant: sub.username }).catch(() => {});
+
+      // DM the applicant with their result
+      if (DISCORD_BOT_TOKEN && sub.user_id) {
+        (async () => {
+          try {
+            const cfgR = await query(`SELECT embed_color, embed_footer FROM server_config WHERE guild_id=$1`, [id]).catch(() => ({ rows: [] }));
+            const embedColor = status === 'accepted' ? 0x57F287 : 0xED4245;
+            const embedFooter = cfgR.rows[0]?.embed_footer || 'Zenith Staff Management';
+            const title = status === 'accepted' ? '✅ Application Accepted' : '❌ Application Rejected';
+            const desc = status === 'accepted'
+              ? `Your application for **${sub.panel_title || 'Staff Position'}** has been **accepted**! Congratulations!`
+              : `Your application for **${sub.panel_title || 'Staff Position'}** has been **rejected**.`;
+            const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
+              method: 'POST',
+              headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ recipient_id: sub.user_id }),
+            });
+            if (dmRes.ok) {
+              const dm = await dmRes.json();
+              await fetch(`${DISCORD_API}/channels/${dm.id}/messages`, {
+                method: 'POST',
+                headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  embeds: [{
+                    color: embedColor,
+                    title,
+                    description: desc,
+                    fields: [
+                      ...(reviewerNotes ? [{ name: 'Reviewer Notes', value: reviewerNotes, inline: false }] : []),
+                      { name: 'Reviewed By', value: reviewerUsername || req.session?.user?.username || 'Management', inline: true },
+                    ],
+                    footer: { text: embedFooter },
+                    timestamp: new Date().toISOString(),
+                  }],
+                }),
+              }).catch(() => {});
+            }
+          } catch { /* DMs may be disabled */ }
+        })();
+      }
+
+      res.json(sub);
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 

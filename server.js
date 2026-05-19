@@ -1593,31 +1593,34 @@ app.get('/api/guilds/:id/promotions', requireAuth, async (req, res) => {
   } catch { res.json([]); }
 });
 
-app.post('/api/guilds/:id/promotions', requireAuth, async (req, res) => {
+app.post('/api/guilds/:id/promotions', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
-  const { userId, username, type, fromRank, toRank, reason, promotedBy, promotedByName, discordRoleId } = req.body;
-  if (!userId || !type || !toRank) return res.status(400).json({ error: 'Missing required fields' });
+  const { userId, username, type, fromRank, toRank, toRankName, reason, promotedBy, promotedByName, promotedById, discordRoleId } = req.body;
+  const resolvedToRank = toRank || toRankName;
+  const resolvedPromotedBy = promotedBy || promotedById || req.session?.user?.id;
+  const resolvedPromotedByName = promotedByName || req.session?.user?.username || 'Unknown';
+  if (!userId || !type || !resolvedToRank) return res.status(400).json({ error: 'Missing required fields: userId, type, toRank' });
   try {
     // Update staff member rank
     await query(
       `UPDATE staff_members SET rank = $1, role = $1, updated_at = NOW() WHERE guild_id = $2 AND user_id = $3`,
-      [toRank, id, userId]
+      [resolvedToRank, id, userId]
     );
     // Log it
     const r = await query(
       `INSERT INTO promotion_history (guild_id, user_id, username, type, from_rank, to_rank, reason, promoted_by, promoted_by_name)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-      [id, userId, username, type || 'promotion', fromRank || null, toRank, reason || null, promotedBy, promotedByName]
+      [id, userId, username, type || 'promotion', fromRank || null, resolvedToRank, reason || null, resolvedPromotedBy, resolvedPromotedByName]
     );
     // Sync Discord role if configured and bot token available
     if (discordRoleId && DISCORD_BOT_TOKEN) {
       await fetch(`${DISCORD_API}/guilds/${id}/members/${userId}/roles/${discordRoleId}`, {
         method: 'PUT',
-        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json', 'X-Audit-Log-Reason': `${type} to ${toRank} — Zenith` },
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json', 'X-Audit-Log-Reason': `${type} to ${resolvedToRank} — Zenith` },
         body: '{}',
       }).catch(() => {});
     }
-    await logActivity(id, promotedBy, promotedByName, `staff_${type || 'promotion'}`, { userId, fromRank, toRank });
+    await logActivity(id, resolvedPromotedBy, resolvedPromotedByName, `staff_${type || 'promotion'}`, { userId, fromRank, toRank: resolvedToRank });
 
     // Send DM card to the promoted/demoted user via Discord API
     if (DISCORD_BOT_TOKEN && userId) {
@@ -1746,7 +1749,7 @@ app.get('/api/guilds/:id/shifts/active/:userId', requireAuth, async (req, res) =
 });
 
 // ── FEATURE 3 (PREMIUM): Divisions System ────────────────────────────────
-app.get('/api/guilds/:id/divisions', requireAuth, async (req, res) => {
+app.get('/api/guilds/:id/divisions', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   if (!DATABASE_URL) return res.json([]);
   try {
@@ -2318,18 +2321,20 @@ const publicPath = join(__dirname, 'dist');
     } catch { res.json([]); }
   });
 
-  app.post('/api/guilds/:id/blacklist', requireAuth, async (req, res) => {
+  app.post('/api/guilds/:id/blacklist', requireBotOrAuth, async (req, res) => {
     const { id } = req.params;
-    const { userId, username, reason, addedBy, addedByName } = req.body;
-    if (!username || !reason || !addedBy) return res.status(400).json({ error: 'Missing required fields' });
+    const { userId, username, reason, addedBy, addedByName, addedById } = req.body;
+    const resolvedAddedBy = addedBy || addedById || req.session?.user?.id;
+    const resolvedAddedByName = addedByName || req.session?.user?.username || 'Unknown';
+    if (!userId || !reason || !resolvedAddedBy) return res.status(400).json({ error: 'userId, reason and addedBy are required' });
     if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
     try {
       const r = await query(
         `INSERT INTO blacklist (guild_id, user_id, username, reason, added_by, added_by_name, active)
          VALUES ($1,$2,$3,$4,$5,$6,TRUE) RETURNING *`,
-        [id, userId || null, username, reason, addedBy, addedByName]
+        [id, userId, username || userId, reason, resolvedAddedBy, resolvedAddedByName]
       );
-      await logActivity(id, addedBy, addedByName, 'blacklist_add', { username, reason });
+      await logActivity(id, resolvedAddedBy, resolvedAddedByName, 'blacklist_add', { username: username || userId, reason });
       res.json(r.rows[0]);
     } catch (err) {
       console.error('[blacklist add]', err);
@@ -2338,7 +2343,7 @@ const publicPath = join(__dirname, 'dist');
   });
 
   // Get blacklist entry by Discord user ID (bot uses this for /blacklist check)
-  app.get('/api/guilds/:id/blacklist/user/:userId', requireAuth, async (req, res) => {
+  app.get('/api/guilds/:id/blacklist/user/:userId', requireBotOrAuth, async (req, res) => {
     const { id, userId } = req.params;
     if (!DATABASE_URL) return res.status(404).json({ error: 'Not found' });
     try {
@@ -2352,7 +2357,7 @@ const publicPath = join(__dirname, 'dist');
   });
 
   // Remove blacklist entry by Discord user ID (bot uses this for /blacklist remove)
-  app.delete('/api/guilds/:id/blacklist/user/:userId', requireAuth, async (req, res) => {
+  app.delete('/api/guilds/:id/blacklist/user/:userId', requireBotOrAuth, async (req, res) => {
     const { id, userId } = req.params;
     try {
       await query(`UPDATE blacklist SET active=FALSE WHERE guild_id=$1 AND user_id=$2`, [id, userId]);
@@ -3154,7 +3159,7 @@ app.post('/api/guilds/:id/roster/checkout', requireBotOrAuth, async (req, res) =
 });
 
 // ── Commendations ─────────────────────────────────────────────────────────
-app.get('/api/guilds/:id/commendations', requireAuth, async (req, res) => {
+app.get('/api/guilds/:id/commendations', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   if (!DATABASE_URL) return res.json([]);
   try {
@@ -3175,7 +3180,7 @@ app.get('/api/guilds/:id/commendations/leaderboard', requireAuth, async (req, re
   } catch { res.json([]); }
 });
 
-app.post('/api/guilds/:id/commendations', requireAuth, async (req, res) => {
+app.post('/api/guilds/:id/commendations', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   // Support both naming conventions: bot uses issuedById, dashboard uses givenById
   const targetUserId = req.body.targetUserId;
@@ -3913,7 +3918,7 @@ app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
   });
 
   // ─── Training ─────────────────────────────────────────────────────────────
-  app.get('/api/guilds/:id/training/programs', requireAuth, async (req, res) => {
+  app.get('/api/guilds/:id/training/programs', requireBotOrAuth, async (req, res) => {
     const { id } = req.params;
     if (!DATABASE_URL) return res.json([]);
     try {
@@ -3947,23 +3952,35 @@ app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
     } catch { res.json([]); }
   });
 
-  app.post('/api/guilds/:id/training/completions', requireAuth, async (req, res) => {
+  app.post('/api/guilds/:id/training/completions', requireBotOrAuth, async (req, res) => {
     const { id } = req.params;
-    const { programId, username, score, notes, completedByName } = req.body;
-    if (!programId || !username) return res.status(400).json({ error: 'programId and username required' });
+    const { programId, programName, userId, username, score, notes, completedByName, trainerId, trainerName } = req.body;
+    // Bot sends programName (not programId), so we look up by name if programId missing
+    const resolvedTrainer = trainerId || completedByName || req.session?.user?.id;
+    const resolvedTrainerName = trainerName || completedByName || req.session?.user?.username || 'Unknown';
+    if (!username) return res.status(400).json({ error: 'username required' });
     try {
-      const prog = await query('SELECT name FROM training_programs WHERE id=$1', [programId]);
-      const progName = prog.rows[0]?.name || 'Unknown';
+      let resolvedProgramId = programId;
+      let progName = programName || 'Unknown';
+      if (!resolvedProgramId && programName) {
+        const pRow = await query('SELECT id, name FROM training_programs WHERE guild_id=$1 AND LOWER(name)=LOWER($2)', [id, programName]);
+        if (pRow.rows.length) { resolvedProgramId = pRow.rows[0].id; progName = pRow.rows[0].name; }
+      } else if (resolvedProgramId) {
+        const prog = await query('SELECT name FROM training_programs WHERE id=$1', [resolvedProgramId]);
+        progName = prog.rows[0]?.name || programName || 'Unknown';
+      }
+      if (!resolvedProgramId) return res.status(400).json({ error: 'Training program not found. Please provide a valid programId or programName.' });
       const r = await query(
-        'INSERT INTO training_completions (guild_id, program_id, program_name, username, completed_by_name, score, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-        [id, programId, progName, username, completedByName || '', score ? parseFloat(score) : null, notes || '']
+        'INSERT INTO training_completions (guild_id, program_id, program_name, user_id, username, completed_by_name, score, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *' ,
+        [id, resolvedProgramId, progName, userId || null, username, resolvedTrainerName, score ? parseFloat(score) : null, notes || null]
       );
+      await logActivity(id, resolvedTrainer, resolvedTrainerName, 'training_complete', { username, program: progName });
       res.json(r.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
   // ─── Incident Reports ─────────────────────────────────────────────────────
-  app.get('/api/guilds/:id/incidents', requireAuth, async (req, res) => {
+  app.get('/api/guilds/:id/incidents', requireBotOrAuth, async (req, res) => {
     const { id } = req.params;
     if (!DATABASE_URL) return res.json([]);
     try {
@@ -3972,9 +3989,9 @@ app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
     } catch { res.json([]); }
   });
 
-  app.post('/api/guilds/:id/incidents', requireAuth, async (req, res) => {
+  app.post('/api/guilds/:id/incidents', requireBotOrAuth, async (req, res) => {
     const { id } = req.params;
-    const { title, description, severity, involvedStaff, location, reportedByName } = req.body;
+    const { title, description, severity, involvedStaff, location, reportedByName, reportedById } = req.body;
     if (!title?.trim()) return res.status(400).json({ error: 'Title is required.' });
     if (!description?.trim()) return res.status(400).json({ error: 'Description is required.' });
     try {
@@ -4007,7 +4024,7 @@ app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
   });
 
   // ─── Staff Goals ──────────────────────────────────────────────────────────
-  app.get('/api/guilds/:id/goals', requireAuth, async (req, res) => {
+  app.get('/api/guilds/:id/goals', requireBotOrAuth, async (req, res) => {
     const { id } = req.params;
     if (!DATABASE_URL) return res.json([]);
     try {

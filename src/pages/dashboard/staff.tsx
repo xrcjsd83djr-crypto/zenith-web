@@ -3,15 +3,123 @@ import { useState, useEffect, useCallback } from "react";
   import { Badge } from "@/components/ui/badge";
   import { Button } from "@/components/ui/button";
   import { Input } from "@/components/ui/input";
-  import { Label } from "@/components/ui/label";
-  import { Users, Search, RefreshCw, Loader2, CheckCircle, UserCheck, AlertCircle, Shield, ChevronDown, X } from "lucide-react";
+  import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+  import { Users, Search, RefreshCw, Loader2, CheckCircle, UserCheck, AlertCircle, Shield, ChevronDown, X, Star, AlertTriangle, Clock } from "lucide-react";
 
-  interface StaffMember { id: string; userId: string; username: string; displayName?: string; avatar?: string; rank?: string; }
+  interface StaffMember {
+    id: string; user_id?: string; userId?: string; username: string;
+    displayName?: string; avatar?: string; avatar_url?: string;
+    rank?: string; role?: string; division?: string; callsign?: string;
+    roblox_username?: string; notes?: string; joined_at?: string;
+    last_active?: string; is_active?: boolean; roles?: string[];
+  }
   interface Role { id: string; name: string; color?: number; }
+  interface StaffDetail extends StaffMember {
+    strikes?: { id: string; reason: string; severity: string; active: boolean; created_at: string; issued_by_name?: string }[];
+    loaHistory?: { id: string; status: string; reason: string; start_date: string; end_date: string }[];
+  }
 
   function roleColor(color?: number) {
     if (!color) return '#94a3b8';
     return '#' + color.toString(16).padStart(6, '0');
+  }
+
+  function Avatar({ member, size = 10 }: { member: StaffMember; size?: number }) {
+    const avatarUrl = member.avatar_url || member.avatar;
+    const name = member.displayName || member.username || '?';
+    const sizeClass = size === 10 ? 'w-10 h-10 text-base' : size === 8 ? 'w-8 h-8 text-sm' : 'w-12 h-12 text-lg';
+    if (avatarUrl) {
+      return (
+        <img
+          src={avatarUrl}
+          alt={name}
+          className={`${sizeClass} rounded-full object-cover flex-shrink-0 border border-amber-200`}
+          onError={(e: any) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+        />
+      );
+    }
+    return (
+      <div className={`${sizeClass} rounded-full bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0 font-bold text-amber-700`}>
+        {name[0].toUpperCase()}
+      </div>
+    );
+  }
+
+  function StaffPopup({ member, onClose, guildId }: { member: StaffMember; onClose: () => void; guildId: string }) {
+    const [detail, setDetail] = useState<StaffDetail | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+      const uid = member.user_id || member.userId;
+      if (!uid) { setLoading(false); setDetail(member as StaffDetail); return; }
+      fetch(`/api/guilds/${guildId}/staff/${uid}`, { credentials: 'include' })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { setDetail(d || (member as StaffDetail)); setLoading(false); })
+        .catch(() => { setDetail(member as StaffDetail); setLoading(false); });
+    }, [guildId, member]);
+
+    const d = detail;
+    const activeLoa = d?.loaHistory?.find(l => ['approved', 'active'].includes(l.status));
+    const activeStrikes = (d?.strikes || []).filter(s => s.active !== false);
+
+    return (
+      <Dialog open onOpenChange={v => { if (!v) onClose(); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <Avatar member={member} size={10} />
+              <div>
+                <p className="font-bold text-base">{member.displayName || member.username}</p>
+                {member.displayName && member.username && member.displayName !== member.username && (
+                  <p className="text-xs text-muted-foreground font-normal">@{member.username}</p>
+                )}
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          {loading ? (
+            <div className="flex justify-center py-8"><Loader2 className="animate-spin text-muted-foreground" size={20} /></div>
+          ) : d ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><p className="text-xs text-muted-foreground font-medium mb-0.5">Rank</p><p className="font-semibold">{d.rank || d.role || '—'}</p></div>
+                <div><p className="text-xs text-muted-foreground font-medium mb-0.5">Division</p><p>{d.division || '—'}</p></div>
+                <div><p className="text-xs text-muted-foreground font-medium mb-0.5">Callsign</p><p className="font-mono">{d.callsign || '—'}</p></div>
+                {d.roblox_username && <div><p className="text-xs text-muted-foreground font-medium mb-0.5">Roblox</p><p>{d.roblox_username}</p></div>}
+                <div><p className="text-xs text-muted-foreground font-medium mb-0.5">Joined</p><p>{d.joined_at ? new Date(d.joined_at).toLocaleDateString() : '—'}</p></div>
+                {d.last_active && <div><p className="text-xs text-muted-foreground font-medium mb-0.5">Last Active</p><p>{new Date(d.last_active).toLocaleDateString()}</p></div>}
+              </div>
+              <div className="flex gap-2">
+                <div className={`flex-1 rounded-lg p-3 border text-center ${activeStrikes.length > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                  <p className={`text-xl font-bold ${activeStrikes.length > 0 ? 'text-red-600' : 'text-green-600'}`}>{activeStrikes.length}</p>
+                  <p className="text-xs text-muted-foreground">Active Strikes</p>
+                </div>
+                <div className={`flex-1 rounded-lg p-3 border text-center ${activeLoa ? 'bg-yellow-50 border-yellow-200' : 'bg-muted/30 border-border'}`}>
+                  <p className={`text-xl font-bold ${activeLoa ? 'text-yellow-600' : 'text-muted-foreground'}`}>{activeLoa ? activeLoa.status : '—'}</p>
+                  <p className="text-xs text-muted-foreground">LOA Status</p>
+                </div>
+              </div>
+              {activeStrikes.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Active Strikes</p>
+                  {activeStrikes.slice(0, 3).map(s => (
+                    <div key={s.id} className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs">
+                      <span className="font-semibold capitalize">{s.severity}</span>
+                      {s.issued_by_name && <span className="text-muted-foreground"> · by {s.issued_by_name}</span>}
+                      <p className="text-muted-foreground mt-0.5">{s.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {d.notes && (
+                <div><p className="text-xs font-semibold text-muted-foreground mb-1">Notes</p><p className="text-sm bg-muted/30 rounded-lg p-3 border">{d.notes}</p></div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">No details available.</p>
+          )}
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   export default function StaffPage({ guildId }: { guildId: string }) {
@@ -24,6 +132,7 @@ import { useState, useEffect, useCallback } from "react";
     const [isLoading, setIsLoading] = useState(true);
     const [membersLoading, setMembersLoading] = useState(false);
     const [staffLoaded, setStaffLoaded] = useState(false);
+    const [selectedMember, setSelectedMember] = useState<StaffMember | null>(null);
 
     const fetchRoles = useCallback(async () => {
       try {
@@ -78,7 +187,8 @@ import { useState, useEffect, useCallback } from "react";
 
     const filteredStaff = staffMembers.filter(m =>
       (m.username || '').toLowerCase().includes(search.toLowerCase()) ||
-      (m.displayName || '').toLowerCase().includes(search.toLowerCase())
+      (m.displayName || '').toLowerCase().includes(search.toLowerCase()) ||
+      (m.rank || m.role || '').toLowerCase().includes(search.toLowerCase())
     );
 
     if (isLoading) return (
@@ -93,17 +203,15 @@ import { useState, useEffect, useCallback } from "react";
           <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
             <Users className="w-6 h-6" style={{ color: '#d4af37' }} /> Staff Directory
           </h2>
-          <p className="text-muted-foreground mt-0.5 text-sm">Select the Discord roles that represent your staff tiers to load members.</p>
+          <p className="text-muted-foreground mt-0.5 text-sm">Select the Discord roles that represent your staff tiers to load members. Click any member to view their profile.</p>
         </div>
 
-        {/* Role picker */}
         <Card className="border-border bg-white shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold">Select Staff Roles</CardTitle>
             <p className="text-xs text-muted-foreground">Choose which roles should be considered as staff. Members with these roles will appear in the directory.</p>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Selected role badges */}
             {selectedRoleObjects.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {selectedRoleObjects.map(r => (
@@ -118,7 +226,6 @@ import { useState, useEffect, useCallback } from "react";
               </div>
             )}
 
-            {/* Searchable role dropdown */}
             <div className="relative">
               <Button variant="outline" size="sm" onClick={() => setRoleOpen(o => !o)}
                 className="w-full sm:w-72 justify-between gap-2 font-normal text-xs h-9 bg-white border-border">
@@ -163,7 +270,6 @@ import { useState, useEffect, useCallback } from "react";
           </CardContent>
         </Card>
 
-        {/* Staff list */}
         {staffLoaded && (
           <div className="space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -193,36 +299,68 @@ import { useState, useEffect, useCallback } from "react";
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {filteredStaff.map(member => {
                   const memberRoles = selectedRoleObjects.filter(r => (member as any).roles?.includes(r.id));
+                  const avatarUrl = member.avatar_url || member.avatar;
+                  const name = member.displayName || member.username || '?';
                   return (
-                    <Card key={member.id || member.userId} className="border-border bg-white shadow-sm hover:shadow-md transition-shadow">
-                      <CardContent className="p-3 flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-200 flex items-center justify-center flex-shrink-0 text-sm font-bold text-amber-700">
-                          {(member.displayName || member.username || '?')[0].toUpperCase()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="font-semibold text-sm truncate">{member.displayName || member.username}</div>
-                          {member.displayName && member.username && member.displayName !== member.username && (
-                            <div className="text-xs text-muted-foreground truncate">@{member.username}</div>
-                          )}
-                          {memberRoles.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {memberRoles.slice(0, 2).map(r => (
-                                <span key={r.id} className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: roleColor(r.color) + '20', color: roleColor(r.color) }}>
-                                  {r.name}
-                                </span>
-                              ))}
+                    <button
+                      key={member.id || member.user_id || member.userId}
+                      onClick={() => setSelectedMember(member)}
+                      className="text-left w-full"
+                    >
+                      <Card className="border-border bg-white shadow-sm hover:shadow-md hover:border-amber-200 transition-all cursor-pointer">
+                        <CardContent className="p-3 flex items-center gap-3">
+                          <div className="relative flex-shrink-0">
+                            {avatarUrl ? (
+                              <img
+                                src={avatarUrl}
+                                alt={name}
+                                className="w-10 h-10 rounded-full object-cover border border-amber-200"
+                                onError={(e: any) => {
+                                  e.target.style.display = 'none';
+                                  const fallback = e.target.parentNode.querySelector('.avatar-fallback');
+                                  if (fallback) fallback.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <div
+                              className="avatar-fallback w-10 h-10 rounded-full bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-200 items-center justify-center text-sm font-bold text-amber-700"
+                              style={{ display: avatarUrl ? 'none' : 'flex' }}
+                            >
+                              {name[0].toUpperCase()}
                             </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold text-sm truncate">{name}</div>
+                            {member.displayName && member.username && member.displayName !== member.username && (
+                              <div className="text-xs text-muted-foreground truncate">@{member.username}</div>
+                            )}
+                            {(member.rank || member.role) && (
+                              <div className="text-xs text-muted-foreground truncate">{member.rank || member.role}</div>
+                            )}
+                            {memberRoles.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {memberRoles.slice(0, 2).map(r => (
+                                  <span key={r.id} className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: roleColor(r.color) + '20', color: roleColor(r.color) }}>
+                                    {r.name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <ChevronDown size={12} className="text-muted-foreground flex-shrink-0 -rotate-90" />
+                        </CardContent>
+                      </Card>
+                    </button>
                   );
                 })}
               </div>
             )}
           </div>
         )}
+
+        {selectedMember && (
+          <StaffPopup member={selectedMember} guildId={guildId} onClose={() => setSelectedMember(null)} />
+        )}
       </div>
     );
   }
-  

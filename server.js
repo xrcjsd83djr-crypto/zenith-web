@@ -2863,6 +2863,22 @@ const publicPath = join(__dirname, 'dist');
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(guild_id, name)
       );
+      CREATE TABLE IF NOT EXISTS staff_goals (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        target_value NUMERIC,
+        current_value NUMERIC DEFAULT 0,
+        unit TEXT DEFAULT '',
+        due_date DATE,
+        status TEXT DEFAULT 'active',
+        user_id TEXT,
+        username TEXT,
+        created_by TEXT NOT NULL DEFAULT '',
+        created_by_name TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
       CREATE TABLE IF NOT EXISTS inactivity_scans (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         guild_id TEXT NOT NULL,

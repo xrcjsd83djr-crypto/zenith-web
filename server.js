@@ -3087,6 +3087,20 @@ app.delete('/api/guilds/:id/custom-commands/:cmdId', requireAuth, async (req, re
   } catch { res.status(500).json({ error: 'Failed' }); }
 });
 
+  // Increment custom command use count (called by bot after execution)
+  app.post('/api/guilds/:id/custom-commands/:cmdId/use', requireAuth, async (req, res) => {
+    const { id, cmdId } = req.params;
+    if (!DATABASE_URL) return res.json({ ok: true });
+    try {
+      await query(
+        `UPDATE custom_commands SET use_count = COALESCE(use_count, 0) + 1 WHERE id = $1 AND guild_id = $2`,
+        [cmdId, id]
+      );
+      res.json({ ok: true });
+    } catch { res.json({ ok: true }); }
+  });
+  
+
 // Fetch custom commands for bot runtime
 app.get('/api/guilds/:id/custom-commands/bot', requireBotSecret, async (req, res) => {
   const { id } = req.params;
@@ -3287,7 +3301,8 @@ app.get('/api/guilds/:id/embed-config/bot', requireBotSecret, async (req, res) =
 
 // ── Changelog / Status ────────────────────────────────────────────────────
 const CHANGELOG = [
-  { version: '2.3.0', date: '2026-05-18', type: 'feature', changes: ['Added Duty Roster — check in/out of active duty', 'Added Staff Handbook — configurable docs for your server', 'Added Commendations — recognize outstanding staff', 'Added Rank Requests — staff can request promotions via dashboard', 'Added Weekly Schedule planner', 'Added Strike Automation config page (Premium)', 'Added Advanced Analytics with 7-day trends (Premium)', 'Added Custom Commands builder (Premium)', 'Added Inactivity Scanner (Premium)', 'Added Mass DM to all staff (Premium)'] },
+  { version: '2.4.0', date: '2026-05-19', type: 'feature', changes: ['Fixed critical server startup crash (db.js migrations)', 'Fixed inactivity scanner table name bug (activity_logs)', 'Added auto-strike escalation when warning threshold is reached', 'Added mass-DM endpoint alias for announcements page', 'Bot now registers custom commands as guild slash commands', 'Bot customization now applies changes to Discord via REST', 'Rank limit enforced: free=5, premium=unlimited', 'Division limit enforced: free=5, premium=50', 'Announcements dialog crash fixed (empty Select value)', 'Added /commend and /note Discord commands', 'Custom command use count tracking'] },
+    { version: '2.3.0', date: '2026-05-18', type: 'feature', changes: ['Added Duty Roster — check in/out of active duty', 'Added Staff Handbook — configurable docs for your server', 'Added Commendations — recognize outstanding staff', 'Added Rank Requests — staff can request promotions via dashboard', 'Added Weekly Schedule planner', 'Added Strike Automation config page (Premium)', 'Added Advanced Analytics with 7-day trends (Premium)', 'Added Custom Commands builder (Premium)', 'Added Inactivity Scanner (Premium)', 'Added Mass DM to all staff (Premium)'] },
   { version: '2.2.0', date: '2026-05-17', type: 'feature', changes: ['Promotions & Demotion history page', 'Shift tracking with live timer', 'Divisions system with Discord role sync', 'Performance reviews with leaderboard', 'Analytics dashboard', 'Auth fix: bot commands now work without BOT_SECRET on web service'] },
   { version: '2.1.0', date: '2026-05-15', type: 'fix', changes: ['Fixed 403/401 bot command errors', 'Premium grant now works end-to-end', 'Improved embed colors', 'Added /analytics, /schedule, /performance, /divisions commands'] },
   { version: '2.0.0', date: '2026-05-10', type: 'major', changes: ['Complete rewrite — Express 5 backend', 'New React dashboard with Vite', 'Discord OAuth2 authentication', 'Full strike, LOA, application, warning systems', 'Real-time Discord bot integration'] },

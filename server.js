@@ -2158,6 +2158,13 @@ if (DATABASE_URL) {
         ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS embed_color TEXT DEFAULT '#5865F2';
         ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS allowed_roles TEXT[] DEFAULT '{}';
         ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS requires_role TEXT;
+        ALTER TABLE duty_roster ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+        ALTER TABLE duty_roster ADD COLUMN IF NOT EXISTS duration_mins NUMERIC DEFAULT 0;
+        ALTER TABLE duty_roster ADD COLUMN IF NOT EXISTS duty_type TEXT DEFAULT 'general';
+        ALTER TABLE duty_roster ADD COLUMN IF NOT EXISTS notes TEXT;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS embed_color TEXT DEFAULT '#d4af37';
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS embed_footer TEXT DEFAULT 'Zenith Staff Management';
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS staff_role_ids TEXT[] DEFAULT '{}';
       `);
       console.log('[DB] New feature tables migrated');
     } catch (e) {
@@ -3008,16 +3015,26 @@ app.get('/api/guilds/:id/roster/history', requireAuth, async (req, res) => {
 
 app.post('/api/guilds/:id/roster/checkin', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { userId, username, role } = req.body;
+  const { userId, username, role, dutyType, avatarUrl, notes } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
   try {
     // End any existing open duty
     await query(
-      `UPDATE duty_roster SET on_duty = FALSE, checked_out_at = NOW() WHERE guild_id = $1 AND user_id = $2 AND on_duty = TRUE`,
+      `UPDATE duty_roster SET on_duty = FALSE, checked_out_at = NOW(),
+         duration_mins = EXTRACT(EPOCH FROM (NOW() - checked_in_at)) / 60
+       WHERE guild_id = $1 AND user_id = $2 AND on_duty = TRUE`,
       [id, userId]
     ).catch(() => {});
+    // Lookup avatar from staff_members if not provided
+    let finalAvatar = avatarUrl || null;
+    if (!finalAvatar) {
+      const smR = await query(`SELECT avatar_url FROM staff_members WHERE guild_id=$1 AND user_id=$2`, [id, userId]).catch(() => ({ rows: [] }));
+      finalAvatar = smR.rows[0]?.avatar_url || null;
+    }
     const r = await query(
-      `INSERT INTO duty_roster (guild_id, user_id, username, role, on_duty) VALUES ($1,$2,$3,$4,TRUE) RETURNING *`,
-      [id, userId, username, role || 'Staff']
+      `INSERT INTO duty_roster (guild_id, user_id, username, role, duty_type, avatar_url, notes, on_duty)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE) RETURNING *`,
+      [id, userId, username, role || 'Staff', dutyType || 'general', finalAvatar, notes || null]
     );
     res.json(r.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -3026,9 +3043,12 @@ app.post('/api/guilds/:id/roster/checkin', requireAuth, async (req, res) => {
 app.post('/api/guilds/:id/roster/checkout', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
   try {
     await query(
-      `UPDATE duty_roster SET on_duty = FALSE, checked_out_at = NOW() WHERE guild_id = $1 AND user_id = $2 AND on_duty = TRUE`,
+      `UPDATE duty_roster SET on_duty = FALSE, checked_out_at = NOW(),
+         duration_mins = EXTRACT(EPOCH FROM (NOW() - checked_in_at)) / 60
+       WHERE guild_id = $1 AND user_id = $2 AND on_duty = TRUE`,
       [id, userId]
     );
     res.json({ success: true });

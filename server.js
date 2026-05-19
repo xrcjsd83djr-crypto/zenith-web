@@ -2887,6 +2887,68 @@ const publicPath = join(__dirname, 'dist');
         show_timestamp BOOLEAN DEFAULT TRUE,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS training_programs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        category TEXT DEFAULT 'general',
+        required BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS training_completions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        program_id UUID REFERENCES training_programs(id) ON DELETE SET NULL,
+        program_name TEXT,
+        username TEXT NOT NULL,
+        user_id TEXT,
+        completed_by_name TEXT,
+        score NUMERIC,
+        notes TEXT,
+        completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS incident_reports (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        severity TEXT DEFAULT 'medium',
+        involved_staff TEXT DEFAULT '',
+        location TEXT,
+        reported_by TEXT,
+        reported_by_name TEXT,
+        status TEXT DEFAULT 'open',
+        resolution TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS application_panels (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        questions JSONB DEFAULT '[]',
+        button_label TEXT DEFAULT 'Apply Now',
+        review_role_ids TEXT[] DEFAULT '{}',
+        review_channel_id TEXT DEFAULT '',
+        enabled BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS application_submissions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        guild_id TEXT NOT NULL,
+        panel_id UUID REFERENCES application_panels(id) ON DELETE CASCADE,
+        panel_title TEXT,
+        user_id TEXT NOT NULL,
+        username TEXT NOT NULL,
+        answers JSONB DEFAULT '{}',
+        status TEXT DEFAULT 'pending',
+        reviewer_id TEXT,
+        reviewer_username TEXT,
+        reviewer_notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
     console.log('[DB] Extended tables migrated');
   } catch (err) {

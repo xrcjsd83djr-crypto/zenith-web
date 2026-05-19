@@ -37,6 +37,7 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
   import InactivityPage from "@/pages/dashboard/inactivity";
   import PromotionsPage from "@/pages/dashboard/promotions";
   import ShiftsPage from "@/pages/dashboard/shifts";
+import RosterPage from "@/pages/dashboard/roster";
   import DivisionsPage from "@/pages/dashboard/divisions";
   import PerformancePage from "@/pages/dashboard/performance";
   import AnalyticsPage from "@/pages/dashboard/analytics";
@@ -84,7 +85,7 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
           <Route path="/dashboard/:guildId/bot-customization"  component={() => <BotCustomizationPage guildId={guildId} />} />
           <Route path="/dashboard/:guildId/promotions"         component={() => <PromotionsPage      guildId={guildId} />} />
           <Route path="/dashboard/:guildId/shifts"             component={() => <ShiftsPage          guildId={guildId} />} />
-          <Route path="/dashboard/:guildId/roster"             component={() => <ShiftsPage          guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/roster"             component={() => <RosterPage          guildId={guildId} />} />
           <Route path="/dashboard/:guildId/divisions"          component={() => <DivisionsPage       guildId={guildId} />} />
           <Route path="/dashboard/:guildId/performance"        component={() => <PerformancePage     guildId={guildId} />} />
           <Route path="/dashboard/:guildId/analytics"          component={() => <AnalyticsPage       guildId={guildId} />} />

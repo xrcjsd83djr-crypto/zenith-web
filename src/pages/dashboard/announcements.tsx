@@ -63,7 +63,7 @@ import { useState, useEffect, useCallback } from "react";
     const [submitting, setSubmitting] = useState(false);
     const [massSubmitting, setMassSubmitting] = useState(false);
     const [massResult, setMassResult] = useState<any>(null);
-    const [form, setForm] = useState({ title: '', content: '', channelId: '', sendToDiscord: true });
+    const [form, setForm] = useState({ title: '', content: '', channelId: 'none', sendToDiscord: true });
     const [massMsg, setMassMsg] = useState({ title: '', message: '' });
     const [toast, setToast] = useState<{ type: "ok"|"err"; text: string } | null>(null);
     const showToast = (type: "ok"|"err", text: string) => { setToast({ type, text }); setTimeout(() => setToast(null), 4000); };
@@ -95,13 +95,13 @@ import { useState, useEffect, useCallback } from "react";
         const res = await fetch(`/api/guilds/${guildId}/announcements`, {
           method: 'POST', credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: form.title, content: form.content, channelId: form.channelId || null, sendToDiscord: form.sendToDiscord, authorId: me?.id, authorUsername: me?.username }),
+          body: JSON.stringify({ title: form.title, content: form.content, channelId: (form.channelId && form.channelId !== 'none') ? form.channelId : null, sendToDiscord: form.sendToDiscord && form.channelId !== 'none', authorId: me?.id, authorUsername: me?.username }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed');
         showToast("ok", "Announcement sent!");
         setOpen(false);
-        setForm({ title: '', content: '', channelId: '', sendToDiscord: true });
+        setForm({ title: '', content: '', channelId: 'none', sendToDiscord: true });
         fetchAll();
       } catch (err: any) { showToast("err", err.message); }
       setSubmitting(false);
@@ -192,7 +192,7 @@ import { useState, useEffect, useCallback } from "react";
                 <Select value={form.channelId} onValueChange={v => setForm(f => ({...f, channelId: v}))}>
                   <SelectTrigger><SelectValue placeholder="Select a channel" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Don't post to Discord</SelectItem>
+                    <SelectItem value="none">Don't post to Discord</SelectItem>
                     {channels.map(c => <SelectItem key={c.id} value={c.id}>#{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>

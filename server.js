@@ -3280,7 +3280,13 @@ app.get('/api/guilds/:id/handbook', requireAuth, async (req, res) => {
   const { id } = req.params;
   if (!DATABASE_URL) return res.json([]);
   try {
-    const r = await query(`SELECT * FROM staff_handbook WHERE guild_id = $1 ORDER BY sort_order ASC, created_at ASC`, [id]);
+    // Alias section→category and sort_order→order_index so frontend field names match
+    const r = await query(
+      `SELECT id, title, content, section, section AS category, sort_order, sort_order AS order_index,
+              is_public, is_premium, created_at, updated_at
+       FROM staff_handbook WHERE guild_id = $1 ORDER BY sort_order ASC, created_at ASC`,
+      [id]
+    );
     res.json(r.rows);
   } catch { res.json([]); }
 });
@@ -3297,26 +3303,55 @@ app.get('/api/guilds/:id/handbook/bot', requireBotSecret, async (req, res) => {
 
 app.post('/api/guilds/:id/handbook', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { title, content, section, sortOrder } = req.body;
+  // Support both field naming conventions: frontend uses category/isPublic, bot uses section/sortOrder
+  const title = req.body.title;
+  const content = req.body.content;
+  const section = req.body.section || req.body.category || 'General';
+  const sortOrder = req.body.sortOrder || req.body.order_index || 0;
+  const isPublic = req.body.isPublic !== undefined ? req.body.isPublic : true;
   if (!title?.trim() || !content?.trim()) return res.status(400).json({ error: 'Title and content required' });
   try {
     const r = await query(
-      `INSERT INTO staff_handbook (guild_id, title, content, section, sort_order)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [id, title.trim(), content.trim(), section || 'General', sortOrder || 0]
+      `INSERT INTO staff_handbook (guild_id, title, content, section, sort_order, is_public)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [id, title.trim(), content.trim(), section, sortOrder, isPublic]
     );
     res.json(r.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.patch('/api/guilds/:id/handbook/:entryId', requireAuth, async (req, res) => {
+// Also accept PUT for handbook (frontend uses PUT when editing)
+app.put('/api/guilds/:id/handbook/:entryId', requireAuth, async (req, res) => {
   const { id, entryId } = req.params;
-  const { title, content, section, sortOrder } = req.body;
+  const title = req.body.title;
+  const content = req.body.content;
+  const section = req.body.section || req.body.category || null;
+  const sortOrder = req.body.sortOrder || req.body.order_index || null;
+  const isPublic = req.body.isPublic !== undefined ? req.body.isPublic : null;
   try {
     const r = await query(
-      `UPDATE staff_handbook SET title = COALESCE($1, title), content = COALESCE($2, content), section = COALESCE($3, section), sort_order = COALESCE($4, sort_order), updated_at = NOW()
-       WHERE id = $5 AND guild_id = $6 RETURNING *`,
-      [title || null, content || null, section || null, sortOrder ?? null, entryId, id]
+      `UPDATE staff_handbook SET title=COALESCE($1,title), content=COALESCE($2,content), section=COALESCE($3,section),
+       sort_order=COALESCE($4,sort_order), is_public=COALESCE($5,is_public), updated_at=NOW()
+       WHERE id=$6 AND guild_id=$7 RETURNING *`,
+      [title||null, content||null, section, sortOrder, isPublic, entryId, id]
+    );
+    res.json(r.rows[0] || { error: 'Not found' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/guilds/:id/handbook/:entryId', requireAuth, async (req, res) => {
+  const { id, entryId } = req.params;
+  const title = req.body.title;
+  const content = req.body.content;
+  const section = req.body.section || req.body.category || null;
+  const sortOrder = req.body.sortOrder || req.body.order_index || null;
+  const isPublic = req.body.isPublic !== undefined ? req.body.isPublic : null;
+  try {
+    const r = await query(
+      `UPDATE staff_handbook SET title=COALESCE($1,title), content=COALESCE($2,content), section=COALESCE($3,section),
+       sort_order=COALESCE($4,sort_order), is_public=COALESCE($5,is_public), updated_at=NOW()
+       WHERE id=$6 AND guild_id=$7 RETURNING *`,
+      [title||null, content||null, section, sortOrder, isPublic, entryId, id]
     );
     res.json(r.rows[0] || { error: 'Not found' });
   } catch (err) { res.status(500).json({ error: err.message }); }

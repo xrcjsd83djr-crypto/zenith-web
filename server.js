@@ -504,13 +504,19 @@ app.put('/api/guilds/:id/config', requireAuth, async (req, res) => {
   const {
     logs_channel_id, loa_channel_id, applications_channel_id,
     applications_review_channel_id, welcome_channel_id, strike_log_channel_id,
+    promotion_log_channel_id, commendation_channel_id, shift_cards_channel_id,
     staff_role_id, admin_role_id, management_role_id, on_loa_role_id,
+    rank_request_reviewer_role_id,
     embed_color, embed_footer,
     strike_threshold, strike_action, strike_automation,
+    strike_dm_user, strike_log_enabled,
     loa_max_days, loa_require_approval,
     applications_enabled, applications_title, applications_questions,
     require_recommendations, auto_reject,
-    prefix, timezone, activity_tracking, staff_role_ids, admin_role_ids, management_role_ids,
+    prefix, timezone, activity_tracking, shift_tracking_enabled,
+    staff_role_ids, admin_role_ids, management_role_ids,
+    log_strikes, log_promotions, log_loa, log_commendations,
+    log_applications, log_staff_changes, log_shifts,
   } = req.body;
 
   try {
@@ -519,37 +525,64 @@ app.put('/api/guilds/:id/config', requireAuth, async (req, res) => {
         guild_id,
         logs_channel_id, loa_channel_id, applications_channel_id,
         applications_review_channel_id, welcome_channel_id, strike_log_channel_id,
+        promotion_log_channel_id, commendation_channel_id, shift_cards_channel_id,
         staff_role_id, admin_role_id, management_role_id, on_loa_role_id,
+        rank_request_reviewer_role_id,
         embed_color, embed_footer,
         strike_threshold, strike_action, strike_automation,
+        strike_dm_user, strike_log_enabled,
         loa_max_days, loa_require_approval,
         applications_enabled, applications_title, applications_questions,
         require_recommendations, auto_reject,
-        prefix, timezone, activity_tracking, staff_role_ids, admin_role_ids, management_role_ids, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::jsonb,$22,$23,$24,$25,$26,$27,$28,$29, NOW())
+        prefix, timezone, activity_tracking, shift_tracking_enabled,
+        staff_role_ids, admin_role_ids, management_role_ids,
+        log_strikes, log_promotions, log_loa, log_commendations,
+        log_applications, log_staff_changes, log_shifts,
+        updated_at
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+        $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+        $21,$22,$23,$24,$25,$26,$27::jsonb,$28,$29,$30,$31,$32,$33,$34,$35,$36,
+        $37,$38,$39,$40,$41,$42,$43,NOW()
+      )
       ON CONFLICT (guild_id) DO UPDATE SET
         logs_channel_id = $2, loa_channel_id = $3, applications_channel_id = $4,
         applications_review_channel_id = $5, welcome_channel_id = $6, strike_log_channel_id = $7,
-        staff_role_id = $8, admin_role_id = $9, management_role_id = $10, on_loa_role_id = $11,
-        embed_color = $12, embed_footer = $13,
-        strike_threshold = $14, strike_action = $15, strike_automation = $16,
-        loa_max_days = $17, loa_require_approval = $18,
-        applications_enabled = $19, applications_title = $20, applications_questions = $21::jsonb,
-        require_recommendations = $22, auto_reject = $23,
-        prefix = $24, timezone = $25, activity_tracking = $26, staff_role_ids = $27, admin_role_ids = $28, management_role_ids = $29, updated_at = NOW()
+        promotion_log_channel_id = $8, commendation_channel_id = $9, shift_cards_channel_id = $10,
+        staff_role_id = $11, admin_role_id = $12, management_role_id = $13, on_loa_role_id = $14,
+        rank_request_reviewer_role_id = $15,
+        embed_color = $16, embed_footer = $17,
+        strike_threshold = $18, strike_action = $19, strike_automation = $20,
+        strike_dm_user = $21, strike_log_enabled = $22,
+        loa_max_days = $23, loa_require_approval = $24,
+        applications_enabled = $25, applications_title = $26, applications_questions = $27::jsonb,
+        require_recommendations = $28, auto_reject = $29,
+        prefix = $30, timezone = $31, activity_tracking = $32, shift_tracking_enabled = $33,
+        staff_role_ids = $34, admin_role_ids = $35, management_role_ids = $36,
+        log_strikes = $37, log_promotions = $38, log_loa = $39, log_commendations = $40,
+        log_applications = $41, log_staff_changes = $42, log_shifts = $43,
+        updated_at = NOW()
       RETURNING *`,
       [
         id,
         logs_channel_id || null, loa_channel_id || null, applications_channel_id || null,
         applications_review_channel_id || null, welcome_channel_id || null, strike_log_channel_id || null,
+        promotion_log_channel_id || null, commendation_channel_id || null, shift_cards_channel_id || null,
         staff_role_id || null, admin_role_id || null, management_role_id || null, on_loa_role_id || null,
+        rank_request_reviewer_role_id || null,
         embed_color || '#d4af37', embed_footer || 'Zenith Staff Management',
         strike_threshold ?? 3, strike_action || 'demotion', !!strike_automation,
+        strike_dm_user !== false, strike_log_enabled !== false,
         loa_max_days ?? 14, loa_require_approval !== false,
         !!applications_enabled, applications_title || null,
         JSON.stringify(applications_questions || []),
         !!require_recommendations, !!auto_reject,
-        prefix || '!', timezone || 'UTC', activity_tracking !== false, Array.isArray(staff_role_ids) ? staff_role_ids : [], Array.isArray(admin_role_ids) ? admin_role_ids : [], Array.isArray(management_role_ids) ? management_role_ids : [],
+        prefix || '!', timezone || 'UTC', activity_tracking !== false, shift_tracking_enabled !== false,
+        Array.isArray(staff_role_ids) ? staff_role_ids : [],
+        Array.isArray(admin_role_ids) ? admin_role_ids : [],
+        Array.isArray(management_role_ids) ? management_role_ids : [],
+        log_strikes !== false, log_promotions !== false, log_loa !== false, log_commendations !== false,
+        log_applications !== false, log_staff_changes !== false, log_shifts !== false,
       ]
     );
 
@@ -1475,14 +1508,14 @@ app.get('/api/guilds/:id/shifts', requireAuth, async (req, res) => {
 
 app.post('/api/guilds/:id/shifts/start', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { userId, username } = req.body;
+  const { userId, username, shiftType, notes } = req.body;
   if (!userId) return res.status(400).json({ error: 'userId required' });
   try {
     // End any open shift first
     await query(`UPDATE shifts SET ended_at = NOW(), duration_mins = EXTRACT(EPOCH FROM (NOW() - started_at))/60 WHERE guild_id=$1 AND user_id=$2 AND ended_at IS NULL`, [id, userId]).catch(() => {});
     const r = await query(
-      `INSERT INTO shifts (guild_id, user_id, username, started_at) VALUES ($1,$2,$3,NOW()) RETURNING *`,
-      [id, userId, username]
+      `INSERT INTO shifts (guild_id, user_id, username, shift_type, notes, started_at) VALUES ($1,$2,$3,$4,$5,NOW()) RETURNING *`,
+      [id, userId, username, shiftType || 'general', notes || null]
     );
     await logActivity(id, userId, username, 'shift_start', {});
     res.json(r.rows[0]);
@@ -1515,6 +1548,17 @@ app.get('/api/guilds/:id/shifts/active', requireAuth, async (req, res) => {
     const r = await query(`SELECT * FROM shifts WHERE guild_id=$1 AND ended_at IS NULL`, [id]);
     res.json(r.rows);
   } catch { res.json([]); }
+});
+
+// Active shift for a specific user — used by bot /shift status
+app.get('/api/guilds/:id/shifts/active/:userId', requireAuth, async (req, res) => {
+  const { id, userId } = req.params;
+  if (!DATABASE_URL) return res.status(404).json({ error: 'No database' });
+  try {
+    const r = await query(`SELECT * FROM shifts WHERE guild_id=$1 AND user_id=$2 AND ended_at IS NULL LIMIT 1`, [id, userId]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'No active shift' });
+    res.json(r.rows[0]);
+  } catch { res.status(500).json({ error: 'Failed to fetch active shift' }); }
 });
 
 // ── FEATURE 3 (PREMIUM): Divisions System ────────────────────────────────
@@ -1878,6 +1922,23 @@ if (DATABASE_URL) {
         );
         ALTER TABLE servers ADD COLUMN IF NOT EXISTS bot_added BOOLEAN DEFAULT FALSE;
         ALTER TABLE servers ADD COLUMN IF NOT EXISTS owner_id TEXT;
+        ALTER TABLE shifts ADD COLUMN IF NOT EXISTS shift_type TEXT DEFAULT 'general';
+        ALTER TABLE shifts ADD COLUMN IF NOT EXISTS notes TEXT;
+        ALTER TABLE shifts ADD COLUMN IF NOT EXISTS break_mins NUMERIC DEFAULT 0;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS promotion_log_channel_id TEXT;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS commendation_channel_id TEXT;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS shift_cards_channel_id TEXT;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS rank_request_reviewer_role_id TEXT;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS strike_dm_user BOOLEAN DEFAULT TRUE;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS strike_log_enabled BOOLEAN DEFAULT TRUE;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS shift_tracking_enabled BOOLEAN DEFAULT TRUE;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_strikes BOOLEAN DEFAULT TRUE;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_promotions BOOLEAN DEFAULT TRUE;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_loa BOOLEAN DEFAULT TRUE;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_commendations BOOLEAN DEFAULT TRUE;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_applications BOOLEAN DEFAULT TRUE;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_staff_changes BOOLEAN DEFAULT TRUE;
+        ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_shifts BOOLEAN DEFAULT FALSE;
       `);
       console.log('[DB] New feature tables migrated');
     } catch (e) {
@@ -3377,7 +3438,7 @@ app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
     const { id, goalId } = req.params;
     const { currentValue } = req.body;
     try {
-      const r = await query('UPDATE staff_goals SET current_value=$1, status=CASE WHEN $1::float >= COALESCE(target_value,0) AND target_value IS NOT NULL THEN 'completed' ELSE status END WHERE id=$2 AND guild_id=$3 RETURNING *', [currentValue, goalId, id]);
+      const r = await query("UPDATE staff_goals SET current_value=$1, status=CASE WHEN $1::float >= COALESCE(target_value,0) AND target_value IS NOT NULL THEN 'completed' ELSE status END WHERE id=$2 AND guild_id=$3 RETURNING *", [currentValue, goalId, id]);
       res.json(r.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
   });

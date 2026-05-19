@@ -130,7 +130,7 @@ import { useState, useEffect, useCallback } from "react";
       setSave("saving");
       try {
         const res = await fetch(`/api/guilds/${guildId}/config`, {
-          method: "POST", credentials: "include",
+          method: "PUT", credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(cfg),
         });

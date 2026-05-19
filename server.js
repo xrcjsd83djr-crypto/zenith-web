@@ -1739,7 +1739,7 @@ app.get('/api/guilds/:id/analytics', requireAuth, async (req, res) => {
       query("SELECT COUNT(*) FROM loa_requests WHERE guild_id=$1 AND status IN ('approved','active')", [id]),
       query("SELECT COUNT(*) FROM promotion_history WHERE guild_id=$1 AND created_at > NOW() - INTERVAL '30 days'", [id]),
       query('SELECT action, COUNT(*) FROM activity_logs WHERE guild_id=$1 GROUP BY action ORDER BY count DESC LIMIT 10', [id]),
-      query('SELECT SUM(duration_mins) as total_mins, COUNT(*) as total_shifts FROM shifts WHERE guild_id=$1', [id]),
+      query('SELECT COALESCE(SUM(duration_mins),0) as total_mins, COUNT(*) as total_shifts FROM shifts WHERE guild_id=$1', [id]).catch(() => ({ rows: [{ total_mins: 0, total_shifts: 0 }] })),
     ]);
 
     // Premium: include trend data (last 7 days)
@@ -1754,8 +1754,7 @@ app.get('/api/guilds/:id/analytics', requireAuth, async (req, res) => {
 
     // Top performers (staff with most shifts)
     const topR = await query(
-      `SELECT sm.username, sm.user_id, COALESCE(SUM(sh.duration_mins),0) as total_mins, COALESCE(COUNT(sh.id),0) as shift_count,
-              sm.strikes as strike_count
+      `SELECT sm.username, sm.user_id, COALESCE(SUM(sh.duration_mins),0) as total_mins, COALESCE(COUNT(sh.id),0) as shift_count, COALESCE(sm.strikes,0) as strike_count
        FROM staff_members sm LEFT JOIN shifts sh ON sh.guild_id=sm.guild_id AND sh.user_id=sm.user_id AND sh.ended_at IS NOT NULL
        WHERE sm.guild_id=$1 AND sm.is_active=TRUE GROUP BY sm.user_id, sm.username, sm.strikes ORDER BY total_mins DESC LIMIT 5`,
       [id]

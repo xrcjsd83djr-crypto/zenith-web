@@ -1,130 +1,133 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, RefreshCw, Star, Clock, UserX, CheckCircle } from "lucide-react";
+  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+  import { Button } from "@/components/ui/button";
+  import { Badge } from "@/components/ui/badge";
+  import { Input } from "@/components/ui/input";
+  import { AlertTriangle, RefreshCw, Search, Clock, CheckCircle, Loader2, Star, Users, Eye } from "lucide-react";
 
-interface InactiveStaff { user_id: string; username: string; rank: string; last_activity: string | null; days_inactive: number | null; flagged: boolean; }
+  interface InactiveMember { id: string; user_id: string; username: string; last_activity?: string; days_inactive: number; status: string; scanned_at: string; action_taken?: string; }
 
-export default function InactivityPage({ guildId }: { guildId: string }) {
-  const [staff, setStaff] = useState<InactiveStaff[]>([]);
-  const [isPremium, setIsPremium] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  export default function InactivityPage({ guildId }: { guildId: string }) {
+    const [members, setMembers] = useState<InactiveMember[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [scanning, setScanning] = useState(false);
+    const [isPremium, setIsPremium] = useState(false);
+    const [search, setSearch] = useState('');
+    const [threshold, setThreshold] = useState(7);
+    const [toast, setToast] = useState<{ type: "ok"|"err"; text: string } | null>(null);
+    const showToast = (type: "ok"|"err", text: string) => { setToast({ type, text }); setTimeout(() => setToast(null), 4000); };
 
-  const fetchData = useCallback(async () => {
-    setLoading(true); setError('');
-    try {
-      const pRes = await fetch(`/api/guilds/${guildId}/is-premium`, { credentials: 'include' });
-      if (pRes.ok) { const p = await pRes.json(); setIsPremium(p.isPremium); }
-      const res = await fetch(`/api/guilds/${guildId}/inactivity`, { credentials: 'include' });
-      if (res.ok) { setStaff(await res.json()); }
-      else { const d = await res.json(); setError(d.error || 'Failed'); }
-    } catch (err: any) { setError(err.message); }
-    setLoading(false);
-  }, [guildId]);
+    const fetchData = useCallback(async () => {
+      setLoading(true);
+      try {
+        const [iRes, pRes] = await Promise.all([
+          fetch(`/api/guilds/${guildId}/inactivity`, { credentials: 'include' }),
+          fetch(`/api/guilds/${guildId}/premium`, { credentials: 'include' }),
+        ]);
+        if (iRes.ok) setMembers(await iRes.json());
+        if (pRes.ok) { const p = await pRes.json(); setIsPremium(p.isPremium); }
+      } catch {}
+      setLoading(false);
+    }, [guildId]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => { fetchData(); }, [fetchData]);
 
-  const flagged = staff.filter(s => s.flagged);
-  const active = staff.filter(s => !s.flagged);
+    const handleScan = async () => {
+      setScanning(true);
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/inactivity/scan`, {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ thresholdDays: threshold }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Scan failed');
+        showToast("ok", `Scan complete — ${data.flagged ?? 0} staff members flagged.`);
+        fetchData();
+      } catch (err: any) { showToast("err", err.message); }
+      setScanning(false);
+    };
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#d4af37', borderTopColor: 'transparent' }} /></div>;
+    const handleDismiss = async (id: string) => {
+      try {
+        await fetch(`/api/guilds/${guildId}/inactivity/${id}/dismiss`, { method: 'POST', credentials: 'include' });
+        setMembers(m => m.filter(x => x.id !== id));
+      } catch {}
+    };
 
-  return (
-    <div className="space-y-5 max-w-3xl">
-      <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
-            <UserX className="w-6 h-6" style={{ color: '#d4af37' }} />Inactivity Scanner
-            <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px]"><Star size={9} className="mr-0.5" />Premium</Badge>
-          </h2>
-          <p className="text-muted-foreground mt-0.5 text-sm">Automatically detect staff who haven't logged activity in 7+ days. Stay ahead of ghost members.</p>
+    const filtered = members.filter(m => !search || m.username.toLowerCase().includes(search.toLowerCase()));
+    const flagged = filtered.filter(m => m.status === 'flagged');
+    const dismissed = filtered.filter(m => m.status === 'dismissed');
+
+    return (
+      <div className="space-y-5 max-w-4xl">
+        {toast && <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${toast.type==='ok'?'bg-green-50 text-green-800 border border-green-200':'bg-red-50 text-red-800 border border-red-200'}`}>{toast.type==='ok'?<CheckCircle size={15}/>:<AlertTriangle size={15}/>}{toast.text}</div>}
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
+              <AlertTriangle className="w-6 h-6" style={{ color: '#d4af37' }} />Inactivity Scanner
+              {isPremium && <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px]"><Star size={9} className="mr-1"/>Premium</Badge>}
+            </h2>
+            <p className="text-muted-foreground mt-0.5 text-sm">{flagged.length} staff flagged for inactivity</p>
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchData} className="gap-1.5"><RefreshCw size={13}/>Refresh</Button>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchData} className="gap-1.5"><RefreshCw size={13} />Scan Now</Button>
-      </div>
 
-      {!isPremium ? (
-        <Card className="border-amber-200 bg-amber-50 shadow-sm">
-          <CardContent className="p-6 text-center">
-            <UserX className="w-10 h-10 mx-auto mb-3 text-amber-600" />
-            <h3 className="font-bold text-amber-800 mb-1">Premium Feature</h3>
-            <p className="text-amber-700 text-sm mb-4">The Inactivity Scanner checks your staff roster against activity logs and shift data to automatically flag members who've gone quiet for 7+ days.</p>
-            <a href="/premium" className="inline-block px-5 py-2 rounded-xl font-semibold text-sm" style={{ background: 'linear-gradient(135deg,#d4af37,#ffd700)', color: '#5a3e10' }}>Upgrade to Premium</a>
+        {!isPremium && (
+          <Card className="border-amber-200 bg-amber-50/50">
+            <CardContent className="p-4 flex items-start gap-3">
+              <Star className="text-amber-500 flex-shrink-0 mt-0.5" size={18}/>
+              <div>
+                <p className="font-semibold text-sm text-amber-800">Premium Feature Preview</p>
+                <p className="text-xs text-amber-700 mt-0.5">The Inactivity Scanner automatically identifies staff who haven't logged activity beyond your threshold. Set custom thresholds, auto-notify, or flag for review. Upgrade to Premium to activate full scanning.</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Run Inactivity Scan</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-muted-foreground">Flag staff inactive for more than</label>
+                <Input type="number" min={1} max={90} value={threshold} onChange={e => setThreshold(Number(e.target.value))} className="w-20 h-8 text-sm text-center"/>
+                <span className="text-sm text-muted-foreground">days</span>
+              </div>
+              <Button onClick={handleScan} disabled={scanning} size="sm" style={{ background: '#d4af37', color: '#000' }}>
+                {scanning ? <><Loader2 size={13} className="animate-spin mr-1.5"/>Scanning…</> : <><Search size={13} className="mr-1.5"/>Run Scan</>}
+              </Button>
+            </div>
           </CardContent>
         </Card>
-      ) : error ? (
-        <Card className="border-red-200 bg-red-50"><CardContent className="p-4 text-red-700 text-sm">{error}</CardContent></Card>
-      ) : (
-        <>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: 'Total Staff', val: staff.length, color: 'text-foreground' },
-              { label: '⚠ Flagged Inactive', val: flagged.length, color: 'text-orange-500' },
-              { label: '✓ Active (7d)', val: active.length, color: 'text-green-600' },
-            ].map(s => (
-              <Card key={s.label} className="border-border bg-white shadow-sm">
-                <CardContent className="p-4"><div className={`text-2xl font-extrabold ${s.color}`}>{s.val}</div><div className="text-xs text-muted-foreground mt-0.5">{s.label}</div></CardContent>
-              </Card>
-            ))}
-          </div>
 
-          {flagged.length > 0 && (
-            <Card className="border-orange-200 bg-orange-50/30 shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2 text-orange-700">
-                  <AlertTriangle size={14} />Flagged Inactive ({flagged.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {flagged.map(s => (
-                  <div key={s.user_id} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-orange-200 bg-orange-50">
-                    <div>
-                      <span className="font-semibold text-sm">{s.username}</span>
-                      {s.rank && <span className="text-xs text-muted-foreground ml-2">{s.rank}</span>}
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      {s.days_inactive !== null ? (
-                        <Badge className="bg-orange-100 text-orange-700 border-orange-200 text-xs flex items-center gap-1">
-                          <Clock size={10} />{s.days_inactive}d inactive
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-red-100 text-red-700 border-red-200 text-xs">No activity on record</Badge>
-                      )}
-                      {s.last_activity && <p className="text-[10px] text-muted-foreground mt-0.5">Last: {new Date(s.last_activity).toLocaleDateString()}</p>}
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+        <div className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"/><Input placeholder="Search staff..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 text-sm"/></div>
 
-          {active.length > 0 && (
-            <Card className="border-border bg-white shadow-sm">
-              <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2 text-green-600"><CheckCircle size={14} />Active Staff ({active.length})</CardTitle></CardHeader>
-              <CardContent>
-                <div className="space-y-1.5">
-                  {active.slice(0, 10).map(s => (
-                    <div key={s.user_id} className="flex items-center justify-between gap-3 p-2 rounded-lg border border-border">
-                      <span className="text-sm font-medium">{s.username}</span>
-                      {s.days_inactive !== null ? (
-                        <span className="text-xs text-green-600">Active {s.days_inactive}d ago</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Recent activity</span>
-                      )}
+        {loading ? <div className="flex justify-center py-16"><div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin" style={{borderColor:'#d4af37',borderTopColor:'transparent'}}/></div>
+          : flagged.length === 0 ? <Card><CardContent className="py-12 text-center"><CheckCircle size={32} className="mx-auto text-green-400 mb-2"/><p className="text-muted-foreground text-sm">No inactive staff flagged. Run a scan to check.</p></CardContent></Card>
+          : (
+            <div className="space-y-2">
+              {flagged.map(m => (
+                <Card key={m.id} className="border-orange-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0"><AlertTriangle size={16} className="text-orange-500"/></div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm">{m.username}</span>
+                          <Badge className="bg-orange-100 text-orange-700 border-orange-200 text-xs"><Clock size={9} className="mr-1"/>{m.days_inactive}d inactive</Badge>
+                        </div>
+                        {m.last_activity && <p className="text-xs text-muted-foreground mt-0.5">Last activity: {new Date(m.last_activity).toLocaleDateString()}</p>}
+                        <p className="text-xs text-muted-foreground">Scanned: {new Date(m.scanned_at).toLocaleDateString()}</p>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => handleDismiss(m.id)} className="flex-shrink-0 text-xs">Dismiss</Button>
                     </div>
-                  ))}
-                  {active.length > 10 && <p className="text-xs text-muted-foreground text-center pt-1">+{active.length - 10} more active</p>}
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
-
-          {staff.length === 0 && (
-            <Card className="border-border bg-white shadow-sm"><CardContent className="py-16 text-center"><UserX className="w-10 h-10 text-muted-foreground mx-auto mb-3" /><p className="font-semibold text-muted-foreground">No staff data yet</p><p className="text-sm text-muted-foreground mt-1">Add staff to your roster to start inactivity scanning.</p></CardContent></Card>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
+      </div>
+    );
+  }
+  

@@ -1,133 +1,190 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { RefreshCw, Loader2, Activity, Search, Shield, AlertTriangle, Calendar, Settings, Users } from "lucide-react";
+  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+  import { Button } from "@/components/ui/button";
+  import { Badge } from "@/components/ui/badge";
+  import { Input } from "@/components/ui/input";
+  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+  import { Activity, RefreshCw, ChevronDown, ChevronUp, Search, Filter, Clock, User, Info } from "lucide-react";
 
-interface LogEntry { id: string; type?: string; action: string; action_name?: string; user: string; user_name?: string; target?: string; target_name?: string; reason?: string; timestamp: string; }
+  interface LogEntry {
+    id: number; guild_id: string; user_id?: string; username?: string;
+    action: string; details: Record<string, any>; created_at: string;
+  }
 
-const ACTION_COLORS: Record<string, string> = {
-  'strike-issued': 'bg-red-500/20 text-red-400 border-red-500/30',
-  'strike': 'bg-red-500/20 text-red-400 border-red-500/30',
-  'loa-request': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  'loa': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  'staff_add': 'bg-green-500/20 text-green-400 border-green-500/30',
-  'staff_remove': 'bg-red-500/20 text-red-400 border-red-500/30',
-  'config_update': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  'bot-add': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-};
+  const ACTION_LABELS: Record<string, { label: string; color: string; icon: string }> = {
+    staff_add:       { label: "Staff Added",       color: "bg-green-100 text-green-700",  icon: "➕" },
+    staff_remove:    { label: "Staff Removed",     color: "bg-red-100 text-red-700",      icon: "➖" },
+    strike_add:      { label: "Strike Issued",     color: "bg-orange-100 text-orange-700",icon: "⚠️" },
+    strike_remove:   { label: "Strike Removed",    color: "bg-blue-100 text-blue-700",    icon: "✅" },
+    warning_add:     { label: "Warning Issued",    color: "bg-yellow-100 text-yellow-700",icon: "⚡" },
+    promotion:       { label: "Promotion",         color: "bg-purple-100 text-purple-700",icon: "⬆️" },
+    demotion:        { label: "Demotion",          color: "bg-pink-100 text-pink-700",    icon: "⬇️" },
+    blacklist_add:   { label: "Blacklisted",       color: "bg-red-100 text-red-800",      icon: "🚫" },
+    blacklist_remove:{ label: "Unblacklisted",     color: "bg-green-100 text-green-700",  icon: "✔️" },
+    loa_request:     { label: "LOA Request",       color: "bg-cyan-100 text-cyan-700",    icon: "📅" },
+    loa_approved:    { label: "LOA Approved",      color: "bg-teal-100 text-teal-700",    icon: "✅" },
+    config_update:   { label: "Config Updated",    color: "bg-gray-100 text-gray-700",    icon: "⚙️" },
+    shift_start:     { label: "Shift Started",     color: "bg-indigo-100 text-indigo-700",icon: "🕐" },
+    shift_end:       { label: "Shift Ended",       color: "bg-indigo-100 text-indigo-600",icon: "🕔" },
+    rank_create:     { label: "Rank Created",      color: "bg-violet-100 text-violet-700",icon: "🏅" },
+    note_added:      { label: "Note Added",        color: "bg-amber-100 text-amber-700",  icon: "📝" },
+    panel_posted:    { label: "Panel Posted",      color: "bg-sky-100 text-sky-700",      icon: "📌" },
+    commendation:    { label: "Commendation",      color: "bg-pink-100 text-pink-600",    icon: "🌟" },
+  };
 
-const ACTION_ICONS: Record<string, any> = {
-  strike: AlertTriangle, loa: Calendar, config: Settings, staff: Users,
-};
+  function ActionBadge({ action }: { action: string }) {
+    const info = ACTION_LABELS[action] || { label: action.replace(/_/g,' '), color: "bg-gray-100 text-gray-600", icon: "•" };
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${info.color}`}>
+        <span>{info.icon}</span>{info.label}
+      </span>
+    );
+  }
 
-export default function ActivityPage({ guildId }: { guildId: string }) {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState("all");
+  function LogRow({ log }: { log: LogEntry }) {
+    const [open, setOpen] = useState(false);
+    const ts = new Date(log.created_at);
+    const details = typeof log.details === 'object' ? log.details : {};
+    const detailKeys = Object.keys(details).filter(k => details[k] !== null && details[k] !== undefined && details[k] !== '');
 
-  const fetchLogs = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/guilds/${guildId}/audit-logs`, { credentials: 'include' });
-      if (res.ok) setLogs(await res.json());
-    } catch { }
-    setLoading(false);
-  }, [guildId]);
-
-  useEffect(() => { fetchLogs(); }, [fetchLogs]);
-
-  const filters = [
-    { key: 'all', label: 'All' },
-    { key: 'strike', label: 'Strikes' },
-    { key: 'loa', label: 'LOA' },
-    { key: 'discord', label: 'Discord' },
-    { key: 'activity', label: 'Activity' },
-  ];
-
-  const filtered = logs.filter(l => {
-    if (activeFilter !== 'all' && !l.type?.includes(activeFilter) && !l.action?.includes(activeFilter)) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return (l.user_name || l.user || '').toLowerCase().includes(q) ||
-        (l.target_name || l.target || '').toLowerCase().includes(q) ||
-        (l.action_name || l.action || '').toLowerCase().includes(q) ||
-        (l.reason || '').toLowerCase().includes(q);
-    }
-    return true;
-  });
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white">Audit Logs</h2>
-          <p className="text-gray-400 text-sm mt-1">All Discord and bot actions for this server</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={fetchLogs} className="border-[#3a3d4a] text-gray-300"><RefreshCw size={14} className="mr-2" />Refresh</Button>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by user, action, reason..." className="bg-[#1e2028] border-[#3a3d4a] text-white pl-9" />
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {filters.map(f => (
-            <Button key={f.key} size="sm" variant={activeFilter === f.key ? "default" : "outline"}
-              onClick={() => setActiveFilter(f.key)}
-              className={activeFilter === f.key ? "bg-blue-600 text-white" : "border-[#3a3d4a] text-gray-400 hover:text-white"}
-            >{f.label}</Button>
-          ))}
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="animate-spin text-blue-400" size={24} /></div>
-      ) : filtered.length === 0 ? (
-        <Card className="bg-[#161820] border-[#3a3d4a]">
-          <CardContent className="py-12 text-center">
-            <Activity className="mx-auto mb-3 text-gray-600" size={32} />
-            <p className="text-gray-400">No audit log entries found.</p>
-            <p className="text-gray-600 text-sm mt-1">Make sure the bot has the correct permissions.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="bg-[#161820] border-[#3a3d4a]">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white text-base flex items-center gap-2">
-              <Activity className="text-blue-400" size={16} />
-              {filtered.length} {filtered.length === 1 ? 'entry' : 'entries'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 p-3">
-            {filtered.map((log, i) => {
-              const actionKey = Object.keys(ACTION_COLORS).find(k => log.action?.includes(k) || log.type?.includes(k)) || 'default';
-              const colorClass = ACTION_COLORS[actionKey] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-              return (
-                <div key={log.id || i} className="flex items-start gap-3 p-3 bg-[#1e2028] rounded-lg hover:bg-[#252830] transition-colors">
-                  <div className="flex-shrink-0 mt-0.5">
-                    <div className="w-8 h-8 rounded-full bg-[#2a2d3a] flex items-center justify-center">
-                      <Shield size={14} className="text-gray-400" />
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge className={`${colorClass} text-xs border`}>{log.action_name || log.action}</Badge>
-                      {log.user_name && <span className="text-white text-sm font-medium">{log.user_name}</span>}
-                      {log.target_name && <><span className="text-gray-500 text-xs">→</span><span className="text-gray-300 text-sm">{log.target_name}</span></>}
-                    </div>
-                    {log.reason && <p className="text-gray-400 text-xs truncate">{log.reason}</p>}
-                    <p className="text-gray-600 text-xs">{log.timestamp ? new Date(log.timestamp).toLocaleString() : ''}</p>
-                  </div>
+    return (
+      <div className="border border-border rounded-lg overflow-hidden mb-2">
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left"
+        >
+          <ActionBadge action={log.action} />
+          <div className="flex-1 min-w-0">
+            {log.username && (
+              <span className="font-medium text-sm mr-2">{log.username}</span>
+            )}
+            {details.target && <span className="text-muted-foreground text-xs">→ {details.target}</span>}
+            {details.reason && <span className="text-muted-foreground text-xs ml-2 truncate">"{String(details.reason).slice(0,60)}"</span>}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-muted-foreground text-xs hidden sm:block">
+              {ts.toLocaleDateString()} {ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+            {open ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
+          </div>
+        </button>
+        {open && (
+          <div className="px-4 pb-4 border-t border-border bg-muted/20">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+              <div>
+                <p className="text-xs text-muted-foreground font-medium mb-0.5">Action</p>
+                <p className="text-sm">{ACTION_LABELS[log.action]?.label || log.action}</p>
+              </div>
+              {log.username && (
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium mb-0.5">By</p>
+                  <p className="text-sm font-medium">{log.username}</p>
                 </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
+              )}
+              {log.user_id && (
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium mb-0.5">User ID</p>
+                  <p className="text-sm font-mono text-xs">{log.user_id}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-muted-foreground font-medium mb-0.5">Timestamp</p>
+                <p className="text-sm">{ts.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium mb-0.5">Log ID</p>
+                <p className="text-sm font-mono text-xs">#{log.id}</p>
+              </div>
+              {detailKeys.map(key => (
+                <div key={key}>
+                  <p className="text-xs text-muted-foreground font-medium mb-0.5 capitalize">{key.replace(/_/g,' ')}</p>
+                  <p className="text-sm break-words">{String(details[key]).slice(0,200)}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  export default function ActivityPage({ guildId }: { guildId: string }) {
+    const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
+    const [actionFilter, setActionFilter] = useState('all');
+    const [page, setPage] = useState(1);
+    const PER_PAGE = 25;
+
+    const fetchLogs = useCallback(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/guilds/${guildId}/activity`, { credentials: 'include' });
+        if (res.ok) setLogs(await res.json());
+      } catch {}
+      setLoading(false);
+    }, [guildId]);
+
+    useEffect(() => { fetchLogs(); }, [fetchLogs]);
+
+    const filtered = logs.filter(l => {
+      const matchSearch = !search || l.username?.toLowerCase().includes(search.toLowerCase()) ||
+        l.action.includes(search.toLowerCase()) ||
+        JSON.stringify(l.details).toLowerCase().includes(search.toLowerCase());
+      const matchAction = actionFilter === 'all' || l.action === actionFilter;
+      return matchSearch && matchAction;
+    });
+
+    const paged = filtered.slice(0, page * PER_PAGE);
+    const uniqueActions = [...new Set(logs.map(l => l.action))].sort();
+
+    return (
+      <div className="space-y-5 max-w-4xl">
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
+              <Activity className="w-6 h-6" style={{ color: '#d4af37' }} />Activity Log
+            </h2>
+            <p className="text-muted-foreground mt-0.5 text-sm">
+              {filtered.length} of {logs.length} entries — click any row to expand details
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchLogs} className="gap-1.5"><RefreshCw size={13} />Refresh</Button>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="relative flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input placeholder="Search by user, action, or detail..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9 h-9 text-sm" />
+          </div>
+          <Select value={actionFilter} onValueChange={v => { setActionFilter(v); setPage(1); }}>
+            <SelectTrigger className="w-[180px] h-9 text-sm">
+              <Filter size={12} className="mr-1" /><SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Actions</SelectItem>
+              {uniqueActions.map(a => (
+                <SelectItem key={a} value={a}>{ACTION_LABELS[a]?.label || a}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-16"><div className="w-7 h-7 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#d4af37', borderTopColor: 'transparent' }} /></div>
+        ) : filtered.length === 0 ? (
+          <Card><CardContent className="py-12 text-center text-muted-foreground text-sm">No activity logs found.</CardContent></Card>
+        ) : (
+          <>
+            <div>{paged.map(log => <LogRow key={log.id} log={log} />)}</div>
+            {paged.length < filtered.length && (
+              <Button variant="outline" className="w-full" onClick={() => setPage(p => p + 1)}>
+                Load more ({filtered.length - paged.length} remaining)
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+  

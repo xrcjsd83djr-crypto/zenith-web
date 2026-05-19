@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback } from "react";
   import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
   import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
   import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-  import { Plus, Trash2, RefreshCw, ExternalLink, ChevronDown, ChevronUp, CheckCircle, X, Copy, Lock, Inbox, Settings, Eye } from "lucide-react";
+  import { Plus, Trash2, RefreshCw, ChevronDown, ChevronUp, CheckCircle, X, Copy, Lock, Inbox, Settings } from "lucide-react";
 
   interface AppPanel { id: string; title: string; description: string; questions: Question[]; button_label: string; review_role_ids: string[]; review_channel_id: string; enabled: boolean; created_at: string; submission_count?: number; }
   interface Question { id: string; text: string; type: "short" | "long" | "choice"; required: boolean; choices?: string[]; }
@@ -19,14 +19,19 @@ import { useState, useEffect, useCallback } from "react";
   const FREE_QUESTION_LIMIT = 13;
 
   function QEditor({ q, onChange, onDelete, isPremium, count }: { q: Question; onChange: (q: Question) => void; onDelete: () => void; isPremium: boolean; count: number; }) {
+    const [newChoice, setNewChoice] = useState("");
     return (
       <div className="border border-border rounded-lg p-3 space-y-2 bg-card">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-muted-foreground w-5">{count}.</span>
           <Input value={q.text} onChange={e => onChange({ ...q, text: e.target.value })} placeholder="Question text..." className="flex-1 h-8 text-sm" />
-          <Select value={q.type} onValueChange={v => onChange({ ...q, type: v as any })}>
-            <SelectTrigger className="w-24 h-8 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="short">Short</SelectItem><SelectItem value="long">Long</SelectItem></SelectContent>
+          <Select value={q.type} onValueChange={v => onChange({ ...q, type: v as any, choices: v === 'choice' ? (q.choices || []) : undefined })}>
+            <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="short">Short</SelectItem>
+              <SelectItem value="long">Long</SelectItem>
+              <SelectItem value="choice">Multiple Choice</SelectItem>
+            </SelectContent>
           </Select>
           <div className="flex items-center gap-1.5">
             <Switch checked={q.required} onCheckedChange={v => onChange({ ...q, required: v })} />
@@ -34,6 +39,67 @@ import { useState, useEffect, useCallback } from "react";
           </div>
           <button onClick={onDelete} className="text-muted-foreground hover:text-red-500 transition-colors p-1"><Trash2 size={13} /></button>
         </div>
+        {q.type === "choice" && (
+          <div className="ml-5 space-y-1.5">
+            <p className="text-xs text-muted-foreground font-medium">Answer choices:</p>
+            {(q.choices || []).map((c, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground w-4">{String.fromCharCode(65 + i)}.</span>
+                <Input
+                  value={c}
+                  onChange={e => {
+                    const choices = [...(q.choices || [])];
+                    choices[i] = e.target.value;
+                    onChange({ ...q, choices });
+                  }}
+                  className="flex-1 h-7 text-xs"
+                  placeholder={`Choice ${String.fromCharCode(65 + i)}`}
+                />
+                <button
+                  onClick={() => {
+                    const choices = (q.choices || []).filter((_, ii) => ii !== i);
+                    onChange({ ...q, choices });
+                  }}
+                  className="text-muted-foreground hover:text-red-500 transition-colors"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ))}
+            {(q.choices || []).length < 10 && (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={newChoice}
+                  onChange={e => setNewChoice(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newChoice.trim()) {
+                      onChange({ ...q, choices: [...(q.choices || []), newChoice.trim()] });
+                      setNewChoice("");
+                    }
+                  }}
+                  className="flex-1 h-7 text-xs"
+                  placeholder="Type a choice and press Enter..."
+                />
+                <Button
+                  size="sm" variant="outline"
+                  className="h-7 text-xs px-2"
+                  disabled={!newChoice.trim()}
+                  onClick={() => {
+                    if (newChoice.trim()) {
+                      onChange({ ...q, choices: [...(q.choices || []), newChoice.trim()] });
+                      setNewChoice("");
+                    }
+                  }}
+                >
+                  <Plus size={11} />
+                </Button>
+              </div>
+            )}
+            {(q.choices || []).length === 0 && (
+              <p className="text-xs text-muted-foreground italic">Add at least one choice.</p>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -74,11 +140,12 @@ import { useState, useEffect, useCallback } from "react";
             </div>
             {status === "pending" && (
               <div className="space-y-2 pt-2 border-t">
-                <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Review notes (optional)..." rows={2} className="text-sm" />
+                <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Review notes (optional, sent to applicant via DM)..." rows={2} className="text-sm" />
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => { setDeciding(true); onUpdate(s.id, "accepted", notes); }} disabled={deciding} className="bg-green-600 hover:bg-green-700 text-white flex-1 gap-1.5"><CheckCircle size={13} />Accept</Button>
                   <Button size="sm" onClick={() => { setDeciding(true); onUpdate(s.id, "rejected", notes); }} disabled={deciding} variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 flex-1 gap-1.5"><X size={13} />Reject</Button>
                 </div>
+                <p className="text-xs text-muted-foreground text-center">The applicant will receive a DM with the decision and your notes.</p>
               </div>
             )}
             {s.reviewer_notes && <div className="bg-muted/30 rounded-lg p-3 border"><p className="text-xs font-medium text-muted-foreground mb-1">Review Notes</p><p className="text-sm">{s.reviewer_notes}</p></div>}
@@ -180,7 +247,7 @@ import { useState, useEffect, useCallback } from "react";
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
             <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-2"><Inbox className="w-6 h-6" style={{ color: "#d4af37" }} />Applications</h2>
-            <p className="text-muted-foreground mt-0.5 text-sm">{pending.length} pending reviews • {panels.length} panel{panels.length !== 1 ? "s" : ""} • click submissions to review</p>
+            <p className="text-muted-foreground mt-0.5 text-sm">{pending.length} pending reviews • {panels.length} panel{panels.length !== 1 ? "s" : ""} • applicants receive DMs on decision</p>
           </div>
           <Button variant="outline" size="sm" onClick={fetchAll} className="gap-1.5"><RefreshCw size={13} />Refresh</Button>
         </div>
@@ -234,6 +301,8 @@ import { useState, useEffect, useCallback } from "react";
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span>{(p.questions || []).length} questions</span>
                         <span>•</span>
+                        <span>{(p.questions || []).filter(q => q.type === 'choice').length} multiple choice</span>
+                        <span>•</span>
                         <span>{p.submission_count || 0} submissions</span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-2 bg-muted/40 rounded-md px-2 py-1 w-fit">
@@ -268,7 +337,7 @@ import { useState, useEffect, useCallback } from "react";
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <Label className="text-sm font-semibold">Questions</Label>
-                      <p className="text-xs text-muted-foreground">{(editPanel.questions || []).length}/{isPremium ? "unlimited" : FREE_QUESTION_LIMIT} questions</p>
+                      <p className="text-xs text-muted-foreground">{(editPanel.questions || []).length}/{isPremium ? "unlimited" : FREE_QUESTION_LIMIT} — supports short, long, and multiple-choice</p>
                     </div>
                     <Button size="sm" variant="outline" onClick={addQuestion} disabled={(editPanel.questions || []).length >= qLimit} className="gap-1 text-xs"><Plus size={12} />Add Question</Button>
                   </div>
@@ -292,4 +361,3 @@ import { useState, useEffect, useCallback } from "react";
       </div>
     );
   }
-  

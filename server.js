@@ -84,6 +84,13 @@ function requireBotSecret(req, res, next) {
   next();
 }
 
+// Accepts either valid session OR valid bot-secret header
+function requireBotOrAuth(req, res, next) {
+  const incoming = (req.headers['x-bot-secret'] || '').trim();
+  if (incoming && (!BOT_SECRET || incoming === BOT_SECRET.trim())) return next();
+  return requireAuth(req, res, next);
+}
+
 // ── 5. Discord Auth ──────────────────────────────────────────────────────
 async function handleAuthCallback(req, res) {
   const { code } = req.query;
@@ -432,7 +439,7 @@ app.put('/api/guilds/:id', requireBotSecret, async (req, res) => {
 });
 
 // ── 10. Premium ─────────────────────────────────────────────────────────
-app.get('/api/guilds/:id/premium', requireAuth, async (req, res) => {
+app.get('/api/guilds/:id/premium', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   if (!DATABASE_URL) return res.json({ isPremium: false });
   try {
@@ -799,6 +806,94 @@ app.delete('/api/guilds/:id/staff/:userId', requireAuth, async (req, res) => {
     console.error('[staff remove]', err);
     res.status(500).json({ error: 'Failed to remove staff member' });
   }
+});
+
+// Bot-accessible staff roster (used by z!roster, /roster)
+app.get('/api/guilds/:id/staff/bot', requireBotSecret, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(
+      `SELECT user_id, username, rank, division, callsign, roblox_username, avatar_url, joined_at, last_active
+       FROM staff_members WHERE guild_id=$1 AND is_active=TRUE ORDER BY rank ASC, username ASC`,
+      [id]
+    );
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+// Bot-accessible staff info by userId (used by z!staffinfo, /staffinfo)
+app.get('/api/guilds/:id/staff/bot/:userId', requireBotSecret, async (req, res) => {
+  const { id, userId } = req.params;
+  if (!DATABASE_URL) return res.status(404).json({ error: 'Not found' });
+  try {
+    const [staffR, strikesR, loaR] = await Promise.all([
+      query(`SELECT * FROM staff_members WHERE guild_id=$1 AND user_id=$2 AND is_active=TRUE`, [id, userId]),
+      query(`SELECT * FROM strikes WHERE guild_id=$1 AND user_id=$2 AND active=TRUE ORDER BY created_at DESC`, [id, userId]),
+      query(`SELECT * FROM loa_requests WHERE guild_id=$1 AND user_id=$2 ORDER BY created_at DESC LIMIT 3`, [id, userId]),
+    ]);
+    if (!staffR.rows[0]) return res.status(404).json({ error: 'Staff member not found' });
+    res.json({ ...staffR.rows[0], strikes: strikesR.rows, loaHistory: loaR.rows });
+  } catch { res.status(500).json({ error: 'Failed to fetch staff member' }); }
+});
+
+// Bot-accessible strikes lookup (used by z!strikes, z!mystrikes)
+app.get('/api/guilds/:id/strikes/bot', requireBotSecret, async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.query;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = userId
+      ? await query(`SELECT * FROM strikes WHERE guild_id=$1 AND user_id=$2 ORDER BY created_at DESC`, [id, userId])
+      : await query(`SELECT * FROM strikes WHERE guild_id=$1 AND active=TRUE ORDER BY created_at DESC LIMIT 100`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+// Bot-accessible warnings lookup (used by z!warnings)
+app.get('/api/guilds/:id/warnings/bot', requireBotSecret, async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.query;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = userId
+      ? await query(`SELECT * FROM warnings WHERE guild_id=$1 AND user_id=$2 ORDER BY created_at DESC`, [id, userId])
+      : await query(`SELECT * FROM warnings WHERE guild_id=$1 AND active=TRUE ORDER BY created_at DESC LIMIT 100`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+// Bot-accessible LOA list (used by z!loa, /loa)
+app.get('/api/guilds/:id/loa/bot', requireBotSecret, async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.query;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = userId
+      ? await query(`SELECT * FROM loa_requests WHERE guild_id=$1 AND user_id=$2 ORDER BY created_at DESC LIMIT 10`, [id, userId])
+      : await query(`SELECT * FROM loa_requests WHERE guild_id=$1 AND status IN ('pending','approved','active') ORDER BY created_at DESC LIMIT 50`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+// Bot-accessible analytics summary (used by z!stats)
+app.get('/api/guilds/:id/analytics/bot', requireBotSecret, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  try {
+    const [staffR, strikesR, loaR, promoR] = await Promise.all([
+      query('SELECT COUNT(*) FROM staff_members WHERE guild_id=$1 AND is_active=TRUE', [id]),
+      query('SELECT COUNT(*) FROM strikes WHERE guild_id=$1 AND active=TRUE', [id]),
+      query(`SELECT COUNT(*) FROM loa_requests WHERE guild_id=$1 AND status IN ('approved','active')`, [id]),
+      query(`SELECT COUNT(*) FROM promotion_history WHERE guild_id=$1 AND created_at > NOW() - INTERVAL '30 days'`, [id]),
+    ]);
+    res.json({
+      totalStaff: parseInt(staffR.rows[0]?.count || '0'),
+      activeStrikes: parseInt(strikesR.rows[0]?.count || '0'),
+      activeLoa: parseInt(loaR.rows[0]?.count || '0'),
+      recentPromotions: parseInt(promoR.rows[0]?.count || '0'),
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Get saved staff role IDs
@@ -1269,13 +1364,10 @@ app.post('/api/guilds/:id/bot-customization', requireAuth, async (req, res) => {
             }
           } catch {}
         }
-        if (Object.keys(patch).length > 0) {
-          fetch('https://discord.com/api/v10/users/@me', {
-            method: 'PATCH',
-            headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(patch)
-          }).catch(() => {}); // fire-and-forget; Discord rate-limits username changes to 2/hr
-        }
+        // NOTE: We intentionally do NOT call /users/@me PATCH to change the global bot identity.
+        // That would affect all servers. Instead, per-server customization is surfaced via
+        // webhooks or nickname changes only — the stored name/avatar is used for webhook messages.
+        // Changing the global bot username here is a known loophole that breaks other servers.
       }
       res.json({ success: true });
   } catch (err) {
@@ -1513,6 +1605,54 @@ app.post('/api/guilds/:id/promotions', requireAuth, async (req, res) => {
       }).catch(() => {});
     }
     await logActivity(id, promotedBy, promotedByName, `staff_${type || 'promotion'}`, { userId, fromRank, toRank });
+
+    // Send DM card to the promoted/demoted user via Discord API
+    if (DISCORD_BOT_TOKEN && userId) {
+      (async () => {
+        try {
+          // Fetch embed config for this server
+          const cfgR = await query(`SELECT embed_color, embed_footer FROM server_config WHERE guild_id = $1`, [id]).catch(() => ({ rows: [] }));
+          const embedColor = cfgR.rows[0]?.embed_color || '#d4af37';
+          const embedFooter = cfgR.rows[0]?.embed_footer || 'Zenith Staff Management';
+          const isPromo = (type || 'promotion') === 'promotion';
+          const color = isPromo ? 0x57F287 : 0xED4245;
+          const emoji = isPromo ? '📈' : '📉';
+          const title = isPromo ? `${emoji} Congratulations on your Promotion!` : `${emoji} Staff Role Update`;
+          const desc = isPromo
+            ? `You have been promoted to **${toRank}** in your server!${fromRank ? `\n*Previous rank: ${fromRank}*` : ''}${reason ? `\n\n**Reason:** ${reason}` : ''}`
+            : `Your rank has been updated to **${toRank}**${fromRank ? ` from ${fromRank}` : ''}.${reason ? `\n\n**Reason:** ${reason}` : ''}`;
+
+          // Open DM channel
+          const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
+            method: 'POST',
+            headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipient_id: userId }),
+          });
+          if (dmRes.ok) {
+            const dm = await dmRes.json();
+            await fetch(`${DISCORD_API}/channels/${dm.id}/messages`, {
+              method: 'POST',
+              headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                embeds: [{
+                  color,
+                  title,
+                  description: desc,
+                  fields: [
+                    ...(fromRank ? [{ name: 'Previous Rank', value: fromRank, inline: true }] : []),
+                    { name: 'New Rank', value: toRank, inline: true },
+                    ...(promotedByName ? [{ name: isPromo ? 'Promoted By' : 'Actioned By', value: promotedByName, inline: true }] : []),
+                  ],
+                  footer: { text: embedFooter },
+                  timestamp: new Date().toISOString(),
+                }],
+              }),
+            }).catch(() => {});
+          }
+        } catch { /* DMs may be disabled */ }
+      })();
+    }
+
     res.json(r.rows[0]);
   } catch (err) {
     console.error('[promotions]', err);
@@ -1843,19 +1983,51 @@ app.get('/api/guilds/:id/analytics', requireAuth, async (req, res) => {
       [id]
     );
 
+    // Fetch extra premium stats
+    let commendationCount = 0, warnCount = 0, divisionCount = 0, avgShiftMins = 0;
+    if (isPrem) {
+      const [commR, warnR, divR] = await Promise.all([
+        query('SELECT COUNT(*) FROM commendations WHERE guild_id=$1', [id]).catch(() => ({ rows: [{ count: 0 }] })),
+        query('SELECT COUNT(*) FROM warnings WHERE guild_id=$1 AND active=TRUE', [id]).catch(() => ({ rows: [{ count: 0 }] })),
+        query('SELECT COUNT(*) FROM divisions WHERE guild_id=$1 AND is_active=TRUE', [id]).catch(() => ({ rows: [{ count: 0 }] })),
+      ]);
+      commendationCount = parseInt(commR.rows[0].count) || 0;
+      warnCount         = parseInt(warnR.rows[0].count) || 0;
+      divisionCount     = parseInt(divR.rows[0].count)  || 0;
+      const totalMins   = Math.round(parseFloat(shiftsR.rows[0].total_mins) || 0);
+      const totalShifts = parseInt(shiftsR.rows[0].total_shifts) || 0;
+      avgShiftMins      = totalShifts > 0 ? Math.round(totalMins / totalShifts) : 0;
+    }
+
+    const totalShiftMins = Math.round(parseFloat(shiftsR.rows[0].total_mins) || 0);
+    const totalShifts    = parseInt(shiftsR.rows[0].total_shifts) || 0;
+
     res.json({
       isPremium: isPrem,
+      // Flat fields for frontend compatibility
+      staffCount:         parseInt(staffR.rows[0].count)   || 0,
+      activeStrikes:      parseInt(strikesR.rows[0].count) || 0,
+      activeLoaCount:     parseInt(loaR.rows[0].count)     || 0,
+      promotionsThisMonth:parseInt(promoR.rows[0].count)   || 0,
+      totalShiftMins,
+      totalShifts,
+      avgShiftMins,
+      commendationCount,
+      warnCount,
+      divisionCount,
+      topActivity:     activityR.rows,
+      topPerformers:   topR.rows,
+      trends:          isPrem ? trends : [],
+      // Also keep nested summary for any legacy callers
       summary: {
         totalStaff:       parseInt(staffR.rows[0].count)   || 0,
         activeStrikes:    parseInt(strikesR.rows[0].count) || 0,
         activeLoa:        parseInt(loaR.rows[0].count)     || 0,
         recentPromotions: parseInt(promoR.rows[0].count)   || 0,
-        totalShiftMins:   Math.round(parseFloat(shiftsR.rows[0].total_mins) || 0),
-        totalShifts:      parseInt(shiftsR.rows[0].total_shifts) || 0,
+        totalShiftMins,
+        totalShifts,
       },
       activityBreakdown: activityR.rows,
-      topPerformers: topR.rows,
-      trends: isPrem ? trends : [],
     });
   } catch (err) {
     console.error('[analytics]', err);
@@ -1978,6 +2150,14 @@ if (DATABASE_URL) {
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_applications BOOLEAN DEFAULT TRUE;
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_staff_changes BOOLEAN DEFAULT TRUE;
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_shifts BOOLEAN DEFAULT FALSE;
+        ALTER TABLE staff_handbook ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT TRUE;
+        ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+        ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS is_embed BOOLEAN DEFAULT FALSE;
+        ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS use_count INTEGER DEFAULT 0;
+        ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS embed_title TEXT;
+        ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS embed_color TEXT DEFAULT '#5865F2';
+        ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS allowed_roles TEXT[] DEFAULT '{}';
+        ALTER TABLE custom_commands ADD COLUMN IF NOT EXISTS requires_role TEXT;
       `);
       console.log('[DB] New feature tables migrated');
     } catch (e) {
@@ -2096,9 +2276,19 @@ const publicPath = join(__dirname, 'dist');
   // ── 23. Blacklist ─────────────────────────────────────────────────────
   app.get('/api/guilds/:id/blacklist', requireAuth, async (req, res) => {
     const { id } = req.params;
+    const { search, active } = req.query;
     if (!DATABASE_URL) return res.json([]);
     try {
-      const r = await query(`SELECT * FROM blacklist WHERE guild_id=$1 ORDER BY created_at DESC`, [id]);
+      let sql = `SELECT * FROM blacklist WHERE guild_id=$1`;
+      const params: any[] = [id];
+      if (active === 'true') { sql += ` AND active=TRUE`; }
+      else if (active === 'false') { sql += ` AND active=FALSE`; }
+      if (search) {
+        params.push(`%${search}%`);
+        sql += ` AND (username ILIKE $${params.length} OR reason ILIKE $${params.length} OR added_by_name ILIKE $${params.length})`;
+      }
+      sql += ` ORDER BY created_at DESC LIMIT 200`;
+      const r = await query(sql, params);
       res.json(r.rows);
     } catch { res.json([]); }
   });
@@ -2634,6 +2824,7 @@ const publicPath = join(__dirname, 'dist');
         section TEXT DEFAULT 'General',
         sort_order INTEGER DEFAULT 0,
         is_premium BOOLEAN DEFAULT FALSE,
+        is_public BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -2971,6 +3162,16 @@ app.get('/api/guilds/:id/handbook', requireAuth, async (req, res) => {
   } catch { res.json([]); }
 });
 
+// Bot-accessible handbook endpoint (used by z!handbook and /handbook commands)
+app.get('/api/guilds/:id/handbook/bot', requireBotSecret, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(`SELECT id, title, content, section, sort_order, is_public FROM staff_handbook WHERE guild_id = $1 ORDER BY sort_order ASC, created_at ASC`, [id]);
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
 app.post('/api/guilds/:id/handbook', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { title, content, section, sortOrder } = req.body;
@@ -3111,31 +3312,62 @@ app.get('/api/guilds/:id/custom-commands/bot', requireBotSecret, async (req, res
   } catch { res.json([]); }
 });
 
-// ── Inactivity Scanner (Premium) ──────────────────────────────────────────
+// ── Inactivity Scanner (Free + Premium) ───────────────────────────────────
 app.get('/api/guilds/:id/inactivity', requireAuth, async (req, res) => {
   const { id } = req.params;
   if (!DATABASE_URL) return res.json([]);
   try {
-    const pR = await query(`SELECT is_premium FROM servers WHERE id = $1`, [id]).catch(() => ({ rows: [] }));
-    if (!pR.rows[0]?.is_premium) return res.status(403).json({ error: 'Premium required' });
-    // Calculate inactivity from activity log + shifts
+    // Free plan: show inactivity data (read-only); Premium: can run scans + auto-DM
     const r = await query(
       `SELECT s.user_id, s.username, s.rank,
-         MAX(a.created_at) as last_activity,
-         EXTRACT(EPOCH FROM (NOW() - MAX(a.created_at))) / 86400 as days_inactive
+         GREATEST(MAX(a.created_at), MAX(sh.started_at)) as last_activity,
+         EXTRACT(EPOCH FROM (NOW() - GREATEST(MAX(a.created_at), MAX(sh.started_at)))) / 86400 as days_inactive
        FROM staff_members s
        LEFT JOIN activity_logs a ON a.guild_id = s.guild_id AND a.user_id = s.user_id
+       LEFT JOIN shifts sh ON sh.guild_id = s.guild_id AND sh.user_id = s.user_id
        WHERE s.guild_id = $1 AND s.is_active = TRUE
        GROUP BY s.user_id, s.username, s.rank
        ORDER BY days_inactive DESC NULLS FIRST`,
       [id]
     );
     res.json(r.rows.map(row => ({
-      ...row,
+      id: row.user_id,
+      user_id: row.user_id,
+      username: row.username,
+      rank: row.rank,
+      last_activity: row.last_activity,
       days_inactive: row.days_inactive ? Math.round(parseFloat(row.days_inactive)) : null,
-      flagged: row.days_inactive === null || parseFloat(row.days_inactive) > 7,
+      status: (row.days_inactive === null || parseFloat(row.days_inactive) > 7) ? 'flagged' : 'active',
+      scanned_at: new Date().toISOString(),
     })));
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/guilds/:id/inactivity/scan', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { thresholdDays = 7 } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  try {
+    const r = await query(
+      `SELECT s.user_id, s.username,
+         GREATEST(MAX(a.created_at), MAX(sh.started_at)) as last_activity,
+         EXTRACT(EPOCH FROM (NOW() - GREATEST(MAX(a.created_at), MAX(sh.started_at)))) / 86400 as days_inactive
+       FROM staff_members s
+       LEFT JOIN activity_logs a ON a.guild_id = s.guild_id AND a.user_id = s.user_id
+       LEFT JOIN shifts sh ON sh.guild_id = s.guild_id AND sh.user_id = s.user_id
+       WHERE s.guild_id = $1 AND s.is_active = TRUE
+       GROUP BY s.user_id, s.username
+       HAVING EXTRACT(EPOCH FROM (NOW() - GREATEST(MAX(a.created_at), MAX(sh.started_at)))) / 86400 > $2
+          OR GREATEST(MAX(a.created_at), MAX(sh.started_at)) IS NULL`,
+      [id, thresholdDays]
+    );
+    res.json({ flagged: r.rows.length, members: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/guilds/:id/inactivity/:userId/dismiss', requireAuth, async (req, res) => {
+  // Just a soft acknowledgement — no DB row needed since we compute dynamically
+  res.json({ ok: true });
 });
 
 // ── Mass DM (Premium) ─────────────────────────────────────────────────────
@@ -3514,13 +3746,34 @@ app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
   app.post('/api/guilds/:id/incidents', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { title, description, severity, involvedStaff, location, reportedByName } = req.body;
-    if (!title || !description) return res.status(400).json({ error: 'Title and description required' });
+    if (!title?.trim()) return res.status(400).json({ error: 'Title is required.' });
+    if (!description?.trim()) return res.status(400).json({ error: 'Description is required.' });
     try {
       const r = await query(
         'INSERT INTO incident_reports (guild_id, title, description, severity, involved_staff, location, reported_by_name, reported_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
-        [id, title, description, severity || 'medium', involvedStaff || '', location || '', reportedByName || '', req.session?.user?.id || '']
+        [id, title.trim(), description.trim(), severity || 'medium', involvedStaff || '', location || '', reportedByName || req.session?.user?.username || '', req.session?.user?.id || '']
       );
       res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.patch('/api/guilds/:id/incidents/:incidentId', requireAuth, async (req, res) => {
+    const { id, incidentId } = req.params;
+    const { status, resolution } = req.body;
+    try {
+      const r = await query(
+        'UPDATE incident_reports SET status=COALESCE($1,status), resolution=COALESCE($2,resolution) WHERE id=$3 AND guild_id=$4 RETURNING *',
+        [status || null, resolution || null, incidentId, id]
+      );
+      res.json(r.rows[0] || { ok: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.delete('/api/guilds/:id/incidents/:incidentId', requireAuth, async (req, res) => {
+    const { id, incidentId } = req.params;
+    try {
+      await query('DELETE FROM incident_reports WHERE id=$1 AND guild_id=$2', [incidentId, id]);
+      res.json({ ok: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 

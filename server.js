@@ -881,7 +881,15 @@ app.post('/api/guilds/:id/ranks', requireAuth, async (req, res) => {
   if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
   try {
     await query(`INSERT INTO servers (id, name) VALUES ($1, $1) ON CONFLICT (id) DO NOTHING`, [id]).catch(() => {});
-    const r = await query(
+    // Enforce rank limit: free=5, premium=unlimited
+      const premQR = await query(`SELECT is_premium FROM servers WHERE id=$1`, [id]).catch(() => ({ rows: [] }));
+      if (!premQR.rows[0]?.is_premium) {
+        const rankCnt = await query(`SELECT COUNT(*) FROM ranks WHERE guild_id=$1`, [id]);
+        if (parseInt(rankCnt.rows[0]?.count || '0') >= 5) {
+          return res.status(403).json({ error: 'Free plan allows up to 5 ranks. Upgrade to Premium for unlimited ranks.' });
+        }
+      }
+          const r = await query(
       `INSERT INTO ranks (id, guild_id, name, level, color, discord_role_id, is_default)
        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6) RETURNING *`,
       [id, name, level ?? 0, color || '#5865F2', discordRoleId || null, !!isDefault]
@@ -1246,7 +1254,30 @@ app.post('/api/guilds/:id/bot-customization', requireAuth, async (req, res) => {
       `UPDATE servers SET custom_bot_name = $1, custom_bot_avatar = $2, custom_bot_status = $3, updated_at = NOW() WHERE id = $4`,
       [customBotName || null, customBotAvatar || null, customBotStatus || null, id]
     );
-    res.json({ success: true });
+        // Apply bot name/avatar to Discord via REST API (best-effort, rate-limited)
+      if (process.env.DISCORD_BOT_TOKEN && (customBotName || customBotAvatar)) {
+        const patch = {};
+        if (customBotName && customBotName.trim()) patch.username = customBotName.trim();
+        if (customBotAvatar && customBotAvatar.startsWith('data:')) patch.avatar = customBotAvatar;
+        if (customBotAvatar && customBotAvatar.startsWith('http')) {
+          try {
+            const imgRes = await fetch(customBotAvatar);
+            if (imgRes.ok) {
+              const buf = Buffer.from(await imgRes.arrayBuffer());
+              const ct = imgRes.headers.get('content-type') || 'image/png';
+              patch.avatar = `data:${ct};base64,${buf.toString('base64')}`;
+            }
+          } catch {}
+        }
+        if (Object.keys(patch).length > 0) {
+          fetch('https://discord.com/api/v10/users/@me', {
+            method: 'PATCH',
+            headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(patch)
+          }).catch(() => {}); // fire-and-forget; Discord rate-limits username changes to 2/hr
+        }
+      }
+      res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save bot customization' });
   }
@@ -1585,7 +1616,15 @@ app.post('/api/guilds/:id/divisions', requireAuth, async (req, res) => {
         return res.status(403).json({ error: 'Free plan limited to 3 divisions. Upgrade to Premium for unlimited divisions.' });
       }
     }
-    const r = await query(
+    // Enforce division limit: free=5, premium=50
+      const premQD = await query(`SELECT is_premium FROM servers WHERE id=$1`, [id]).catch(() => ({ rows: [] }));
+      const isPremD = !!premQD.rows[0]?.is_premium;
+      const divCnt = await query(`SELECT COUNT(*) FROM divisions WHERE guild_id=$1 AND is_active=TRUE`, [id]);
+      const divLimit = isPremD ? 50 : 5;
+      if (parseInt(divCnt.rows[0]?.count || '0') >= divLimit) {
+        return res.status(403).json({ error: `${isPremD ? 'Premium' : 'Free'} plan allows up to ${divLimit} divisions.` });
+      }
+          const r = await query(
       `INSERT INTO divisions (guild_id, name, description, discord_role_id, color)
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [id, name, description || null, discordRoleId || null, color || '#5865F2']
@@ -3023,6 +3062,19 @@ app.post('/api/guilds/:id/custom-commands', requireAuth, async (req, res) => {
        RETURNING *`,
       [id, name.trim().toLowerCase(), description || '', response.trim(), embedTitle || null, embedColor || '#5865F2', requiresRole || null]
     );
+      // Auto-register as guild slash command in Discord
+      const ccRow = r.rows[0];
+      if (process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_APPLICATION_ID && ccRow) {
+        fetch(`https://discord.com/api/v10/applications/${process.env.DISCORD_APPLICATION_ID}/guilds/${id}/commands`, {
+          method: 'POST',
+          headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: ccRow.name.toLowerCase().replace(/[^a-z0-9_-]/g, '-').slice(0, 32),
+            description: ccRow.description.slice(0, 100),
+            type: 1,
+          })
+        }).catch(() => {}); // fire-and-forget
+      }
     res.json(r.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -3058,7 +3110,7 @@ app.get('/api/guilds/:id/inactivity', requireAuth, async (req, res) => {
          MAX(a.created_at) as last_activity,
          EXTRACT(EPOCH FROM (NOW() - MAX(a.created_at))) / 86400 as days_inactive
        FROM staff_members s
-       LEFT JOIN activity_log a ON a.guild_id = s.guild_id AND a.user_id = s.user_id
+       LEFT JOIN activity_logs a ON a.guild_id = s.guild_id AND a.user_id = s.user_id
        WHERE s.guild_id = $1 AND s.is_active = TRUE
        GROUP BY s.user_id, s.username, s.rank
        ORDER BY days_inactive DESC NULLS FIRST`,
@@ -3073,7 +3125,53 @@ app.get('/api/guilds/:id/inactivity', requireAuth, async (req, res) => {
 });
 
 // ── Mass DM (Premium) ─────────────────────────────────────────────────────
-app.post('/api/guilds/:id/mass-dm', requireAuth, async (req, res) => {
+// Alias so frontend can call /announcements/mass-dm
+  app.post('/api/guilds/:id/announcements/mass-dm', requireAuth, async (req, res) => {
+    req.url = req.url.replace('/announcements/mass-dm', '/mass-dm');
+    const { id } = req.params;
+    const { message, title, authorId, authorUsername } = req.body;
+    if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+    try {
+      const pR = await query(`SELECT is_premium FROM servers WHERE id = $1`, [id]).catch(() => ({ rows: [] }));
+      if (!pR.rows[0]?.is_premium) return res.status(403).json({ error: 'Premium required' });
+      if (!message?.trim()) return res.status(400).json({ error: 'Message required' });
+      const staffR = await query(`SELECT user_id FROM staff_members WHERE guild_id = $1 AND is_active = TRUE`, [id]);
+      let sent = 0, failed = 0;
+      if (process.env.DISCORD_BOT_TOKEN) {
+        for (const s of staffR.rows) {
+          try {
+            const dmRes = await fetch(`https://discord.com/api/v10/users/@me/channels`, {
+              method: 'POST',
+              headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ recipient_id: s.user_id }),
+            });
+            if (dmRes.ok) {
+              const dm = await dmRes.json();
+              await fetch(`https://discord.com/api/v10/channels/${dm.id}/messages`, {
+                method: 'POST',
+                headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ embeds: [{ title: title || '📢 Staff Announcement', description: message, color: 0xD4AF37, footer: { text: `From ${authorUsername}` }, timestamp: new Date().toISOString() }] }),
+              });
+              sent++;
+            } else { failed++; }
+            await new Promise(r => setTimeout(r, 200));
+          } catch { failed++; }
+        }
+      } else { sent = -1; }
+      // Log to announcements table
+      await query(
+        `INSERT INTO server_announcements (guild_id, title, content, author_id, author_username, mass_dm, dm_sent, dm_failed) VALUES ($1,$2,$3,$4,$5,TRUE,$6,$7) ON CONFLICT DO NOTHING`,
+        [id, title || 'Mass DM', message, authorId, authorUsername, sent, failed]
+      ).catch(() => query(
+        `INSERT INTO server_announcements (guild_id, title, content, author_id, author_username) VALUES ($1,$2,$3,$4,$5)`,
+        [id, title || 'Mass DM', message, authorId, authorUsername]
+      ).catch(() => {}));
+      await logActivity(id, authorId, authorUsername, 'mass_dm', { message: message.slice(0, 100), sent, failed });
+      res.json({ success: true, sent, failed, total: staffR.rows.length });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.post('/api/guilds/:id/mass-dm', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { message, title, authorId, authorUsername } = req.body;
   if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });

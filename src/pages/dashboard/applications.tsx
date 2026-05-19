@@ -1,484 +1,286 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Loader2, RefreshCw, CheckCircle, Hash, GripVertical, Settings2, AlertCircle } from "lucide-react";
+  import { Card, CardContent } from "@/components/ui/card";
+  import { Button } from "@/components/ui/button";
+  import { Badge } from "@/components/ui/badge";
+  import { Input } from "@/components/ui/input";
+  import { Label } from "@/components/ui/label";
+  import { Textarea } from "@/components/ui/textarea";
+  import { Switch } from "@/components/ui/switch";
+  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+  import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+  import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+  import { Plus, Trash2, RefreshCw, ExternalLink, ChevronDown, ChevronUp, CheckCircle, X, Copy, Lock, Inbox, Settings, Eye } from "lucide-react";
 
-  interface Channel { id: string; name: string; }
-  interface Question { text: string; placeholder?: string; required: boolean; }
-  interface AppConfig {
-    enabled: boolean;
-    channel: string | null;
-    reviewChannel: string | null;
-    title: string;
-    questions: Question[];
-    requireRecommendations: boolean;
-    autoReject: boolean;
-    reviewerRoleIds: string[];
-    apakKey: string | null;
+  interface AppPanel { id: string; title: string; description: string; questions: Question[]; button_label: string; review_role_ids: string[]; review_channel_id: string; enabled: boolean; created_at: string; submission_count?: number; }
+  interface Question { id: string; text: string; type: "short" | "long" | "choice"; required: boolean; choices?: string[]; }
+  interface Submission { id: string; panel_id: string; panel_title: string; user_id: string; username: string; answers: Record<string, string>; status: "pending" | "accepted" | "rejected"; reviewer_id?: string; reviewer_username?: string; reviewer_notes?: string; created_at: string; }
+
+  const FREE_PANEL_LIMIT = 1;
+  const FREE_QUESTION_LIMIT = 13;
+
+  function QEditor({ q, onChange, onDelete, isPremium, count }: { q: Question; onChange: (q: Question) => void; onDelete: () => void; isPremium: boolean; count: number; }) {
+    return (
+      <div className="border border-border rounded-lg p-3 space-y-2 bg-card">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-muted-foreground w-5">{count}.</span>
+          <Input value={q.text} onChange={e => onChange({ ...q, text: e.target.value })} placeholder="Question text..." className="flex-1 h-8 text-sm" />
+          <Select value={q.type} onValueChange={v => onChange({ ...q, type: v as any })}>
+            <SelectTrigger className="w-24 h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="short">Short</SelectItem><SelectItem value="long">Long</SelectItem></SelectContent>
+          </Select>
+          <div className="flex items-center gap-1.5">
+            <Switch checked={q.required} onCheckedChange={v => onChange({ ...q, required: v })} />
+            <span className="text-xs text-muted-foreground">Req.</span>
+          </div>
+          <button onClick={onDelete} className="text-muted-foreground hover:text-red-500 transition-colors p-1"><Trash2 size={13} /></button>
+        </div>
+      </div>
+    );
   }
 
-  const DEFAULT_CFG: AppConfig = {
-    enabled: false, channel: null, reviewChannel: null, title: '',
-    questions: [], requireRecommendations: false, autoReject: false,
-    reviewerRoleIds: [], apakKey: null,
-  };
+  function SubmissionRow({ s, onUpdate }: { s: Submission; onUpdate: (id: string, status: string, notes: string) => void; }) {
+    const [open, setOpen] = useState(false);
+    const [notes, setNotes] = useState("");
+    const [deciding, setDeciding] = useState(false);
+    const status = s.status;
+    const badge = status === "pending" ? "bg-yellow-100 text-yellow-700 border-yellow-200" : status === "accepted" ? "bg-green-100 text-green-700 border-green-200" : "bg-red-100 text-red-700 border-red-200";
+    return (
+      <div className="border border-border rounded-lg overflow-hidden mb-2">
+        <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
+          <Badge className={`${badge} border text-xs capitalize`}>{status}</Badge>
+          <div className="flex-1 min-w-0">
+            <span className="font-semibold text-sm">{s.username}</span>
+            <span className="text-muted-foreground text-xs ml-2">{s.panel_title}</span>
+          </div>
+          <span className="text-muted-foreground text-xs flex-shrink-0">{new Date(s.created_at).toLocaleDateString()}</span>
+          {open ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
+        </button>
+        {open && (
+          <div className="px-4 pb-4 border-t bg-muted/20 space-y-3">
+            <div className="grid grid-cols-2 gap-3 mt-3 text-sm">
+              <div><p className="text-xs text-muted-foreground font-medium">Applicant</p><p className="font-semibold">{s.username}</p></div>
+              <div><p className="text-xs text-muted-foreground font-medium">Panel</p><p>{s.panel_title}</p></div>
+              <div><p className="text-xs text-muted-foreground font-medium">Submitted</p><p>{new Date(s.created_at).toLocaleString()}</p></div>
+              <div><p className="text-xs text-muted-foreground font-medium">Status</p><Badge className={`${badge} border text-xs capitalize`}>{status}</Badge></div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground">Answers</p>
+              {Object.entries(s.answers || {}).map(([q, a]) => (
+                <div key={q} className="bg-background rounded-lg p-3 border">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">{q}</p>
+                  <p className="text-sm">{a || <span className="text-muted-foreground italic">No answer</span>}</p>
+                </div>
+              ))}
+            </div>
+            {status === "pending" && (
+              <div className="space-y-2 pt-2 border-t">
+                <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Review notes (optional)..." rows={2} className="text-sm" />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => { setDeciding(true); onUpdate(s.id, "accepted", notes); }} disabled={deciding} className="bg-green-600 hover:bg-green-700 text-white flex-1 gap-1.5"><CheckCircle size={13} />Accept</Button>
+                  <Button size="sm" onClick={() => { setDeciding(true); onUpdate(s.id, "rejected", notes); }} disabled={deciding} variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 flex-1 gap-1.5"><X size={13} />Reject</Button>
+                </div>
+              </div>
+            )}
+            {s.reviewer_notes && <div className="bg-muted/30 rounded-lg p-3 border"><p className="text-xs font-medium text-muted-foreground mb-1">Review Notes</p><p className="text-sm">{s.reviewer_notes}</p></div>}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   export default function ApplicationsPage({ guildId }: { guildId: string }) {
-    const [cfg, setCfg] = useState<AppConfig>(DEFAULT_CFG);
-    const [channels, setChannels] = useState<Channel[]>([]);
-    const [roles, setRoles] = useState<any[]>([]);
+    const [panels, setPanels] = useState<AppPanel[]>([]);
+    const [submissions, setSubmissions] = useState<Submission[]>([]);
+    const [isPremium, setIsPremium] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [editPanel, setEditPanel] = useState<Partial<AppPanel> | null>(null);
     const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
-    const [error, setError] = useState('');
-    const [fetchError, setFetchError] = useState('');
+    const [tab, setTab] = useState("submissions");
+    const [subFilter, setSubFilter] = useState("pending");
 
-    const fetchData = useCallback(async () => {
+    const fetchAll = useCallback(async () => {
       setLoading(true);
-      setFetchError('');
       try {
-        const [cfgRes, chanRes, roleRes] = await Promise.all([
-          fetch(`/api/guilds/${guildId}/applications-config`, { credentials: 'include' }),
-          fetch(`/api/guilds/${guildId}/channels`, { credentials: 'include' }),
-          fetch(`/api/guilds/${guildId}/roles`, { credentials: 'include' }),
+        const [pRes, sRes, gRes] = await Promise.all([
+          fetch(`/api/guilds/${guildId}/application-panels`, { credentials: "include" }),
+          fetch(`/api/guilds/${guildId}/applications`, { credentials: "include" }),
+          fetch(`/api/guilds/${guildId}`, { credentials: "include" }),
         ]);
-        if (roleRes.ok) {
-          const d = await roleRes.json();
-          setRoles(Array.isArray(d) ? d : []);
-        }
-        if (cfgRes.ok) {
-          const d = await cfgRes.json();
-          setCfg({ ...DEFAULT_CFG, ...d });
-        }
-        if (chanRes.ok) {
-          const d = await chanRes.json();
-          setChannels(Array.isArray(d) ? d : []);
-        }
-      } catch (e: any) {
-        setFetchError('Could not reach the server. Check your connection.');
-      }
+        if (pRes.ok) setPanels(await pRes.json());
+        if (sRes.ok) setSubmissions(await sRes.json());
+        if (gRes.ok) { const g = await gRes.json(); setIsPremium(g.isPremium ?? false); }
+      } catch {}
       setLoading(false);
     }, [guildId]);
 
-    useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => { fetchAll(); }, [fetchAll]);
+
+    const canAddPanel = isPremium || panels.length < FREE_PANEL_LIMIT;
+    const qLimit = isPremium ? 100 : FREE_QUESTION_LIMIT;
+
+    const newPanel = (): Partial<AppPanel> => ({
+      title: "", description: "", button_label: "Apply Now",
+      questions: [], review_role_ids: [], review_channel_id: "", enabled: true,
+    });
 
     const addQuestion = () => {
-      if (cfg.questions.length >= 5) return;
-      setCfg(c => ({ ...c, questions: [...c.questions, { text: '', placeholder: '', required: true }] }));
+      if (!editPanel) return;
+      const qs = editPanel.questions || [];
+      if (qs.length >= qLimit) return;
+      setEditPanel({ ...editPanel, questions: [...qs, { id: Date.now().toString(), text: "", type: "short", required: true }] });
     };
-    const removeQuestion = (i: number) =>
-      setCfg(c => ({ ...c, questions: c.questions.filter((_, idx) => idx !== i) }));
-    const updateQuestion = (i: number, key: keyof Question, val: any) =>
-      setCfg(c => ({ ...c, questions: c.questions.map((q, idx) => idx === i ? { ...q, [key]: val } : q) }));
 
-    const handleSave = async () => {
-      setSaving(true); setError(''); setSaved(false);
+    const savePanel = async () => {
+      if (!editPanel) return;
+      setSaving(true);
       try {
-        const res = await fetch(`/api/guilds/${guildId}/applications-config`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(cfg),
+        const method = editPanel.id ? "PUT" : "POST";
+        const url = editPanel.id ? `/api/guilds/${guildId}/application-panels/${editPanel.id}` : `/api/guilds/${guildId}/application-panels`;
+        const res = await fetch(url, {
+          method, credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(editPanel),
         });
-        if (!res.ok) {
-          const d = await res.json().catch(() => ({ error: 'Save failed' }));
-          throw new Error(d.error || 'Failed to save');
-        }
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
-      } catch (err: any) {
-        setError(err.message);
-      }
+        if (res.ok) { setEditPanel(null); fetchAll(); }
+      } catch {}
       setSaving(false);
     };
 
-    // Helper: channel select — uses "none" sentinel to avoid empty-string value crash
-    const ChannelPicker = ({ value, onChange, label, desc }: {
-      value: string | null; onChange: (v: string | null) => void; label: string; desc: string;
-    }) => (
-      <div className="space-y-1.5">
-        <Label className="text-sm font-semibold">{label}</Label>
-        <p className="text-xs text-muted-foreground">{desc}</p>
-        <Select
-          value={value ?? 'none'}
-          onValueChange={v => onChange(v === 'none' ? null : v)}
-        >
-          <SelectTrigger className="bg-white border-border text-sm">
-            <SelectValue placeholder="Select a channel" />
-          </SelectTrigger>
-          <SelectContent className="bg-white border-border max-h-60 overflow-y-auto">
-            <SelectItem value="none">Not configured</SelectItem>
-            {channels.map(c => (
-              <SelectItem key={c.id} value={c.id}>#{c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    );
+    const deletePanel = async (id: string) => {
+      if (!confirm("Delete this panel? All submissions will be lost.")) return;
+      await fetch(`/api/guilds/${guildId}/application-panels/${id}`, { method: "DELETE", credentials: "include" });
+      fetchAll();
+    };
 
-    if (loading) {
-      return (
-        <div className="flex justify-center items-center py-24">
-          <div className="w-7 h-7 rounded-full border-2 animate-spin"
-            style={{ borderColor: '#d4af37', borderTopColor: 'transparent' }} />
-        </div>
-      );
-    }
+    const updateSubmission = async (id: string, status: string, notes: string) => {
+      try {
+        await fetch(`/api/guilds/${guildId}/applications/${id}/review`, {
+          method: "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status, reviewerNotes: notes }),
+        });
+        fetchAll();
+      } catch {}
+    };
+
+    const appLink = (panel: AppPanel) => `${window.location.origin}/portal/${guildId}/${panel.id}`;
+    const pending = submissions.filter(s => s.status === "pending");
+    const filteredSubs = subFilter === "all" ? submissions : submissions.filter(s => s.status === subFilter);
 
     return (
-      <div className="space-y-5 max-w-3xl">
-        {/* Header */}
+      <div className="space-y-5 max-w-4xl">
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
-              <Settings2 className="w-6 h-6" style={{ color: '#d4af37' }} />
-              Application System
-            </h2>
-            <p className="text-muted-foreground mt-0.5 text-sm">
-              Configure how staff applications work in your Discord server.
-            </p>
+            <h2 className="text-2xl font-extrabold tracking-tight flex items-center gap-2"><Inbox className="w-6 h-6" style={{ color: "#d4af37" }} />Applications</h2>
+            <p className="text-muted-foreground mt-0.5 text-sm">{pending.length} pending reviews • {panels.length} panel{panels.length !== 1 ? "s" : ""} • click submissions to review</p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {saved && (
-              <span className="text-green-600 text-sm flex items-center gap-1.5 font-medium">
-                <CheckCircle size={14} /> Saved!
-              </span>
-            )}
-            {error && (
-              <span className="text-red-600 text-sm flex items-center gap-1.5">
-                <AlertCircle size={14} /> {error}
-              </span>
-            )}
-            <Button variant="outline" size="sm" onClick={fetchData} className="gap-1.5">
-              <RefreshCw size={13} /> Refresh
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              size="sm"
-              style={{ background: saving ? undefined : 'linear-gradient(135deg,#d4af37,#ffd700)', color: '#5a3e10', border: 'none' }}
-            >
-              {saving
-                ? <><Loader2 size={13} className="animate-spin mr-1" />Saving...</>
-                : "Save Changes"}
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" onClick={fetchAll} className="gap-1.5"><RefreshCw size={13} />Refresh</Button>
         </div>
 
-        {fetchError && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-            <AlertCircle size={14} /> {fetchError}
-          </div>
-        )}
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList>
+            <TabsTrigger value="submissions">Submissions {pending.length > 0 && <Badge className="ml-1.5 text-[10px] px-1.5" style={{ background: "#d4af37", color: "#000" }}>{pending.length}</Badge>}</TabsTrigger>
+            <TabsTrigger value="panels">Panels <span className="ml-1.5 text-xs text-muted-foreground">({panels.length})</span></TabsTrigger>
+          </TabsList>
 
-        {/* Enable / Disable toggle */}
-        <Card className="border-border bg-white shadow-sm">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-semibold">Enable Application System</p>
-                <p className="text-muted-foreground text-sm mt-0.5">
-                  Allow users to submit staff applications through Discord panels.
-                </p>
-              </div>
-              <Switch
-                checked={cfg.enabled}
-                onCheckedChange={v => setCfg(c => ({ ...c, enabled: v }))}
-              />
+          <TabsContent value="submissions" className="mt-4 space-y-3">
+            <div className="flex gap-2">
+              {["pending","accepted","rejected","all"].map(s => (
+                <Button key={s} size="sm" variant={subFilter === s ? "default" : "outline"} onClick={() => setSubFilter(s)} className="capitalize text-xs" style={subFilter === s ? { background: "#d4af37", color: "#000" } : {}}>{s}</Button>
+              ))}
             </div>
-          </CardContent>
-        </Card>
+            {loading ? <div className="flex justify-center py-12"><div className="w-7 h-7 rounded-full border-2 animate-spin" style={{ borderColor: "#d4af37", borderTopColor: "transparent" }} /></div>
+              : filteredSubs.length === 0 ? <Card><CardContent className="py-12 text-center text-muted-foreground text-sm">No {subFilter === "all" ? "" : subFilter} submissions yet.</CardContent></Card>
+              : filteredSubs.map(s => <SubmissionRow key={s.id} s={s} onUpdate={updateSubmission} />)}
+          </TabsContent>
 
-        {/* Only show the rest when enabled */}
-        {cfg.enabled && (
-          <>
-            {/* Channels */}
-            <Card className="border-border bg-white shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Hash className="w-4 h-4" style={{ color: '#d4af37' }} /> Channels
-                </CardTitle>
-                <CardDescription>
-                  Where the panel is posted and where applications are reviewed.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <ChannelPicker
-                  value={cfg.channel}
-                  onChange={v => setCfg(c => ({ ...c, channel: v }))}
-                  label="Application Panel Channel"
-                  desc='Post the "Apply Now" button panel here.'
-                />
-                <ChannelPicker
-                  value={cfg.reviewChannel}
-                  onChange={v => setCfg(c => ({ ...c, reviewChannel: v }))}
-                  label="Review Channel (Staff Only)"
-                  desc="Applications land here for management to review."
-                />
-              </CardContent>
-            </Card>
-
-            {/* Panel Customization */}
-            <Card className="border-border bg-white shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Settings2 className="w-4 h-4" style={{ color: '#d4af37' }} /> Panel Customization
-                </CardTitle>
-                <CardDescription>
-                  Customize the message and appearance of the application panel in Discord.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold">Application Title</Label>
-                  <Input
-                    value={cfg.title}
-                    onChange={e => setCfg(c => ({ ...c, title: e.target.value }))}
-                    placeholder="e.g. Staff Application — Zenith Roleplay"
-                    className="bg-white border-border"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold">Panel Message (Description)</Label>
-                  <textarea
-                    value={(cfg as any).panelDescription || ''}
-                    onChange={e => setCfg(c => ({ ...c, panelDescription: e.target.value } as any))}
-                    placeholder="Enter the message that will appear on the application panel..."
-                    className="w-full min-h-[100px] p-3 text-sm bg-white border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-[#d4af37]/20"
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold">Button Label</Label>
-                    <Input
-                      value={(cfg as any).buttonLabel || 'Apply Now'}
-                      onChange={e => setCfg(c => ({ ...c, buttonLabel: e.target.value } as any))}
-                      placeholder="e.g. Apply Now"
-                      className="bg-white border-border"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold">Embed Color (Hex)</Label>
-                    <div className="flex gap-2">
-                      <div className="w-10 h-10 rounded border border-border flex-shrink-0" style={{ backgroundColor: (cfg as any).embedColor || '#d4af37' }} />
-                      <Input
-                        value={(cfg as any).embedColor || '#d4af37'}
-                        onChange={e => setCfg(c => ({ ...c, embedColor: e.target.value } as any))}
-                        placeholder="#d4af37"
-                        className="bg-white border-border"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Reviewer Roles */}
-            <Card className="border-border bg-white shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Reviewer Roles</CardTitle>
-                <CardDescription>Select up to 4 roles that can access the application review portal.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {[0, 1, 2, 3].map(i => (
-                    <div key={i} className="space-y-1.5">
-                      <Label className="text-xs font-semibold">Reviewer Role {i + 1}</Label>
-                      <Select
-                        value={cfg.reviewerRoleIds[i] || 'none'}
-                        onValueChange={v => {
-                          const newRoles = [...cfg.reviewerRoleIds];
-                          if (v === 'none') {
-                            newRoles.splice(i, 1);
-                          } else {
-                            newRoles[i] = v;
-                          }
-                          setCfg({ ...cfg, reviewerRoleIds: newRoles });
-                        }}
-                      >
-                        <SelectTrigger className="bg-white border-border text-sm">
-                          <SelectValue placeholder="Select a role" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white border-border max-h-60 overflow-y-auto">
-                          <SelectItem value="none">None</SelectItem>
-                          {roles.map(r => (
-                            <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* APAK */}
-            {cfg.apakKey && (
-              <Card className="border-border bg-white shadow-sm border-l-4 border-l-[#d4af37]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-[#d4af37]" /> Application Portal Access Key (APAK)
-                  </CardTitle>
-                  <CardDescription>Share this link with your staff to access the review portal.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-2">
-                    <Input
-                      readOnly
-                      value={`${window.location.origin}/portal/${cfg.apakKey}`}
-                      className="bg-muted/50 font-mono text-xs"
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        navigator.clipboard.writeText(`${window.location.origin}/portal/${cfg.apakKey}`);
-                        alert('Link copied to clipboard!');
-                      }}
-                    >
-                      Copy
-                    </Button>
+          <TabsContent value="panels" className="mt-4 space-y-3">
+            {!canAddPanel && (
+              <Card className="border-dashed border-yellow-300">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <Lock size={18} style={{ color: "#d4af37" }} />
+                  <div>
+                    <p className="font-semibold text-sm">Free tier: 1 application panel</p>
+                    <p className="text-xs text-muted-foreground">Upgrade to Premium for unlimited panels, unlimited questions, and more.</p>
                   </div>
                 </CardContent>
               </Card>
             )}
-
-            {/* Settings */}
-            <Card className="border-border bg-white shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Settings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold">Account Age Limit (Days)</Label>
-                    <Input
-                      type="number"
-                      value={(cfg as any).accountAgeLimit || 0}
-                      onChange={e => setCfg(c => ({ ...c, accountAgeLimit: parseInt(e.target.value) } as any))}
-                      className="bg-white border-border"
-                    />
-                    <p className="text-[10px] text-muted-foreground">Minimum Discord account age to apply.</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold">Server Time Limit (Days)</Label>
-                    <Input
-                      type="number"
-                      value={(cfg as any).serverTimeLimit || 0}
-                      onChange={e => setCfg(c => ({ ...c, serverTimeLimit: parseInt(e.target.value) } as any))}
-                      className="bg-white border-border"
-                    />
-                    <p className="text-[10px] text-muted-foreground">Minimum time in server to apply.</p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold">Rejection Cooldown (Days)</Label>
-                    <Input
-                      type="number"
-                      value={(cfg as any).rejectionCooldown || 0}
-                      onChange={e => setCfg(c => ({ ...c, rejectionCooldown: parseInt(e.target.value) } as any))}
-                      className="bg-white border-border"
-                    />
-                    <p className="text-[10px] text-muted-foreground">Days to wait before re-applying if rejected.</p>
-                  </div>
-                </div>
-
-                <div className="pt-2 space-y-3">
-                  {[
-                    {
-                      key: 'requireRecommendations',
-                      label: 'Require a Staff Recommendation',
-                      desc: 'Applicants must name an existing staff member who vouches for them.',
-                    },
-                    {
-                      key: 'autoReject',
-                      label: 'Auto-Reject Stale Applications',
-                      desc: 'Automatically deny applications with no review action after 7 days. (Premium)',
-                    },
-                  ].map(opt => (
-                    <div key={opt.key} className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30 gap-4">
-                      <div>
-                        <p className="text-sm font-semibold">{opt.label}</p>
-                        <p className="text-muted-foreground text-xs mt-0.5">{opt.desc}</p>
+            <div className="flex justify-end">
+              <Button size="sm" disabled={!canAddPanel} onClick={() => setEditPanel(newPanel())} className="gap-1.5" style={{ background: "#d4af37", color: "#000" }}>
+                <Plus size={13} />New Panel
+              </Button>
+            </div>
+            {panels.length === 0 ? (
+              <Card><CardContent className="py-12 text-center text-muted-foreground text-sm">No application panels yet. Create one to get started.</CardContent></Card>
+            ) : panels.map(p => (
+              <Card key={p.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-sm">{p.title || "Untitled Panel"}</h3>
+                        <Badge className={p.enabled ? "bg-green-100 text-green-700 border-green-200 border text-xs" : "bg-gray-100 text-gray-500 border text-xs"}>{p.enabled ? "Active" : "Disabled"}</Badge>
                       </div>
-                      <Switch
-                        checked={!!(cfg as any)[opt.key]}
-                        onCheckedChange={v => setCfg(c => ({ ...c, [opt.key]: v }))}
-                      />
+                      <p className="text-xs text-muted-foreground mb-2">{p.description || "No description"}</p>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>{(p.questions || []).length} questions</span>
+                        <span>•</span>
+                        <span>{p.submission_count || 0} submissions</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-2 bg-muted/40 rounded-md px-2 py-1 w-fit">
+                        <span className="text-xs text-muted-foreground truncate max-w-64">{appLink(p)}</span>
+                        <button onClick={() => navigator.clipboard?.writeText(appLink(p))} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"><Copy size={11} /></button>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    <div className="flex gap-1.5 flex-shrink-0">
+                      <Button size="sm" variant="outline" onClick={() => setEditPanel(p)} className="gap-1 text-xs h-8"><Settings size={12} />Edit</Button>
+                      <Button size="sm" variant="outline" onClick={() => deletePanel(p.id)} className="text-red-500 border-red-200 hover:bg-red-50 h-8"><Trash2 size={12} /></Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+        </Tabs>
 
-            {/* Questions */}
-            <Card className="border-border bg-white shadow-sm">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base">Application Questions</CardTitle>
-                    <CardDescription className="mt-0.5">
-                      {cfg.questions.length}/5 questions — shown in the Discord modal when users apply.
-                    </CardDescription>
-                  </div>
-                  <Button
-                    onClick={addQuestion}
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5"
-                    disabled={cfg.questions.length >= 5}
-                  >
-                    <Plus size={13} /> Add
-                  </Button>
+        {/* Panel Editor Dialog */}
+        <Dialog open={!!editPanel} onOpenChange={o => { if (!o) setEditPanel(null); }}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader><DialogTitle>{editPanel?.id ? "Edit Panel" : "New Application Panel"}</DialogTitle></DialogHeader>
+            {editPanel && (
+              <div className="space-y-4 pt-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2"><Label className="text-xs">Panel Title *</Label><Input value={editPanel.title || ""} onChange={e => setEditPanel(p => ({ ...p, title: e.target.value }))} placeholder="Staff Application 2026" className="h-9 text-sm mt-1" /></div>
+                  <div className="col-span-2"><Label className="text-xs">Description</Label><Textarea value={editPanel.description || ""} onChange={e => setEditPanel(p => ({ ...p, description: e.target.value }))} placeholder="Brief description shown to applicants..." rows={2} className="text-sm mt-1" /></div>
+                  <div><Label className="text-xs">Apply Button Label</Label><Input value={editPanel.button_label || "Apply Now"} onChange={e => setEditPanel(p => ({ ...p, button_label: e.target.value }))} className="h-9 text-sm mt-1" /></div>
+                  <div className="flex items-center gap-2 mt-5"><Switch checked={editPanel.enabled !== false} onCheckedChange={v => setEditPanel(p => ({ ...p, enabled: v }))} /><Label className="text-sm">Panel Active</Label></div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {cfg.questions.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground text-sm border border-dashed border-border rounded-lg">
-                    No questions yet. Add up to 5 questions for the application modal.
-                  </div>
-                ) : cfg.questions.map((q, i) => (
-                  <div key={i} className="p-4 border border-border rounded-lg bg-muted/20 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <GripVertical size={14} className="text-muted-foreground flex-shrink-0" />
-                      <Badge variant="outline" className="text-xs">Q{i + 1}</Badge>
-                      <div className="flex-1" />
-                      <span className="text-xs text-muted-foreground">Required</span>
-                      <Switch
-                        checked={q.required}
-                        onCheckedChange={v => updateQuestion(i, 'required', v)}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeQuestion(i)}
-                        className="text-red-500 hover:bg-red-50 h-7 w-7 p-0"
-                      >
-                        <Trash2 size={13} />
-                      </Button>
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <Label className="text-sm font-semibold">Questions</Label>
+                      <p className="text-xs text-muted-foreground">{(editPanel.questions || []).length}/{isPremium ? "unlimited" : FREE_QUESTION_LIMIT} questions</p>
                     </div>
-                    <Input
-                      value={q.text}
-                      onChange={e => updateQuestion(i, 'text', e.target.value)}
-                      placeholder="Question text e.g. Why do you want to join?"
-                      className="bg-white border-border text-sm"
-                    />
-                    <Input
-                      value={q.placeholder || ''}
-                      onChange={e => updateQuestion(i, 'placeholder', e.target.value)}
-                      placeholder="Hint text shown inside the answer field (optional)"
-                      className="bg-white border-border text-xs"
-                    />
+                    <Button size="sm" variant="outline" onClick={addQuestion} disabled={(editPanel.questions || []).length >= qLimit} className="gap-1 text-xs"><Plus size={12} />Add Question</Button>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          </>
-        )}
+                  <div className="space-y-2">
+                    {(editPanel.questions || []).map((q, i) => (
+                      <QEditor key={q.id} q={q} count={i + 1} isPremium={isPremium}
+                        onChange={updated => setEditPanel(p => ({ ...p, questions: (p.questions || []).map((qq, ii) => ii === i ? updated : qq) }))}
+                        onDelete={() => setEditPanel(p => ({ ...p, questions: (p.questions || []).filter((_, ii) => ii !== i) }))} />
+                    ))}
+                    {(editPanel.questions || []).length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No questions yet. Add at least one question.</p>}
+                  </div>
+                </div>
+                <div className="flex gap-2 pt-2 border-t">
+                  <Button onClick={savePanel} disabled={saving || !editPanel.title?.trim()} style={{ background: "#d4af37", color: "#000" }} className="flex-1">{saving ? "Saving…" : editPanel.id ? "Save Changes" : "Create Panel"}</Button>
+                  <Button variant="outline" onClick={() => setEditPanel(null)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

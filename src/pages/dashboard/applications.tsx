@@ -141,8 +141,16 @@ import { useState, useEffect, useCallback } from "react";
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(editPanel),
         });
-        if (res.ok) { setEditPanel(null); fetchAll(); }
-      } catch {}
+        if (res.ok) {
+          setEditPanel(null);
+          fetchAll();
+        } else {
+          const err = await res.json().catch(() => ({ error: "Request failed" }));
+          alert(`Failed to save panel: ${err.error || res.statusText}`);
+        }
+      } catch (e: any) {
+        alert(`Failed to save panel: ${e.message || "Network error"}`);
+      }
       setSaving(false);
     };
 

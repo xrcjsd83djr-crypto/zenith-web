@@ -3406,6 +3406,32 @@ app.post('/api/guilds/:id/custom-commands', requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+app.patch('/api/guilds/:id/custom-commands/:cmdId', requireAuth, async (req, res) => {
+  const { id, cmdId } = req.params;
+  const { isActive, name, description, response, embedTitle, embedColor, isEmbed, requiresRole } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  try {
+    // Toggle active or full update
+    if (typeof isActive === 'boolean') {
+      const r = await query(
+        `UPDATE custom_commands SET is_active=$1 WHERE id=$2 AND guild_id=$3 RETURNING *`,
+        [isActive, cmdId, id]
+      );
+      return res.json(r.rows[0] || { ok: true });
+    }
+    // Full update
+    const r = await query(
+      `UPDATE custom_commands SET
+         name=COALESCE($1,name), description=COALESCE($2,description), response=COALESCE($3,response),
+         embed_title=$4, embed_color=COALESCE($5,embed_color), is_embed=COALESCE($6,is_embed),
+         requires_role=$7
+       WHERE id=$8 AND guild_id=$9 RETURNING *`,
+      [name||null, description||null, response||null, embedTitle||null, embedColor||null, typeof isEmbed==='boolean'?isEmbed:null, requiresRole||null, cmdId, id]
+    );
+    res.json(r.rows[0] || { ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.delete('/api/guilds/:id/custom-commands/:cmdId', requireAuth, async (req, res) => {
   const { id, cmdId } = req.params;
   try {

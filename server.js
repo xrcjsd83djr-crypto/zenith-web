@@ -35,6 +35,8 @@ const {
   DATABASE_URL,
   BOT_SECRET,
 } = process.env;
+// Use DISCORD_CLIENT_ID as application ID for custom command registration
+const DISCORD_APPLICATION_ID = process.env.DISCORD_APPLICATION_ID || DISCORD_CLIENT_ID;
 
 const DISCORD_BOT_INVITE = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=8&scope=bot%20applications.commands`;
 const SUPPORT_SERVER_ID   = process.env.SUPPORT_SERVER_ID || '1501905192277377214';
@@ -1678,7 +1680,7 @@ app.post('/api/guilds/:id/promotions', requireBotOrAuth, async (req, res) => {
 
 // ── FEATURE 2 (FREEMIUM): Shift Tracking ─────────────────────────────────
 // Free: last 10 shifts stored. Premium: unlimited retention.
-app.get('/api/guilds/:id/shifts', requireAuth, async (req, res) => {
+app.get('/api/guilds/:id/shifts', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   const { userId } = req.query;
   if (!DATABASE_URL) return res.json([]);
@@ -1693,7 +1695,7 @@ app.get('/api/guilds/:id/shifts', requireAuth, async (req, res) => {
   } catch { res.json([]); }
 });
 
-app.post('/api/guilds/:id/shifts/start', requireAuth, async (req, res) => {
+app.post('/api/guilds/:id/shifts/start', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   const { userId, username, shiftType, notes } = req.body;
   if (!userId) return res.status(400).json({ error: 'userId required' });
@@ -1707,11 +1709,11 @@ app.post('/api/guilds/:id/shifts/start', requireAuth, async (req, res) => {
     await logActivity(id, userId, username, 'shift_start', {});
     res.json(r.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to start shift' });
+    console.error('[shift start]', err); res.status(500).json({ error: err.message || 'Failed to start shift' });
   }
 });
 
-app.post('/api/guilds/:id/shifts/end', requireAuth, async (req, res) => {
+app.post('/api/guilds/:id/shifts/end', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   const { userId } = req.body;
   if (!userId) return res.status(400).json({ error: 'userId required' });
@@ -1724,11 +1726,11 @@ app.post('/api/guilds/:id/shifts/end', requireAuth, async (req, res) => {
     if (!r.rows[0]) return res.status(404).json({ error: 'No active shift found' });
     res.json(r.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to end shift' });
+    console.error('[shift end]', err); res.status(500).json({ error: err.message || 'Failed to end shift' });
   }
 });
 
-app.get('/api/guilds/:id/shifts/active', requireAuth, async (req, res) => {
+app.get('/api/guilds/:id/shifts/active', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   if (!DATABASE_URL) return res.json([]);
   try {
@@ -1738,7 +1740,7 @@ app.get('/api/guilds/:id/shifts/active', requireAuth, async (req, res) => {
 });
 
 // Active shift for a specific user — used by bot /shift status
-app.get('/api/guilds/:id/shifts/active/:userId', requireAuth, async (req, res) => {
+app.get('/api/guilds/:id/shifts/active/:userId', requireBotOrAuth, async (req, res) => {
   const { id, userId } = req.params;
   if (!DATABASE_URL) return res.status(404).json({ error: 'No database' });
   try {
@@ -1858,7 +1860,7 @@ app.get('/api/guilds/:id/performance/leaderboard', requireAuth, async (req, res)
   } catch { res.json([]); }
 });
 
-app.post('/api/guilds/:id/performance', requireAuth, async (req, res) => {
+app.post('/api/guilds/:id/performance', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   const { targetUserId, targetUsername, rating, comments, reviewerUsername, reviewerId } = req.body;
   if (!targetUserId || !rating) return res.status(400).json({ error: 'Missing fields' });
@@ -1881,7 +1883,7 @@ app.post('/api/guilds/:id/performance', requireAuth, async (req, res) => {
     await logActivity(id, reviewerId, reviewerUsername, 'performance_review', { targetUserId, rating });
     res.json(r.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Failed to submit review' });
+    console.error('[performance review]', err); res.status(500).json({ error: err.message || 'Failed to submit review' });
   }
 });
 
@@ -2109,8 +2111,15 @@ if (DATABASE_URL) {
           username TEXT,
           started_at TIMESTAMP NOT NULL DEFAULT NOW(),
           ended_at TIMESTAMP,
-          duration_mins NUMERIC
+          duration_mins NUMERIC,
+          shift_type TEXT DEFAULT 'general',
+          notes TEXT,
+          break_mins NUMERIC DEFAULT 0
         );
+        ALTER TABLE shifts ADD COLUMN IF NOT EXISTS shift_type TEXT DEFAULT 'general';
+        ALTER TABLE shifts ADD COLUMN IF NOT EXISTS notes TEXT;
+        ALTER TABLE shifts ADD COLUMN IF NOT EXISTS break_mins NUMERIC DEFAULT 0;
+        ALTER TABLE shifts ADD COLUMN IF NOT EXISTS duration_mins NUMERIC;
         CREATE TABLE IF NOT EXISTS divisions (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           guild_id TEXT NOT NULL,
@@ -2308,7 +2317,7 @@ const publicPath = join(__dirname, 'dist');
     if (!DATABASE_URL) return res.json([]);
     try {
       let sql = `SELECT * FROM blacklist WHERE guild_id=$1`;
-      const params: any[] = [id];
+      const params = [id];
       if (active === 'true') { sql += ` AND active=TRUE`; }
       else if (active === 'false') { sql += ` AND active=FALSE`; }
       if (search) {
@@ -2802,8 +2811,14 @@ const publicPath = join(__dirname, 'dist');
         author_id TEXT NOT NULL,
         author_username TEXT NOT NULL,
         channel_id TEXT,
+        mass_dm BOOLEAN DEFAULT FALSE,
+        dm_sent INTEGER DEFAULT 0,
+        dm_failed INTEGER DEFAULT 0,
         sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      ALTER TABLE server_announcements ADD COLUMN IF NOT EXISTS mass_dm BOOLEAN DEFAULT FALSE;
+      ALTER TABLE server_announcements ADD COLUMN IF NOT EXISTS dm_sent INTEGER DEFAULT 0;
+      ALTER TABLE server_announcements ADD COLUMN IF NOT EXISTS dm_failed INTEGER DEFAULT 0;
       CREATE TABLE IF NOT EXISTS duty_roster (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         guild_id TEXT NOT NULL,
@@ -3023,7 +3038,7 @@ app.get('/api/guilds/:id/notes', requireAuth, async (req, res) => {
   } catch { res.json([]); }
 });
 
-app.post('/api/guilds/:id/notes', requireAuth, async (req, res) => {
+app.post('/api/guilds/:id/notes', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   const { targetUserId, targetUsername, content, authorId, authorUsername, isPrivate } = req.body;
   if (!content?.trim() || !targetUserId) return res.status(400).json({ error: 'Missing required fields' });
@@ -3215,7 +3230,7 @@ app.post('/api/guilds/:id/commendations', requireBotOrAuth, async (req, res) => 
 });
 
 // ── Rank Requests ─────────────────────────────────────────────────────────
-app.get('/api/guilds/:id/rank-requests', requireAuth, async (req, res) => {
+app.get('/api/guilds/:id/rank-requests', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   if (!DATABASE_URL) return res.json([]);
   try {
@@ -3224,7 +3239,7 @@ app.get('/api/guilds/:id/rank-requests', requireAuth, async (req, res) => {
   } catch { res.json([]); }
 });
 
-app.post('/api/guilds/:id/rank-requests', requireAuth, async (req, res) => {
+app.post('/api/guilds/:id/rank-requests', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   const { userId, username, currentRank, requestedRank, reason } = req.body;
   if (!requestedRank || !reason?.trim()) return res.status(400).json({ error: 'Missing fields' });
@@ -3481,7 +3496,7 @@ app.delete('/api/guilds/:id/custom-commands/:cmdId', requireAuth, async (req, re
 });
 
   // Increment custom command use count (called by bot after execution)
-  app.post('/api/guilds/:id/custom-commands/:cmdId/use', requireAuth, async (req, res) => {
+  app.post('/api/guilds/:id/custom-commands/:cmdId/use', requireBotOrAuth, async (req, res) => {
     const { id, cmdId } = req.params;
     if (!DATABASE_URL) return res.json({ ok: true });
     try {
@@ -3725,6 +3740,7 @@ app.get('/api/guilds/:id/embed-config/bot', requireBotSecret, async (req, res) =
 
 // ── Changelog / Status ────────────────────────────────────────────────────
 const CHANGELOG = [
+  { version: '2.5.0', date: '2026-05-20', type: 'fix', changes: ['Fixed TypeScript syntax crash (const params: any[] on line 2311)', 'Fixed shifts start/end endpoints to accept bot-secret auth', 'Fixed custom command use tracking endpoint auth', 'Fixed mass-DM INSERT using non-existent DB columns', 'Fixed DB migration: shifts now always have shift_type/notes/duration_mins columns', 'Fixed DB migration: server_announcements now has mass_dm/dm_sent/dm_failed columns', 'Rank-request POST now accepts bot-secret (enables /requestrank Discord command)', 'Notes POST now accepts bot-secret (enables /note from bot)', 'Performance review POST now accepts bot-secret'] },
   { version: '2.4.0', date: '2026-05-19', type: 'feature', changes: ['Fixed critical server startup crash (db.js migrations)', 'Fixed inactivity scanner table name bug (activity_logs)', 'Added auto-strike escalation when warning threshold is reached', 'Added mass-DM endpoint alias for announcements page', 'Bot now registers custom commands as guild slash commands', 'Bot customization now applies changes to Discord via REST', 'Rank limit enforced: free=5, premium=unlimited', 'Division limit enforced: free=5, premium=50', 'Announcements dialog crash fixed (empty Select value)', 'Added /commend and /note Discord commands', 'Custom command use count tracking'] },
     { version: '2.3.0', date: '2026-05-18', type: 'feature', changes: ['Added Duty Roster — check in/out of active duty', 'Added Staff Handbook — configurable docs for your server', 'Added Commendations — recognize outstanding staff', 'Added Rank Requests — staff can request promotions via dashboard', 'Added Weekly Schedule planner', 'Added Strike Automation config page (Premium)', 'Added Advanced Analytics with 7-day trends (Premium)', 'Added Custom Commands builder (Premium)', 'Added Inactivity Scanner (Premium)', 'Added Mass DM to all staff (Premium)'] },
   { version: '2.2.0', date: '2026-05-17', type: 'feature', changes: ['Promotions & Demotion history page', 'Shift tracking with live timer', 'Divisions system with Discord role sync', 'Performance reviews with leaderboard', 'Analytics dashboard', 'Auth fix: bot commands now work without BOT_SECRET on web service'] },

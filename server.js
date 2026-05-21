@@ -3417,7 +3417,7 @@ app.delete('/api/guilds/:id/schedule/:slotId', requireAuth, async (req, res) => 
 });
 
 // ── Custom Commands (Premium) ─────────────────────────────────────────────
-app.get('/api/guilds/:id/custom-commands', requireAuth, async (req, res) => {
+app.get('/api/guilds/:id/custom-commands', requireBotOrAuth, async (req, res) => {
   const { id } = req.params;
   if (!DATABASE_URL) return res.json([]);
   try {
@@ -4117,6 +4117,45 @@ app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
   
+
+// ─── Embed Sender ────────────────────────────────────────────────────────────
+app.post('/api/guilds/:id/embed-sender/send', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { channelId, title, description, color, footer, authorName, imageUrl, thumbnailUrl, fields } = req.body;
+  if (!channelId) return res.status(400).json({ error: 'channelId required' });
+  if (!title && !description) return res.status(400).json({ error: 'Embed must have at least a title or description' });
+  const botToken = process.env.DISCORD_BOT_TOKEN;
+  if (!botToken) return res.status(500).json({ error: 'Bot token not configured on server' });
+
+  const embed = {};
+  if (title) embed.title = title;
+  if (description) embed.description = description;
+  if (color) embed.color = parseInt(color.replace('#',''), 16);
+  if (footer) embed.footer = { text: footer };
+  if (authorName) embed.author = { name: authorName };
+  if (imageUrl) embed.image = { url: imageUrl };
+  if (thumbnailUrl) embed.thumbnail = { url: thumbnailUrl };
+  if (Array.isArray(fields) && fields.length > 0) embed.fields = fields.map(f => ({ name: f.name || '​', value: f.value || '​', inline: !!f.inline }));
+  embed.timestamp = new Date().toISOString();
+
+  try {
+    const r = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bot ${botToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ embeds: [embed] }),
+    });
+    const body = await r.json();
+    if (!r.ok) return res.status(400).json({ error: body.message || 'Discord API error', code: body.code });
+    await logActivity(id, req.session?.user?.id, req.session?.user?.username, 'embed_sent', { channelId, title: title || '(no title)' }).catch(() => {});
+    res.json({ ok: true, messageId: body.id });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Bot refresh-commands trigger ────────────────────────────────────────────
+app.post('/api/guilds/:id/custom-commands/refresh', requireBotOrAuth, async (req, res) => {
+  res.json({ ok: true, message: 'Custom command refresh is handled automatically by the bot on startup.' });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);
 });

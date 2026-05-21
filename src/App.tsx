@@ -44,6 +44,7 @@ import RosterPage from "@/pages/dashboard/roster";
   import TrainingPage from "@/pages/dashboard/training";
   import GoalsPage from "@/pages/dashboard/goals";
   import IncidentsPage from "@/pages/dashboard/incidents";
+import EmbedSenderPage from '@/pages/dashboard/embed-sender';
 
   const queryClient = new QueryClient();
 

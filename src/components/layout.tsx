@@ -8,7 +8,7 @@ import { ReactNode, useState, useEffect } from "react";
     Settings, Star, BarChart2, LogOut, Menu, X,
     AlertOctagon, ShieldBan, ArrowLeftRight,
     TrendingUp, Clock, Layers, Award, Zap,
-    Crown, StickyNote, Megaphone, BookOpen, ClipboardList, UserX, Sparkles,
+    Crown, StickyNote, Megaphone, BookOpen, ClipboardList, UserX, Sparkles, Send,
     GraduationCap, FileWarning, Target, ChevronDown, ChevronRight,
   } from "lucide-react";
   import { Button } from "./ui/button";
@@ -84,6 +84,7 @@ import { ReactNode, useState, useEffect } from "react";
           { name: "Performance",    path: `/dashboard/${guildId}/performance`,     icon: <Star className="w-4 h-4" /> },
           { name: "Handbook",       path: `/dashboard/${guildId}/handbook`,        icon: <BookOpen className="w-4 h-4" /> },
           { name: "Custom Commands",path: `/dashboard/${guildId}/custom-commands`, icon: <Sparkles className="w-4 h-4" /> },
+          { name: "Embed Sender",     path: `/dashboard/${guildId}/embed-sender`,     icon: <Send className="w-4 h-4" /> },
         ],
       },
       {

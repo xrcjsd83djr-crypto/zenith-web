@@ -4120,3 +4120,4 @@ app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);
 });
+

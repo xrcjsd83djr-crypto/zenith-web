@@ -100,6 +100,7 @@ import RosterPage from "@/pages/dashboard/roster";
           <Route path="/dashboard/:guildId/training"           component={() => <TrainingPage        guildId={guildId} />} />
           <Route path="/dashboard/:guildId/goals"              component={() => <GoalsPage           guildId={guildId} />} />
           <Route path="/dashboard/:guildId/incidents"          component={() => <IncidentsPage       guildId={guildId} />} />
+          <Route path="/dashboard/:guildId/embed-sender"       component={() => <EmbedSenderPage     guildId={guildId} />} />
           <Route component={NotFound} />
         </Switch>
       </DashboardLayout>

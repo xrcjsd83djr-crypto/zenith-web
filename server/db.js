@@ -155,7 +155,7 @@ import pg from 'pg';
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS division_members (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(), division_id UUID REFERENCES divisions(id) ON DELETE CASCADE,
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(), division_id UUID,
           guild_id TEXT NOT NULL, user_id TEXT NOT NULL, username TEXT NOT NULL, role TEXT DEFAULT 'member',
           added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(division_id, user_id)
         );
@@ -229,7 +229,7 @@ import pg from 'pg';
         );
         CREATE TABLE IF NOT EXISTS application_submissions (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          form_id UUID REFERENCES application_forms(id) ON DELETE CASCADE,
+          form_id UUID,
           guild_id TEXT NOT NULL, user_id TEXT NOT NULL, username TEXT NOT NULL, roblox_username TEXT,
           answers JSONB DEFAULT '[]', status TEXT DEFAULT 'pending',
           reviewer_id TEXT, reviewer_username TEXT, review_notes TEXT,
@@ -270,7 +270,7 @@ import pg from 'pg';
           )`,
           `CREATE TABLE IF NOT EXISTS application_panel_submissions (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(), guild_id TEXT NOT NULL,
-            panel_id UUID REFERENCES application_panels(id) ON DELETE CASCADE,
+            panel_id UUID,
             panel_title TEXT, user_id TEXT NOT NULL, username TEXT NOT NULL,
             answers JSONB DEFAULT '{}', status TEXT DEFAULT 'pending',
             reviewer_id TEXT, reviewer_username TEXT, reviewer_notes TEXT,
@@ -283,7 +283,7 @@ import pg from 'pg';
           )`,
           `CREATE TABLE IF NOT EXISTS training_completions (
             id UUID PRIMARY KEY DEFAULT gen_random_uuid(), guild_id TEXT NOT NULL,
-            program_id UUID REFERENCES training_programs(id) ON DELETE CASCADE,
+            program_id UUID,
             program_name TEXT NOT NULL, user_id TEXT, username TEXT NOT NULL,
             completed_by TEXT, completed_by_name TEXT, score FLOAT, notes TEXT,
             completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

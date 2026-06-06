@@ -206,7 +206,7 @@ import { useState, useEffect, useCallback } from "react";
           <p className="text-muted-foreground mt-0.5 text-sm">Select the Discord roles that represent your staff tiers to load members. Click any member to view their profile.</p>
         </div>
 
-        <Card className="border-border bg-white shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-bold">Select Staff Roles</CardTitle>
             <p className="text-xs text-muted-foreground">Choose which roles should be considered as staff. Members with these roles will appear in the directory.</p>
@@ -228,7 +228,7 @@ import { useState, useEffect, useCallback } from "react";
 
             <div className="relative">
               <Button variant="outline" size="sm" onClick={() => setRoleOpen(o => !o)}
-                className="w-full sm:w-72 justify-between gap-2 font-normal text-xs h-9 bg-white border-border">
+                className="w-full sm:w-72 justify-between gap-2 font-normal text-xs h-9 bg-card border-border">
                 <span className="flex items-center gap-1.5">
                   <Shield size={12} className="text-muted-foreground" />
                   {selectedRoles.length > 0 ? `${selectedRoles.length} role${selectedRoles.length !== 1 ? 's' : ''} selected` : 'Add a staff role...'}
@@ -238,10 +238,10 @@ import { useState, useEffect, useCallback } from "react";
               {roleOpen && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setRoleOpen(false)} />
-                  <div className="absolute top-full left-0 mt-1 w-full sm:w-80 bg-white border border-border rounded-xl shadow-xl z-20 overflow-hidden">
+                  <div className="absolute top-full left-0 mt-1 w-full sm:w-80 bg-card border border-border rounded-xl shadow-xl z-20 overflow-hidden">
                     <div className="p-2 border-b border-border">
                       <Input value={roleSearch} onChange={e => setRoleSearch(e.target.value)}
-                        placeholder="Search roles..." className="h-7 text-xs bg-white border-border" autoFocus />
+                        placeholder="Search roles..." className="h-7 text-xs bg-card border-border" autoFocus />
                     </div>
                     <div className="max-h-52 overflow-y-auto py-1">
                       {filteredRoles.length === 0 ? (
@@ -277,14 +277,14 @@ import { useState, useEffect, useCallback } from "react";
               <div className="flex items-center gap-2">
                 <div className="relative">
                   <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search staff..." className="pl-8 h-8 text-xs w-48 bg-white border-border" />
+                  <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search staff..." className="pl-8 h-8 text-xs w-48 bg-card border-border" />
                 </div>
                 <Button variant="outline" size="sm" onClick={() => { setStaffLoaded(false); setSearch(''); setSelectedRoles([]); }}><RefreshCw size={12} /></Button>
               </div>
             </div>
 
             {filteredStaff.length === 0 ? (
-              <Card className="border-border bg-white shadow-sm">
+              <Card className="border-border bg-card shadow-sm">
                 <CardContent className="py-14 text-center">
                   <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                   <p className="text-sm font-semibold text-muted-foreground">
@@ -307,7 +307,7 @@ import { useState, useEffect, useCallback } from "react";
                       onClick={() => setSelectedMember(member)}
                       className="text-left w-full"
                     >
-                      <Card className="border-border bg-white shadow-sm hover:shadow-md hover:border-amber-200 transition-all cursor-pointer">
+                      <Card className="border-border bg-card shadow-sm hover:shadow-md hover:border-amber-200 transition-all cursor-pointer">
                         <CardContent className="p-3 flex items-center gap-3">
                           <div className="relative flex-shrink-0">
                             {avatarUrl ? (

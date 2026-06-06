@@ -75,7 +75,7 @@ export default function AutomationPage({ guildId }: { guildId: string }) {
       ) : (
         <div className="space-y-4">
           {/* Status toggle card */}
-          <Card className="border-border bg-white shadow-sm">
+          <Card className="border-border bg-card shadow-sm">
             <CardContent className="p-4 flex items-center justify-between gap-4">
               <div>
                 <p className="font-semibold text-sm">Automation Status</p>
@@ -86,21 +86,21 @@ export default function AutomationPage({ guildId }: { guildId: string }) {
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${config.enabled ? '' : 'bg-gray-200'}`}
                 style={config.enabled ? { background: 'linear-gradient(135deg,#d4af37,#ffd700)' } : {}}
               >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${config.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-card shadow transition-transform ${config.enabled ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
             </CardContent>
           </Card>
 
           {/* Settings */}
-          <Card className="border-border bg-white shadow-sm">
+          <Card className="border-border bg-card shadow-sm">
             <CardHeader className="pb-3"><CardTitle className="text-sm">Trigger Settings</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="font-semibold">Strike Threshold</Label>
                   <Select value={String(config.threshold)} onValueChange={v => setConfig(c => ({ ...c, threshold: parseInt(v) }))}>
-                    <SelectTrigger className="bg-white border-border"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-white border-border">
+                    <SelectTrigger className="bg-card border-border"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-card border-border">
                       {[1,2,3,4,5,6,7,8,9,10].map(n => <SelectItem key={n} value={String(n)}>{n} strike{n !== 1 ? 's' : ''}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -108,8 +108,8 @@ export default function AutomationPage({ guildId }: { guildId: string }) {
                 <div className="space-y-1.5">
                   <Label className="font-semibold">Action</Label>
                   <Select value={config.action} onValueChange={v => setConfig(c => ({ ...c, action: v }))}>
-                    <SelectTrigger className="bg-white border-border"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-white border-border">
+                    <SelectTrigger className="bg-card border-border"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-card border-border">
                       <SelectItem value="dm_warn">DM Warning only</SelectItem>
                       <SelectItem value="remove_role">Remove role only</SelectItem>
                       <SelectItem value="dm_and_role">DM + Remove role</SelectItem>
@@ -121,7 +121,7 @@ export default function AutomationPage({ guildId }: { guildId: string }) {
               {(config.action === 'remove_role' || config.action === 'dm_and_role') && (
                 <div className="space-y-1.5">
                   <Label className="font-semibold">Discord Role ID to Remove</Label>
-                  <Input value={config.remove_role_id} onChange={e => setConfig(c => ({ ...c, remove_role_id: e.target.value }))} placeholder="e.g. 123456789012345678 (Staff role)" className="bg-white border-border font-mono text-sm" />
+                  <Input value={config.remove_role_id} onChange={e => setConfig(c => ({ ...c, remove_role_id: e.target.value }))} placeholder="e.g. 123456789012345678 (Staff role)" className="bg-card border-border font-mono text-sm" />
                   <p className="text-xs text-muted-foreground">This role is removed from the staff member when the threshold is hit.</p>
                 </div>
               )}
@@ -129,7 +129,7 @@ export default function AutomationPage({ guildId }: { guildId: string }) {
               {(config.action === 'dm_warn' || config.action === 'dm_and_role') && (
                 <div className="space-y-1.5">
                   <Label className="font-semibold">DM Message (optional)</Label>
-                  <Textarea value={config.dm_message} onChange={e => setConfig(c => ({ ...c, dm_message: e.target.value }))} placeholder="Leave blank for the default message, or customize it here..." className="bg-white border-border min-h-[80px]" />
+                  <Textarea value={config.dm_message} onChange={e => setConfig(c => ({ ...c, dm_message: e.target.value }))} placeholder="Leave blank for the default message, or customize it here..." className="bg-card border-border min-h-[80px]" />
                 </div>
               )}
             </CardContent>

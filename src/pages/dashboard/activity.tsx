@@ -39,7 +39,7 @@ const ACTION_COLORS: Record<string, string> = {
   promotion: 'bg-purple-100 text-purple-700 border-purple-200',
   demotion: 'bg-red-100 text-red-700 border-red-200',
   commendation: 'bg-amber-100 text-amber-700 border-amber-200',
-  login: 'bg-gray-100 text-gray-600 border-gray-200',
+  login: 'bg-muted/30 text-muted-foreground border-border',
   mass_dm: 'bg-indigo-100 text-indigo-700 border-indigo-200',
 };
 

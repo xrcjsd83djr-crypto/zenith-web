@@ -50,7 +50,7 @@ import { useState, useEffect, useCallback } from "react";
             <span className="text-muted-foreground text-xs ml-2 truncate">"{s.reason.slice(0,60)}{s.reason.length>60?'…':''}"</span>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {!s.active && <Badge className="bg-gray-100 text-gray-500 border text-xs">Removed</Badge>}
+            {!s.active && <Badge className="bg-muted/30 text-muted-foreground border text-xs">Removed</Badge>}
             <span className="text-muted-foreground text-xs hidden sm:block">{ts.toLocaleDateString()}</span>
             {open?<ChevronUp size={14} className="text-muted-foreground"/>:<ChevronDown size={14} className="text-muted-foreground"/>}
           </div>

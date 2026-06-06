@@ -16,7 +16,7 @@ import { useState, useEffect, useCallback } from "react";
       approved: { cls: "bg-green-100 text-green-700 border-green-200",  label: "Approved" },
       denied:   { cls: "bg-red-100 text-red-700 border-red-200",         label: "Denied" },
       active:   { cls: "bg-blue-100 text-blue-700 border-blue-200",      label: "Active" },
-      expired:  { cls: "bg-gray-100 text-gray-600 border-gray-200",      label: "Expired" },
+      expired:  { cls: "bg-muted/30 text-muted-foreground border-border",      label: "Expired" },
     };
     const s = map[status] || map.pending;
     return <Badge className={`${s.cls} text-xs border capitalize font-medium`}>{s.label}</Badge>;
@@ -128,28 +128,28 @@ import { useState, useEffect, useCallback } from "react";
                   <Plus size={14} /> New Request
                 </Button>
               </DialogTrigger>
-              <DialogContent className="bg-white border-border max-w-md">
+              <DialogContent className="bg-card border-border max-w-md">
                 <DialogHeader>
                   <DialogTitle>Submit LOA Request</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 mt-2">
                   <div className="space-y-1.5">
                     <Label className="font-semibold">Username</Label>
-                    <Input value={form.username || me?.username || ''} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} placeholder={me?.username || 'Your username'} className="bg-white border-border" />
+                    <Input value={form.username || me?.username || ''} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} placeholder={me?.username || 'Your username'} className="bg-card border-border" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="font-semibold">Start Date</Label>
-                      <Input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} className="bg-white border-border" required />
+                      <Input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} className="bg-card border-border" required />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="font-semibold">End Date</Label>
-                      <Input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} className="bg-white border-border" required />
+                      <Input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} className="bg-card border-border" required />
                     </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="font-semibold">Reason</Label>
-                    <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="Reason for your leave of absence..." className="bg-white border-border min-h-[80px]" required />
+                    <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="Reason for your leave of absence..." className="bg-card border-border min-h-[80px]" required />
                   </div>
                   {error && <p className="text-red-600 text-sm flex items-center gap-1.5"><AlertCircle size={13} />{error}</p>}
                   <div className="flex justify-end gap-2 pt-1">
@@ -172,7 +172,7 @@ import { useState, useEffect, useCallback } from "react";
             { label: 'Approved', val: loas.filter(l => l.status === 'approved' || l.status === 'active').length, color: 'text-green-600' },
             { label: 'Denied', val: loas.filter(l => l.status === 'denied').length, color: 'text-red-500' },
           ].map(s => (
-            <Card key={s.label} className="border-border bg-white shadow-sm">
+            <Card key={s.label} className="border-border bg-card shadow-sm">
               <CardContent className="p-4">
                 <div className={`text-2xl font-extrabold ${s.color}`}>{s.val}</div>
                 <div className="text-xs text-muted-foreground font-medium mt-0.5">{s.label}</div>
@@ -223,7 +223,7 @@ import { useState, useEffect, useCallback } from "react";
           <div className="space-y-2">
             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">History ({others.length})</h3>
             {others.map(loa => (
-              <Card key={loa.id} className="border-border bg-white shadow-sm">
+              <Card key={loa.id} className="border-border bg-card shadow-sm">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div className="flex-1 min-w-0">
@@ -255,7 +255,7 @@ import { useState, useEffect, useCallback } from "react";
         )}
 
         {loas.length === 0 && (
-          <Card className="border-border bg-white shadow-sm">
+          <Card className="border-border bg-card shadow-sm">
             <CardContent className="py-16 text-center">
               <Calendar className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
               <p className="font-semibold text-muted-foreground">No LOA requests yet</p>

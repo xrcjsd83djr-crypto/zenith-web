@@ -27,7 +27,7 @@ const TYPE_STYLES: Record<string, { badge: string; icon: JSX.Element }> = {
   major:   { badge: 'bg-purple-100 text-purple-700 border-purple-200', icon: <Zap size={12} /> },
   feature: { badge: 'bg-blue-100 text-blue-700 border-blue-200', icon: <CheckCircle size={12} /> },
   fix:     { badge: 'bg-green-100 text-green-700 border-green-200', icon: <AlertTriangle size={12} /> },
-  patch:   { badge: 'bg-gray-100 text-gray-600 border-gray-200', icon: <Clock size={12} /> },
+  patch:   { badge: 'bg-muted/30 text-muted-foreground border-border', icon: <Clock size={12} /> },
 };
 
 export default function StatusPage() {
@@ -50,7 +50,7 @@ export default function StatusPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur border-b border-gray-100">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-card/90 backdrop-blur border-b border-gray-100">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: 'linear-gradient(135deg,#d4af37,#ffd700)' }}>Z</div>
@@ -110,7 +110,7 @@ export default function StatusPage() {
             {changelog.map((entry, i) => {
               const style = TYPE_STYLES[entry.type] || TYPE_STYLES.patch;
               return (
-                <Card key={entry.version} className={`border-border bg-white shadow-sm ${i === 0 ? 'ring-2 ring-amber-200' : ''}`}>
+                <Card key={entry.version} className={`border-border bg-card shadow-sm ${i === 0 ? 'ring-2 ring-amber-200' : ''}`}>
                   <CardContent className="p-5">
                     <div className="flex items-center gap-2 mb-3 flex-wrap">
                       <span className="font-bold text-base">v{entry.version}</span>

@@ -72,7 +72,7 @@ export default function ApplicationPortal({ apak }: { apak: string }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-8">
+    <div className="min-h-screen bg-muted/20 p-4 sm:p-8">
       <div className="max-w-5xl mx-auto">
         <header className="mb-8 flex items-center justify-between">
           <div>
@@ -95,7 +95,7 @@ export default function ApplicationPortal({ apak }: { apak: string }) {
 
         <div className="grid gap-6">
           {submissions.length === 0 ? (
-            <Card className="border-border bg-white text-center py-12">
+            <Card className="border-border bg-card text-center py-12">
               <CardContent>
                 <Inbox className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20" />
                 <p className="text-muted-foreground">No pending applications to review.</p>
@@ -103,7 +103,7 @@ export default function ApplicationPortal({ apak }: { apak: string }) {
             </Card>
           ) : (
             submissions.map((sub) => (
-              <Card key={sub.id} className="border-border bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              <Card key={sub.id} className="border-border bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 <CardHeader className="bg-muted/30 pb-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -120,7 +120,7 @@ export default function ApplicationPortal({ apak }: { apak: string }) {
                     {sub.answers.map((ans: any, i: number) => (
                       <div key={i} className="space-y-1">
                         <p className="text-xs font-bold text-muted-foreground uppercase tracking-tight">{ans.question}</p>
-                        <p className="text-sm bg-gray-50 p-3 rounded-lg border border-border">{ans.answer}</p>
+                        <p className="text-sm bg-muted/20 p-3 rounded-lg border border-border">{ans.answer}</p>
                       </div>
                     ))}
                   </div>

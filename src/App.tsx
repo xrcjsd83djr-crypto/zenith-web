@@ -51,11 +51,11 @@ import PollsPage from "@/pages/dashboard/polls";
 import TasksPage from "@/pages/dashboard/tasks";
 import DirectoryPage from "@/pages/dashboard/directory";
 import AwardsPage from "@/pages/dashboard/awards";
-import AccountSettingsPage  from "@/pages/dashboard/account-settings";
-  import StaffHealthPage      from "@/pages/dashboard/staff-health";
-  import LeaderboardPage      from "@/pages/dashboard/leaderboard";
-  import InactivityRadarPage  from "@/pages/dashboard/inactivity-radar";
-  import SmartReportsPage     from "@/pages/dashboard/smart-reports";
+import AccountSettingsPage from "@/pages/dashboard/account-settings";
+import StaffHealthPage from "@/pages/dashboard/staff-health";
+import LeaderboardPage from "@/pages/dashboard/leaderboard";
+import InactivityRadarPage from "@/pages/dashboard/inactivity-radar";
+import SmartReportsPage from "@/pages/dashboard/smart-reports";
 
 const queryClient = new QueryClient();
 
@@ -67,10 +67,10 @@ function ProtectedRoute({ component: Component }: { component: any }) {
   }, [isLoading, isAuthenticated, setLocation]);
   if (isLoading || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="w-12 h-12 bg-gray-200 rounded-xl mb-4" />
-          <div className="h-3 w-24 bg-gray-200 rounded" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-2 animate-spin" style={{ borderColor: '#d4af37', borderTopColor: 'transparent' }} />
+          <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
@@ -118,6 +118,12 @@ function DashboardRoutes({ params }: { params: { guildId: string } }) {
         <Route path="/dashboard/:guildId/tasks"              component={() => <TasksPage           guildId={guildId} />} />
         <Route path="/dashboard/:guildId/directory"          component={() => <DirectoryPage       guildId={guildId} />} />
         <Route path="/dashboard/:guildId/awards"             component={() => <AwardsPage          guildId={guildId} />} />
+        {/* Intelligence & Settings */}
+        <Route path="/dashboard/:guildId/staff-health"       component={() => <StaffHealthPage     guildId={guildId} />} />
+        <Route path="/dashboard/:guildId/leaderboard"        component={() => <LeaderboardPage     guildId={guildId} />} />
+        <Route path="/dashboard/:guildId/inactivity-radar"   component={() => <InactivityRadarPage guildId={guildId} />} />
+        <Route path="/dashboard/:guildId/smart-reports"      component={() => <SmartReportsPage    guildId={guildId} />} />
+        <Route path="/dashboard/:guildId/account-settings"   component={() => <AccountSettingsPage guildId={guildId} />} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>

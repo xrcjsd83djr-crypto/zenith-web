@@ -11,7 +11,7 @@ import {
   Crown, StickyNote, Megaphone, BookOpen, ClipboardList, UserX, Sparkles, Send,
   GraduationCap, FileWarning, Target, ChevronDown, ChevronRight,
   BarChart3, CheckSquare, Users2, Trophy, UserCog,
-  Heart, Radar, FileBarChart,
+  Heart, Radar, FileBarChart, Brain, Wand2, Shield, History,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -108,6 +108,15 @@ export default function DashboardLayout({ guildId, children }: { guildId: string
         { name: "Leaderboard",     path: `/dashboard/${guildId}/leaderboard`,      icon: <Trophy className="w-4 h-4" />, badge: "PRO" },
         { name: "Inactivity Radar",path: `/dashboard/${guildId}/inactivity-radar`, icon: <Radar className="w-4 h-4" />, badge: "PRO" },
         { name: "Smart Reports",   path: `/dashboard/${guildId}/smart-reports`,    icon: <FileBarChart className="w-4 h-4" />, badge: "PRO" },
+      ],
+    },
+    {
+      label: "Advanced",
+      items: [
+        { name: "AI Insights",     path: `/dashboard/${guildId}/ai-insights`,      icon: <Brain className="w-4 h-4" />,    badge: "PRO" },
+        { name: "Staff Timeline",  path: `/dashboard/${guildId}/staff-timeline`,    icon: <History className="w-4 h-4" />              },
+        { name: "AutoPromotion",   path: `/dashboard/${guildId}/autopromotion`,     icon: <Wand2 className="w-4 h-4" />,    badge: "PRO" },
+        { name: "Patrol Monitor",  path: `/dashboard/${guildId}/patrol-monitor`,    icon: <Shield className="w-4 h-4" />              },
       ],
     },
   ];

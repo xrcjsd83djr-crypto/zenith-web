@@ -83,19 +83,19 @@ export default function CommendationsPage({ guildId }: { guildId: string }) {
                 <Plus size={14} /> Issue Commendation
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-white border-border max-w-md">
+            <DialogContent className="bg-card border-border max-w-md">
               <DialogHeader><DialogTitle className="flex items-center gap-2"><Star size={18} style={{ color: '#d4af37' }} />Issue Commendation</DialogTitle></DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4 mt-2">
                 <div className="space-y-1.5">
                   <Label className="font-semibold">Staff Member</Label>
                   <Select value={form.targetUserId} onValueChange={v => { const m = staff.find(x => x.user_id === v); setForm(f => ({ ...f, targetUserId: v, targetUsername: m?.username || v })); }}>
-                    <SelectTrigger className="bg-white border-border"><SelectValue placeholder="Who deserves recognition?" /></SelectTrigger>
-                    <SelectContent className="bg-white border-border max-h-52">{staff.map(m => <SelectItem key={m.user_id} value={m.user_id}>{m.username}</SelectItem>)}</SelectContent>
+                    <SelectTrigger className="bg-card border-border"><SelectValue placeholder="Who deserves recognition?" /></SelectTrigger>
+                    <SelectContent className="bg-card border-border max-h-52">{staff.map(m => <SelectItem key={m.user_id} value={m.user_id}>{m.username}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="font-semibold">Reason</Label>
-                  <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="What did they do exceptionally well? Be specific — this goes in their permanent record." className="bg-white border-border min-h-[100px]" required />
+                  <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="What did they do exceptionally well? Be specific — this goes in their permanent record." className="bg-card border-border min-h-[100px]" required />
                 </div>
                 <div className="flex justify-end gap-2 pt-1">
                   <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
@@ -115,14 +115,14 @@ export default function CommendationsPage({ guildId }: { guildId: string }) {
           { label: 'Staff Recognized', val: leaderboard.length, color: 'text-green-600' },
           { label: 'This Month', val: items.filter(i => new Date(i.created_at).getMonth() === new Date().getMonth()).length, color: 'text-foreground' },
         ].map(s => (
-          <Card key={s.label} className="border-border bg-white shadow-sm">
+          <Card key={s.label} className="border-border bg-card shadow-sm">
             <CardContent className="p-4"><div className={`text-2xl font-extrabold ${s.color}`}>{s.val}</div><div className="text-xs text-muted-foreground font-medium mt-0.5">{s.label}</div></CardContent>
           </Card>
         ))}
       </div>
 
       {leaderboard.length > 0 && (
-        <Card className="border-border bg-white shadow-sm">
+        <Card className="border-border bg-card shadow-sm">
           <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Trophy size={14} style={{ color: '#d4af37' }} />Most Recognized</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {leaderboard.slice(0, 5).map((e, i) => (
@@ -137,11 +137,11 @@ export default function CommendationsPage({ guildId }: { guildId: string }) {
       )}
 
       {items.length === 0 ? (
-        <Card className="border-border bg-white shadow-sm"><CardContent className="py-16 text-center"><Star className="w-10 h-10 text-muted-foreground mx-auto mb-3" /><p className="font-semibold text-muted-foreground">No commendations yet</p><p className="text-sm text-muted-foreground mt-1">Start recognizing your best staff members. Commendations build morale and track who's going above and beyond.</p></CardContent></Card>
+        <Card className="border-border bg-card shadow-sm"><CardContent className="py-16 text-center"><Star className="w-10 h-10 text-muted-foreground mx-auto mb-3" /><p className="font-semibold text-muted-foreground">No commendations yet</p><p className="text-sm text-muted-foreground mt-1">Start recognizing your best staff members. Commendations build morale and track who's going above and beyond.</p></CardContent></Card>
       ) : (
         <div className="space-y-2">
           {items.map(c => (
-            <Card key={c.id} className="border-border bg-white shadow-sm">
+            <Card key={c.id} className="border-border bg-card shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-lg">🌟</span>

@@ -64,8 +64,75 @@
     --radius-xl: calc(var(--radius) + 4px);
   }
 
+  /* DARK MODE — default */
+  :root, .dark {
+    --button-outline: rgba(255,255,255, .10);
+    --badge-outline: rgba(255,255,255, .07);
+    --opaque-button-border-intensity: 8;
+    --elevate-1: rgba(255,255,255, .03);
+    --elevate-2: rgba(255,255,255, .06);
+
+    --background: 222 20% 8%;
+    --foreground: 210 30% 96%;
+
+    --card: 222 20% 11%;
+    --card-foreground: 210 30% 96%;
+    --card-border: 222 18% 17%;
+
+    --popover: 222 20% 11%;
+    --popover-foreground: 210 30% 96%;
+    --popover-border: 222 18% 17%;
+
+    --primary: 43 62% 52%;
+    --primary-foreground: 0 0% 100%;
+    --primary-border: rgba(212,175,55,.30);
+
+    --secondary: 222 18% 16%;
+    --secondary-foreground: 210 25% 90%;
+    --secondary-border: rgba(255,255,255,.07);
+
+    --muted: 222 18% 13%;
+    --muted-foreground: 215 18% 60%;
+    --muted-border: rgba(255,255,255,.05);
+
+    --accent: 43 62% 52%;
+    --accent-foreground: 0 0% 100%;
+    --accent-border: rgba(212,175,55,.25);
+
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-border: rgba(239,68,68,.30);
+
+    --premium: 43 95% 48%;
+    --premium-foreground: 0 0% 100%;
+
+    --border: 222 18% 17%;
+    --input: 222 18% 17%;
+    --ring: 43 62% 52%;
+
+    --sidebar: 222 22% 6%;
+    --sidebar-foreground: 210 30% 93%;
+    --sidebar-border: 222 18% 12%;
+    --sidebar-primary: 43 62% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-primary-border: rgba(212,175,55,.25);
+    --sidebar-accent: 222 18% 13%;
+    --sidebar-accent-foreground: 210 30% 96%;
+    --sidebar-accent-border: rgba(255,255,255,.05);
+    --sidebar-ring: 43 62% 52%;
+
+    --app-font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --app-font-serif: Georgia, serif;
+    --app-font-mono: Menlo, monospace;
+    --radius: 0.5rem;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.4);
+  }
+
   /* LIGHT MODE — Gold & White */
-  :root {
+  .light {
     --button-outline: rgba(0,0,0, .10);
     --badge-outline: rgba(0,0,0, .05);
     --opaque-button-border-intensity: -8;

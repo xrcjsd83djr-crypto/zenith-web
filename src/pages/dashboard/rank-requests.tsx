@@ -12,7 +12,7 @@ import { useState, useEffect, useCallback } from "react";
 
   function StatusBadge({ status }: { status: string }) {
     const map: Record<string,string> = { pending:"bg-yellow-100 text-yellow-700 border-yellow-200", approved:"bg-green-100 text-green-700 border-green-200", denied:"bg-red-100 text-red-700 border-red-200" };
-    return <Badge className={`${map[status]||'bg-gray-100 text-gray-600'} text-xs border`}>{status.charAt(0).toUpperCase()+status.slice(1)}</Badge>;
+    return <Badge className={`${map[status]||'bg-muted/30 text-muted-foreground'} text-xs border`}>{status.charAt(0).toUpperCase()+status.slice(1)}</Badge>;
   }
 
   function RequestRow({ r, me, guildId, onRefresh }: { r: RankRequest; me: any; guildId: string; onRefresh: () => void }) {

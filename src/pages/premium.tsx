@@ -1,188 +1,144 @@
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Star, Zap, Shield, BarChart3, Headphones, Check, ArrowLeft, ExternalLink } from "lucide-react";
+  import { ArrowLeft, Star, Check, Zap, Shield, Crown, Sparkles } from "lucide-react";
+  import { Button } from "@/components/ui/button";
+  import { Card, CardContent } from "@/components/ui/card";
+  import { Badge } from "@/components/ui/badge";
+  import { useState } from "react";
 
-const SUPPORT_SERVER = "https://discord.gg/UmDQqXPCfF";
+  const PLANS = [
+    {
+      name: "Free",
+      price: "0",
+      color: "#6b7280",
+      icon: <Shield className="w-5 h-5" />,
+      description: "Perfect for getting started",
+      features: [
+        "Up to 25 staff members",
+        "Basic slash commands",
+        "Strike & warning system",
+        "LOA management",
+        "Activity tracking",
+        "1 application panel",
+        "Community support",
+      ],
+      cta: "Current Plan",
+      disabled: true,
+    },
+    {
+      name: "Premium",
+      price: "800",
+      priceNote: "Robux / month",
+      color: "#d4af37",
+      icon: <Star className="w-5 h-5" />,
+      description: "For serious staff teams",
+      badge: "POPULAR",
+      features: [
+        "Unlimited staff members",
+        "All slash commands",
+        "Custom bot prefix",
+        "Advanced analytics",
+        "Unlimited app panels",
+        "Priority support",
+        "Custom embed colors",
+        "Staff leaderboard",
+        "Automated promotions",
+        "Smart Reports",
+      ],
+      cta: "Upgrade to Premium",
+    },
+    {
+      name: "Enterprise",
+      price: "2,000",
+      priceNote: "Robux / month",
+      color: "#a855f7",
+      icon: <Crown className="w-5 h-5" />,
+      description: "For large organizations",
+      features: [
+        "Everything in Premium",
+        "Custom bot branding",
+        "Custom bot avatar & name",
+        "Dedicated support",
+        "Custom features on request",
+        "White-glove onboarding",
+        "Multiple server support",
+        "AI-powered insights",
+      ],
+      cta: "Contact Us",
+    },
+  ];
 
-const FEATURES = [
-  {
-    icon: <BarChart3 className="w-6 h-6 text-yellow-500" />,
-    title: "Advanced Analytics",
-    desc: "Deep activity reports, trend analysis, and custom metrics for your entire staff team."
-  },
-  {
-    icon: <Zap className="w-6 h-6 text-yellow-500" />,
-    title: "Priority Bot Response",
-    desc: "Your server gets priority processing for all slash commands and events."
-  },
-  {
-    icon: <Shield className="w-6 h-6 text-yellow-500" />,
-    title: "Advanced Automation",
-    desc: "Auto-promotion, scheduled announcements, custom workflow triggers, and more."
-  },
-  {
-    icon: <Headphones className="w-6 h-6 text-yellow-500" />,
-    title: "Priority Support",
-    desc: "Direct access to the Zenith support team with faster response times."
-  },
-];
+  export default function PremiumPage() {
+    const [billing, setBilling] = useState<"monthly"|"yearly">("monthly");
 
-const PLANS = [
-  {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    color: "border-gray-200",
-    badge: null,
-    features: ["Staff roster (up to 25 members)", "Basic strike tracking", "LOA requests", "Standard applications", "Bot commands"],
-    cta: "Current Plan",
-    ctaVariant: "outline" as const,
-    disabled: true,
-    href: null,
-  },
-  {
-    name: "Pro",
-    price: "$9.99",
-    period: "per month",
-    color: "border-yellow-400 shadow-yellow-100 shadow-lg",
-    badge: "Most Popular",
-    features: [
-      "Unlimited staff members",
-      "Advanced analytics & reports",
-      "Priority bot response",
-      "Advanced automation",
-      "Custom embed branding",
-      "Priority support",
-      "All future Pro features",
-    ],
-    cta: "Get Premium",
-    ctaVariant: "default" as const,
-    disabled: false,
-    href: SUPPORT_SERVER,
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    period: "contact us",
-    color: "border-gray-200",
-    badge: null,
-    features: [
-      "Everything in Pro",
-      "Dedicated bot instance",
-      "Custom integrations",
-      "SLA guarantee",
-      "White-label options",
-      "Onboarding support",
-    ],
-    cta: "Contact Us",
-    ctaVariant: "outline" as const,
-    disabled: false,
-    href: SUPPORT_SERVER,
-  },
-];
-
-export default function PremiumPage() {
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      {/* Navbar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white font-bold text-xl">Z</div>
-            <span className="font-bold text-xl tracking-tight text-gray-900">Zenith</span>
-          </Link>
-          <Link href="/servers">
-            <Button variant="outline" size="sm" className="gap-2">
-              <ArrowLeft className="w-4 h-4" /> Back to Dashboard
-            </Button>
-          </Link>
-        </div>
-      </nav>
-
-      <div className="pt-24 pb-20 px-4">
+    return (
+      <div className="min-h-screen py-12 px-4" style={{ background: "#0d0f14" }}>
         <div className="max-w-5xl mx-auto">
-          {/* Hero */}
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-yellow-50 border border-yellow-200 text-yellow-700 text-sm font-semibold mb-6">
-              <Star className="w-4 h-4 fill-current" /> Zenith Premium
+          <Link href="/" className="inline-flex items-center gap-2 mb-10 text-sm hover:opacity-70 transition-opacity" style={{ color: "rgba(255,255,255,.4)" }}>
+            <ArrowLeft className="w-4 h-4" /> Back to home
+          </Link>
+
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-5 text-xs font-bold" style={{ background: "rgba(212,175,55,.1)", color: "#d4af37", border: "1px solid rgba(212,175,55,.2)" }}>
+              <Sparkles className="w-3.5 h-3.5" /> Zenith Premium Plans
             </div>
-            <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 tracking-tight mb-4">
-              Unlock the full power of <span className="text-yellow-500">Zenith Pro</span>
-            </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Everything your staff team needs to run at the highest level. No limits, no compromises.
+            <h1 className="text-4xl font-black text-white mb-4">Upgrade your<br /><span style={{ color: "#d4af37" }}>staff management</span></h1>
+            <p className="text-lg max-w-xl mx-auto" style={{ color: "rgba(255,255,255,.5)" }}>
+              Unlock the full power of Zenith with premium features built for serious ERLC staff teams.
             </p>
           </div>
 
-          {/* Feature highlights */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-16">
-            {FEATURES.map((f, i) => (
-              <div key={i} className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 rounded-xl bg-yellow-50 border border-yellow-100 flex items-center justify-center mb-4">
-                  {f.icon}
-                </div>
-                <h3 className="font-bold text-gray-900 mb-1.5">{f.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Pricing */}
-          <div className="grid md:grid-cols-3 gap-6">
-            {PLANS.map((plan) => (
-              <div key={plan.name} className={`bg-white border-2 rounded-2xl p-7 relative ${plan.color} ${plan.badge ? "ring-2 ring-yellow-300 ring-offset-2" : ""}`}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {PLANS.map((plan, i) => (
+              <div key={plan.name} className="relative rounded-2xl p-6 border transition-all"
+                style={plan.badge
+                  ? { background: "rgba(212,175,55,.06)", borderColor: "rgba(212,175,55,.4)", boxShadow: "0 0 40px rgba(212,175,55,.08)" }
+                  : { background: "rgba(255,255,255,.03)", borderColor: "rgba(255,255,255,.08)" }}>
                 {plan.badge && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-white border-0 font-bold px-3 py-0.5 shadow-sm">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-[10px] font-black" style={{ background: "#d4af37", color: "#000" }}>
                     {plan.badge}
-                  </Badge>
-                )}
-                <div className="mb-5">
-                  <h3 className="font-extrabold text-gray-900 text-xl">{plan.name}</h3>
-                  <div className="mt-2">
-                    <span className="text-3xl font-extrabold text-gray-900">{plan.price}</span>
-                    <span className="text-gray-400 text-sm ml-1">/{plan.period}</span>
                   </div>
-                </div>
-                <ul className="space-y-2.5 mb-7">
-                  {plan.features.map((f, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                      <Check className={`w-4 h-4 flex-shrink-0 ${plan.badge ? "text-yellow-500" : "text-primary"}`} />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                {plan.href ? (
-                  <a href={plan.href} target="_blank" rel="noreferrer" className="block">
-                    <Button
-                      variant={plan.ctaVariant}
-                      className={`w-full font-bold gap-2 ${plan.badge ? "bg-yellow-500 hover:bg-yellow-600 text-white border-0 shadow-md" : ""}`}
-                    >
-                      {plan.cta} <ExternalLink className="w-3.5 h-3.5" />
-                    </Button>
-                  </a>
-                ) : (
-                  <Button
-                    variant={plan.ctaVariant}
-                    className="w-full font-bold"
-                    disabled={plan.disabled}
-                  >
-                    {plan.cta}
-                  </Button>
                 )}
+                <div className="flex items-center gap-2.5 mb-4">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${plan.color}20`, color: plan.color }}>
+                    {plan.icon}
+                  </div>
+                  <span className="font-bold text-white">{plan.name}</span>
+                </div>
+                <div className="mb-1">
+                  <span className="text-3xl font-black text-white">{plan.price}</span>
+                  {plan.priceNote && <span className="text-sm ml-1.5" style={{ color: "rgba(255,255,255,.4)" }}>{plan.priceNote}</span>}
+                  {!plan.priceNote && <span className="text-sm ml-1.5" style={{ color: "rgba(255,255,255,.4)" }}>forever</span>}
+                </div>
+                <p className="text-sm mb-6" style={{ color: "rgba(255,255,255,.4)" }}>{plan.description}</p>
+
+                <div className="space-y-2.5 mb-6">
+                  {plan.features.map(f => (
+                    <div key={f} className="flex items-start gap-2.5 text-sm" style={{ color: "rgba(255,255,255,.75)" }}>
+                      <Check className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: plan.color }} />
+                      {f}
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  disabled={plan.disabled}
+                  className="w-full py-2.5 rounded-xl font-semibold text-sm transition-all"
+                  style={plan.badge
+                    ? { background: "#d4af37", color: "#000" }
+                    : plan.disabled
+                      ? { background: "rgba(255,255,255,.06)", color: "rgba(255,255,255,.3)", cursor: "not-allowed" }
+                      : { background: "rgba(255,255,255,.08)", color: "rgba(255,255,255,.7)", border: "1px solid rgba(255,255,255,.1)" }}>
+                  {plan.cta}
+                </button>
               </div>
             ))}
           </div>
 
-          <p className="text-center text-sm text-gray-400 mt-8">
-            Premium is applied per-server. Join our{" "}
-            <a href={SUPPORT_SERVER} target="_blank" rel="noreferrer" className="text-primary font-medium hover:underline">
-              Discord support server
-            </a>{" "}
-            to get started — a staff member will activate premium for your server.
-          </p>
+          <div className="mt-12 text-center" style={{ color: "rgba(255,255,255,.3)" }}>
+            <p className="text-sm">Have questions? Join our <a href="https://discord.gg/UmDQqXPCfF" target="_blank" rel="noreferrer" className="underline hover:text-white transition-colors">support server</a></p>
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
+  

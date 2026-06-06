@@ -103,6 +103,10 @@ export default function DashboardLayout({ guildId, children }: { guildId: string
         { name: "Activity Logs", path: `/dashboard/${guildId}/activity`,  icon: <ActivitySquare className="w-4 h-4" /> },
         { name: "Statistics",    path: `/dashboard/${guildId}/stats`,     icon: <BarChart2 className="w-4 h-4" /> },
         { name: "Analytics",     path: `/dashboard/${guildId}/analytics`, icon: <Zap className="w-4 h-4" />, badge: "PRO" },
+          { name: "Staff Health",    path: `/dashboard/${guildId}/staff-health`,     icon: <ActivitySquare className="w-4 h-4" /> },
+          { name: "Leaderboard",     path: `/dashboard/${guildId}/leaderboard`,      icon: <Trophy className="w-4 h-4" /> },
+          { name: "Inactivity Radar",path: `/dashboard/${guildId}/inactivity-radar`, icon: <UserX className="w-4 h-4" /> },
+          { name: "Smart Reports",   path: `/dashboard/${guildId}/smart-reports`,    icon: <BarChart2 className="w-4 h-4" />, badge: "PRO" },
       ],
     },
   ];

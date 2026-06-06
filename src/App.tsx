@@ -51,7 +51,11 @@ import PollsPage from "@/pages/dashboard/polls";
 import TasksPage from "@/pages/dashboard/tasks";
 import DirectoryPage from "@/pages/dashboard/directory";
 import AwardsPage from "@/pages/dashboard/awards";
-import AccountSettingsPage from "@/pages/dashboard/account-settings";
+import AccountSettingsPage  from "@/pages/dashboard/account-settings";
+  import StaffHealthPage      from "@/pages/dashboard/staff-health";
+  import LeaderboardPage      from "@/pages/dashboard/leaderboard";
+  import InactivityRadarPage  from "@/pages/dashboard/inactivity-radar";
+  import SmartReportsPage     from "@/pages/dashboard/smart-reports";
 
 const queryClient = new QueryClient();
 

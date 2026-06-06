@@ -3836,12 +3836,17 @@ app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
 
   app.post('/api/guilds/:id/application-panels', requireAuth, async (req, res) => {
     const { id } = req.params;
-    const { title, description, buttonLabel, questions, reviewRoleIds, reviewChannelId, enabled } = req.body;
+    const { title, description, enabled } = req.body;
+    // Accept both camelCase (legacy) and snake_case (frontend sends snake_case)
+    const buttonLabel = req.body.buttonLabel || req.body.button_label || 'Apply Now';
+    const questions = req.body.questions || [];
+    const reviewRoleIds = req.body.reviewRoleIds || req.body.review_role_ids || [];
+    const reviewChannelId = req.body.reviewChannelId || req.body.review_channel_id || null;
     if (!DATABASE_URL || !title) return res.status(400).json({ error: 'Title required' });
     try {
       const r = await query(
         'INSERT INTO application_panels (guild_id, title, description, button_label, questions, review_role_ids, review_channel_id, enabled) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
-        [id, title, description || '', buttonLabel || 'Apply Now', JSON.stringify(questions || []), reviewRoleIds || [], reviewChannelId || null, enabled !== false]
+        [id, title, description || '', buttonLabel, JSON.stringify(questions), reviewRoleIds, reviewChannelId, enabled !== false]
       );
       res.json(r.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -3849,11 +3854,16 @@ app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
 
   app.put('/api/guilds/:id/application-panels/:panelId', requireAuth, async (req, res) => {
     const { id, panelId } = req.params;
-    const { title, description, buttonLabel, questions, reviewRoleIds, reviewChannelId, enabled } = req.body;
+    const { title, description, enabled } = req.body;
+    // Accept both camelCase (legacy) and snake_case (frontend sends snake_case)
+    const buttonLabel = req.body.buttonLabel || req.body.button_label || 'Apply Now';
+    const questions = req.body.questions || [];
+    const reviewRoleIds = req.body.reviewRoleIds || req.body.review_role_ids || [];
+    const reviewChannelId = req.body.reviewChannelId || req.body.review_channel_id || null;
     try {
       const r = await query(
         'UPDATE application_panels SET title=$1, description=$2, button_label=$3, questions=$4, review_role_ids=$5, review_channel_id=$6, enabled=$7 WHERE id=$8 AND guild_id=$9 RETURNING *',
-        [title, description || '', buttonLabel || 'Apply Now', JSON.stringify(questions || []), reviewRoleIds || [], reviewChannelId || null, enabled !== false, panelId, id]
+        [title, description || '', buttonLabel, JSON.stringify(questions), reviewRoleIds, reviewChannelId, enabled !== false, panelId, id]
       );
       if (!r.rows.length) return res.status(404).json({ error: 'Panel not found' });
       res.json(r.rows[0]);

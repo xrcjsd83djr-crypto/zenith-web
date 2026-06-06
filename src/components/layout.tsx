@@ -10,7 +10,7 @@ import {
   TrendingUp, Clock, Layers, Award, Zap,
   Crown, StickyNote, Megaphone, BookOpen, ClipboardList, UserX, Sparkles, Send,
   GraduationCap, FileWarning, Target, ChevronDown, ChevronRight,
-  BarChart3, CheckSquare, Users2, Trophy,
+  BarChart3, CheckSquare, Users2, Trophy, UserCog,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -108,6 +108,7 @@ export default function DashboardLayout({ guildId, children }: { guildId: string
   ];
 
   const bottomItems: NavItem[] = [
+    { name: "Account Settings", path: `/dashboard/${guildId}/account-settings`, icon: <UserCog className="w-4 h-4" /> },
     { name: "Configuration",  path: `/dashboard/${guildId}/config`,           icon: <Settings className="w-4 h-4" /> },
     { name: "Bot Settings",   path: `/dashboard/${guildId}/bot-customization`, icon: <Zap className="w-4 h-4" /> },
     { name: "Manage Premium", path: `/dashboard/${guildId}/manage-premium`,    icon: <Crown className="w-4 h-4" /> },

@@ -51,6 +51,7 @@ import PollsPage from "@/pages/dashboard/polls";
 import TasksPage from "@/pages/dashboard/tasks";
 import DirectoryPage from "@/pages/dashboard/directory";
 import AwardsPage from "@/pages/dashboard/awards";
+import AccountSettingsPage from "@/pages/dashboard/account-settings";
 
 const queryClient = new QueryClient();
 

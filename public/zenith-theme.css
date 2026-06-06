@@ -1,0 +1,240 @@
+/* Zenith Shared Dark/Light Theme — v2 */
+
+/* ── Apply theme immediately to avoid flash ─────────────────────────────── */
+html { color-scheme: dark; }
+html[data-theme="light"] { color-scheme: light; }
+
+/* ── Dark mode (default) ────────────────────────────────────────────────── */
+html[data-theme="dark"],
+html:not([data-theme="light"]) {
+  --bg: #0d1117 !important;
+  --bg2: #161b22 !important;
+  --surface: #161b22 !important;
+  --surface2: #1a2030 !important;
+  --surface3: #21262d !important;
+  --border: #30363d !important;
+  --border2: #3d444d !important;
+  --primary: #d4af37 !important;
+  --primary-hover: #ffd700 !important;
+  --text: #e6edf3 !important;
+  --muted: #8b949e !important;
+  --danger: #ff6b6b !important;
+  --success: #3fb950 !important;
+  --warning: #d29922 !important;
+  --info: #388bfd !important;
+}
+
+html[data-theme="dark"] body,
+html:not([data-theme="light"]) body {
+  background: #0d1117 !important;
+  color: #e6edf3 !important;
+}
+
+/* Nav / header */
+html[data-theme="dark"] nav,
+html:not([data-theme="light"]) nav,
+html[data-theme="dark"] .header,
+html:not([data-theme="light"]) .header {
+  background: rgba(22,27,34,0.97) !important;
+  border-color: #30363d !important;
+  color: #e6edf3 !important;
+}
+
+/* Sidebar */
+html[data-theme="dark"] .sidebar,
+html:not([data-theme="light"]) .sidebar {
+  background: #0d1117 !important;
+  border-color: #30363d !important;
+}
+
+/* Cards, surfaces */
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .info-card,
+html[data-theme="dark"] .chart-container,
+html[data-theme="dark"] .table-container,
+html[data-theme="dark"] .staff-card,
+html[data-theme="dark"] .profile-card,
+html[data-theme="dark"] .config-group,
+html[data-theme="dark"] .role-selector,
+html[data-theme="dark"] .section-card,
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .panel,
+html:not([data-theme="light"]) .stat-card,
+html:not([data-theme="light"]) .info-card,
+html:not([data-theme="light"]) .chart-container,
+html:not([data-theme="light"]) .table-container,
+html:not([data-theme="light"]) .staff-card,
+html:not([data-theme="light"]) .profile-card,
+html:not([data-theme="light"]) .config-group,
+html:not([data-theme="light"]) .role-selector,
+html:not([data-theme="light"]) .section-card,
+html:not([data-theme="light"]) .card,
+html:not([data-theme="light"]) .panel {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+  color: #e6edf3 !important;
+}
+
+/* Table headers */
+html[data-theme="dark"] .table-container th,
+html[data-theme="dark"] th,
+html:not([data-theme="light"]) .table-container th,
+html:not([data-theme="light"]) th {
+  background: #1a2030 !important;
+  color: #8b949e !important;
+}
+
+html[data-theme="dark"] .table-container td,
+html[data-theme="dark"] td,
+html:not([data-theme="light"]) .table-container td,
+html:not([data-theme="light"]) td {
+  border-color: #30363d !important;
+  color: #e6edf3 !important;
+}
+
+html[data-theme="dark"] .table-container tr:hover,
+html:not([data-theme="light"]) .table-container tr:hover {
+  background: #1a2030 !important;
+}
+
+/* Inputs */
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea,
+html:not([data-theme="light"]) input,
+html:not([data-theme="light"]) select,
+html:not([data-theme="light"]) textarea {
+  background: #0d1117 !important;
+  color: #e6edf3 !important;
+  border-color: #30363d !important;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder,
+html:not([data-theme="light"]) input::placeholder,
+html:not([data-theme="light"]) textarea::placeholder {
+  color: #8b949e !important;
+}
+
+html[data-theme="dark"] input:focus,
+html[data-theme="dark"] select:focus,
+html[data-theme="dark"] textarea:focus,
+html:not([data-theme="light"]) input:focus,
+html:not([data-theme="light"]) select:focus,
+html:not([data-theme="light"]) textarea:focus {
+  border-color: #d4af37 !important;
+  box-shadow: 0 0 0 3px rgba(212,175,55,0.25) !important;
+  outline: none !important;
+}
+
+/* Modals */
+html[data-theme="dark"] .modal,
+html[data-theme="dark"] .modal-body,
+html[data-theme="dark"] .modal-content,
+html:not([data-theme="light"]) .modal,
+html:not([data-theme="light"]) .modal-body,
+html:not([data-theme="light"]) .modal-content {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+  color: #e6edf3 !important;
+}
+
+/* Sidebar nav links */
+html[data-theme="dark"] .sidebar-nav a,
+html:not([data-theme="light"]) .sidebar-nav a {
+  color: #8b949e !important;
+}
+html[data-theme="dark"] .sidebar-nav a:hover,
+html:not([data-theme="light"]) .sidebar-nav a:hover {
+  color: #e6edf3 !important;
+  background: rgba(212,175,55,0.08) !important;
+}
+html[data-theme="dark"] .sidebar-nav a.active,
+html:not([data-theme="light"]) .sidebar-nav a.active {
+  color: #d4af37 !important;
+  background: rgba(212,175,55,0.12) !important;
+}
+
+/* Role items */
+html[data-theme="dark"] .role-item,
+html:not([data-theme="light"]) .role-item {
+  background: #1a2030 !important;
+  border-color: #30363d !important;
+  color: #e6edf3 !important;
+}
+
+/* Landing page sections */
+html[data-theme="dark"] .features,
+html[data-theme="dark"] .pricing,
+html[data-theme="dark"] .how-it-works,
+html:not([data-theme="light"]) .features,
+html:not([data-theme="light"]) .pricing,
+html:not([data-theme="light"]) .how-it-works {
+  background: #0d1117 !important;
+}
+
+html[data-theme="dark"] .feature-card,
+html[data-theme="dark"] .pricing-card,
+html[data-theme="dark"] .step,
+html:not([data-theme="light"]) .feature-card,
+html:not([data-theme="light"]) .pricing-card,
+html:not([data-theme="light"]) .step {
+  background: #161b22 !important;
+  border-color: #30363d !important;
+  color: #e6edf3 !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb,
+html:not([data-theme="light"]) ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #d0d7de; border-radius: 3px; }
+
+/* Theme toggle button */
+.theme-toggle {
+  background: transparent;
+  border: 1px solid var(--border, #30363d);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 14px;
+  line-height: 1;
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted, #8b949e);
+}
+.theme-toggle:hover {
+  background: rgba(212,175,55,0.1);
+  border-color: #d4af37;
+  color: #d4af37;
+}
+
+/* ── Light mode overrides ────────────────────────────────────────────────── */
+html[data-theme="light"] {
+  --bg: #f0f2f5 !important;
+  --surface: #ffffff !important;
+  --surface2: #f6f8fa !important;
+  --border: #e0e0e0 !important;
+  --text: #2c3e50 !important;
+  --muted: #7f8c8d !important;
+  --success: #27ae60 !important;
+  --danger: #c0392b !important;
+  --warning: #f39c12 !important;
+}
+html[data-theme="light"] body { background: #f0f2f5 !important; color: #2c3e50 !important; }
+html[data-theme="light"] nav,
+html[data-theme="light"] .header { background: rgba(255,255,255,0.95) !important; border-color: #e0e0e0 !important; }
+html[data-theme="light"] .sidebar { background: #ffffff !important; border-color: #e0e0e0 !important; }
+html[data-theme="light"] .stat-card,
+html[data-theme="light"] .info-card,
+html[data-theme="light"] .chart-container,
+html[data-theme="light"] .table-container,
+html[data-theme="light"] .staff-card,
+html[data-theme="light"] .profile-card,
+html[data-theme="light"] .config-group { background: #ffffff !important; border-color: #e0e0e0 !important; }
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea { background: #ffffff !important; color: #2c3e50 !important; border-color: #e0e0e0 !important; }

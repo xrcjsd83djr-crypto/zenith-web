@@ -4156,6 +4156,126 @@ app.post('/api/guilds/:id/custom-commands/refresh', requireBotOrAuth, async (req
   res.json({ ok: true, message: 'Custom command refresh is handled automatically by the bot on startup.' });
 });
 
+// ─── Applications Config ─────────────────────────────────────────────────────
+app.get('/api/guilds/:id/applications-config', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ enabled: false, channel: '', title: 'Staff Application Form', questions: [] });
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS application_config (guild_id TEXT PRIMARY KEY, enabled BOOLEAN DEFAULT false, channel TEXT DEFAULT '', title TEXT DEFAULT 'Staff Application Form', questions JSONB DEFAULT '[]', require_recommendations BOOLEAN DEFAULT false, auto_reject BOOLEAN DEFAULT false)`).catch(() => {});
+    const r = await query('SELECT * FROM application_config WHERE guild_id=$1', [id]);
+    if (!r.rows.length) return res.json({ enabled: false, channel: '', title: 'Staff Application Form', questions: [] });
+    const row = r.rows[0];
+    res.json({ enabled: !!row.enabled, channel: row.channel || '', title: row.title || 'Staff Application Form', questions: Array.isArray(row.questions) ? row.questions : [], requireRecommendations: !!row.require_recommendations, autoReject: !!row.auto_reject });
+  } catch (err) { res.json({ enabled: false, channel: '', title: '', questions: [] }); }
+});
+
+app.post('/api/guilds/:id/applications-config', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { enabled, channel, title, questions, requireRecommendations, autoReject } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database configured' });
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS application_config (guild_id TEXT PRIMARY KEY, enabled BOOLEAN DEFAULT false, channel TEXT DEFAULT '', title TEXT DEFAULT 'Staff Application Form', questions JSONB DEFAULT '[]', require_recommendations BOOLEAN DEFAULT false, auto_reject BOOLEAN DEFAULT false)`).catch(() => {});
+    await query(`INSERT INTO application_config (guild_id,enabled,channel,title,questions,require_recommendations,auto_reject) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (guild_id) DO UPDATE SET enabled=$2,channel=$3,title=$4,questions=$5,require_recommendations=$6,auto_reject=$7`, [id, !!enabled, channel || '', title || 'Staff Application Form', JSON.stringify(questions || []), !!requireRecommendations, !!autoReject]);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Staff Inactivity ─────────────────────────────────────────────────────────
+app.get('/api/guilds/:id/staff/inactive', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const days = parseInt(req.query.days || '7');
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query(`
+      SELECT sm.user_id, sm.username, sm.display_name, sm.highest_role,
+        MAX(sh.ended_at) as last_shift,
+        MAX(al.created_at) as last_audit
+      FROM staff_members sm
+      LEFT JOIN shifts sh ON sh.guild_id=$1 AND sh.user_id=sm.user_id
+      LEFT JOIN activity_logs al ON al.guild_id=$1 AND al.user_id=sm.user_id
+      WHERE sm.guild_id=$1
+      GROUP BY sm.user_id, sm.username, sm.display_name, sm.highest_role
+      HAVING MAX(sh.ended_at) < NOW() - $2::interval OR MAX(sh.ended_at) IS NULL
+      ORDER BY last_shift ASC NULLS FIRST
+    `, [id, `${days} days`]);
+    res.json(r.rows.map(row => ({ ...row, last_active: row.last_audit || row.last_shift })));
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/guilds/:id/staff/inactivity-scan', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ ok: true, total: 0, flagged: 0, notified: 0 });
+  try {
+    const r = await query('SELECT COUNT(*) as total FROM staff_members WHERE guild_id=$1', [id]);
+    const flagR = await query(`SELECT COUNT(*) as flagged FROM staff_members sm WHERE sm.guild_id=$1 AND NOT EXISTS (SELECT 1 FROM shifts sh WHERE sh.guild_id=$1 AND sh.user_id=sm.user_id AND sh.ended_at > NOW() - INTERVAL '7 days')`, [id]);
+    await logActivity(id, 'system', 'System', 'inactivity_scan', { total: r.rows[0]?.total, flagged: flagR.rows[0]?.flagged }).catch(() => {});
+    res.json({ ok: true, total: parseInt(r.rows[0]?.total || 0), flagged: parseInt(flagR.rows[0]?.flagged || 0), notified: 0 });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/guilds/:id/staff/inactivity-warn', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { userId, username } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  const botToken = process.env.DISCORD_BOT_TOKEN;
+  if (!botToken) return res.status(500).json({ error: 'Bot token not configured' });
+  try {
+    const dmRes = await fetch(`https://discord.com/api/v10/users/@me/channels`, { method: 'POST', headers: { Authorization: `Bot ${botToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ recipient_id: userId }) });
+    const dm = await dmRes.json();
+    if (!dm.id) return res.status(400).json({ error: 'Could not open DM with user' });
+    await fetch(`https://discord.com/api/v10/channels/${dm.id}/messages`, { method: 'POST', headers: { Authorization: `Bot ${botToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ embeds: [{ title: '⚠️ Inactivity Notice', description: `Hello ${username || 'there'},\n\nThis is a notice that you have not been recently active as a staff member. Please log your next shift soon or reach out to management if you need a leave of absence.`, color: 0xf0883e, footer: { text: 'Zenith Staff Management' }, timestamp: new Date().toISOString() }] }) });
+    await logActivity(id, req.session?.user?.id, req.session?.user?.username, 'inactivity_warn', { target: username, userId }).catch(() => {});
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── XP Leaderboard System ────────────────────────────────────────────────────
+app.get('/api/guilds/:id/xp/leaderboard', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS staff_xp (id SERIAL PRIMARY KEY, guild_id TEXT NOT NULL, user_id TEXT NOT NULL, username TEXT, shift_xp INT DEFAULT 0, commendation_xp INT DEFAULT 0, training_xp INT DEFAULT 0, total_xp INT DEFAULT 0, updated_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(guild_id,user_id))`).catch(() => {});
+    const r = await query('SELECT * FROM staff_xp WHERE guild_id=$1 ORDER BY total_xp DESC LIMIT 50', [id]);
+    res.json(r.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/guilds/:id/xp/recalculate', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ ok: true, updated: 0 });
+  try {
+    await query(`CREATE TABLE IF NOT EXISTS staff_xp (id SERIAL PRIMARY KEY, guild_id TEXT NOT NULL, user_id TEXT NOT NULL, username TEXT, shift_xp INT DEFAULT 0, commendation_xp INT DEFAULT 0, training_xp INT DEFAULT 0, total_xp INT DEFAULT 0, updated_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(guild_id,user_id))`).catch(() => {});
+    const staffR = await query('SELECT DISTINCT user_id, username FROM staff_members WHERE guild_id=$1', [id]).catch(() => ({ rows: [] }));
+    let updated = 0;
+    for (const m of staffR.rows) {
+      const shiftR = await query(`SELECT COALESCE(SUM(LEAST(duration_mins,600)),0) as total_mins FROM shifts WHERE guild_id=$1 AND user_id=$2 AND ended_at IS NOT NULL`, [id, m.user_id]).catch(() => ({ rows: [{ total_mins: 0 }] }));
+      const commR = await query('SELECT COUNT(*) as cnt FROM commendations WHERE guild_id=$1 AND target_user_id=$2', [id, m.user_id]).catch(() => ({ rows: [{ cnt: 0 }] }));
+      const trainR = await query('SELECT COUNT(*) as cnt FROM training_logs WHERE guild_id=$1 AND trainee_id=$2', [id, m.user_id]).catch(() => ({ rows: [{ cnt: 0 }] }));
+      const shiftXP = Math.floor((shiftR.rows[0]?.total_mins || 0) / 10) * 5;
+      const commXP = parseInt(commR.rows[0]?.cnt || 0) * 50;
+      const trainXP = parseInt(trainR.rows[0]?.cnt || 0) * 30;
+      const totalXP = shiftXP + commXP + trainXP;
+      await query(`INSERT INTO staff_xp (guild_id,user_id,username,shift_xp,commendation_xp,training_xp,total_xp,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW()) ON CONFLICT (guild_id,user_id) DO UPDATE SET username=$3,shift_xp=$4,commendation_xp=$5,training_xp=$6,total_xp=$7,updated_at=NOW()`, [id, m.user_id, m.username, shiftXP, commXP, trainXP, totalXP]).catch(() => {});
+      updated++;
+    }
+    res.json({ ok: true, updated });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Prefix Config (per-guild) ────────────────────────────────────────────────
+app.patch('/api/guilds/:id/config/prefix', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { prefix } = req.body;
+  if (!prefix || typeof prefix !== 'string') return res.status(400).json({ error: 'prefix required (string)' });
+  const clean = prefix.trim().slice(0, 8);
+  if (!clean) return res.status(400).json({ error: 'prefix cannot be empty' });
+  if (!DATABASE_URL) return res.json({ ok: true, prefix: clean, note: 'No DB; restart bot to apply' });
+  try {
+    await query(`INSERT INTO servers (id, prefix) VALUES ($1,$2) ON CONFLICT (id) DO UPDATE SET prefix=$2`, [id, clean]);
+    res.json({ ok: true, prefix: clean });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);
 });

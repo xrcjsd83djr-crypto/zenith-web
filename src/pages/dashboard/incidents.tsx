@@ -18,7 +18,7 @@ import { useState, useEffect, useCallback } from "react";
     return (
       <div className="border border-border rounded-lg overflow-hidden mb-2">
         <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
-          <Badge className={`${sev[r.severity] || "bg-gray-100 text-gray-600"} border text-xs capitalize`}>{r.severity}</Badge>
+          <Badge className={`${sev[r.severity] || "bg-muted/30 text-muted-foreground"} border text-xs capitalize`}>{r.severity}</Badge>
           <div className="flex-1 min-w-0"><span className="font-semibold text-sm">{r.title}</span></div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <Badge className={`${status[r.status] || ""} border text-xs capitalize`}>{r.status}</Badge>

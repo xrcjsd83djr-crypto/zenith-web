@@ -128,7 +128,7 @@ import { useState, useEffect, useCallback } from "react";
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <h3 className="font-semibold text-sm">{p.name}</h3>
-                        <Badge className={"text-xs border " + (p.required ? "bg-red-50 text-red-700 border-red-200" : "bg-gray-50 text-gray-600 border-gray-200")}>{p.required ? "Required" : "Optional"}</Badge>
+                        <Badge className={"text-xs border " + (p.required ? "bg-red-50 text-red-700 border-red-200" : "bg-muted/20 text-muted-foreground border-border")}>{p.required ? "Required" : "Optional"}</Badge>
                         {p.category && <Badge className="text-xs border bg-blue-50 text-blue-700 border-blue-200 capitalize">{p.category}</Badge>}
                       </div>
                       {p.description && <p className="text-xs text-muted-foreground">{p.description}</p>}

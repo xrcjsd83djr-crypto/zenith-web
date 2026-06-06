@@ -95,21 +95,21 @@ import { useState, useEffect, useCallback } from "react";
               <DialogTrigger asChild>
                 <Button size="sm" style={{ background: 'linear-gradient(135deg,#d4af37,#ffd700)', color: '#5a3e10', border: 'none' }} className="gap-1.5 font-semibold"><Plus size={14} /> Issue Warning</Button>
               </DialogTrigger>
-              <DialogContent className="bg-white border-border max-w-md">
+              <DialogContent className="bg-card border-border max-w-md">
                 <DialogHeader><DialogTitle>Issue Warning</DialogTitle></DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 mt-2">
                   <div className="space-y-1.5">
                     <Label className="font-semibold">Staff Member</Label>
                     <Select value={form.userId} onValueChange={v => { const m = members.find(x => x.id === v); setForm(f => ({ ...f, userId: v, username: m?.username || v })); }}>
-                      <SelectTrigger className="bg-white border-border"><SelectValue placeholder="Select member" /></SelectTrigger>
-                      <SelectContent className="bg-white border-border max-h-52">{members.map(m => <SelectItem key={m.id} value={m.id}>{m.username}</SelectItem>)}</SelectContent>
+                      <SelectTrigger className="bg-card border-border"><SelectValue placeholder="Select member" /></SelectTrigger>
+                      <SelectContent className="bg-card border-border max-h-52">{members.map(m => <SelectItem key={m.id} value={m.id}>{m.username}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="font-semibold">Severity</Label>
                     <Select value={form.severity} onValueChange={v => setForm(f => ({ ...f, severity: v }))}>
-                      <SelectTrigger className="bg-white border-border"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-white border-border">
+                      <SelectTrigger className="bg-card border-border"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-card border-border">
                         <SelectItem value="minor">Minor — informal note</SelectItem>
                         <SelectItem value="moderate">Moderate — verbal warning</SelectItem>
                         <SelectItem value="major">Major — formal warning</SelectItem>
@@ -118,7 +118,7 @@ import { useState, useEffect, useCallback } from "react";
                   </div>
                   <div className="space-y-1.5">
                     <Label className="font-semibold">Reason</Label>
-                    <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="Be specific about the behaviour..." className="bg-white border-border min-h-[80px]" required />
+                    <Textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} placeholder="Be specific about the behaviour..." className="bg-card border-border min-h-[80px]" required />
                   </div>
                   {error && <p className="text-red-600 text-sm flex items-center gap-1.5"><AlertCircle size={13} />{error}</p>}
                   <div className="flex justify-end gap-2 pt-1">
@@ -136,10 +136,10 @@ import { useState, useEffect, useCallback } from "react";
             { label: 'Staff Warned', val: Object.keys(byUser).length, color: 'text-foreground' },
             { label: 'Major Warnings', val: activeWarnings.filter(w => w.severity === 'major').length, color: 'text-red-500' },
             { label: 'Total Issued', val: warnings.length, color: 'text-muted-foreground' },
-          ].map(s => <Card key={s.label} className="border-border bg-white shadow-sm"><CardContent className="p-4"><div className={`text-2xl font-extrabold ${s.color}`}>{s.val}</div><div className="text-xs text-muted-foreground font-medium mt-0.5">{s.label}</div></CardContent></Card>)}
+          ].map(s => <Card key={s.label} className="border-border bg-card shadow-sm"><CardContent className="p-4"><div className={`text-2xl font-extrabold ${s.color}`}>{s.val}</div><div className="text-xs text-muted-foreground font-medium mt-0.5">{s.label}</div></CardContent></Card>)}
         </div>
         {Object.entries(byUser).length > 0 ? Object.entries(byUser).map(([userId, userWarnings]) => (
-          <Card key={userId} className="border-border bg-white shadow-sm">
+          <Card key={userId} className="border-border bg-card shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2"><Shield className="w-4 h-4" style={{ color: '#d4af37' }} />{userWarnings[0].username}<Badge className="ml-1 bg-amber-100 text-amber-700 border-amber-200">{userWarnings.length} warning{userWarnings.length !== 1 ? 's' : ''}</Badge></CardTitle>
             </CardHeader>
@@ -156,7 +156,7 @@ import { useState, useEffect, useCallback } from "react";
             </CardContent>
           </Card>
         )) : (
-          <Card className="border-border bg-white shadow-sm"><CardContent className="py-16 text-center"><AlertOctagon className="w-10 h-10 text-muted-foreground mx-auto mb-3" /><p className="font-semibold text-muted-foreground">No active warnings</p><p className="text-sm text-muted-foreground mt-1">Warnings are lighter than strikes — use for informal notices.</p></CardContent></Card>
+          <Card className="border-border bg-card shadow-sm"><CardContent className="py-16 text-center"><AlertOctagon className="w-10 h-10 text-muted-foreground mx-auto mb-3" /><p className="font-semibold text-muted-foreground">No active warnings</p><p className="text-sm text-muted-foreground mt-1">Warnings are lighter than strikes — use for informal notices.</p></CardContent></Card>
         )}
       </div>
     );

@@ -16,11 +16,11 @@ import { useState, useEffect, useCallback } from "react";
     const [open, setOpen] = useState(false);
     const [newVal, setNewVal] = useState(String(g.current_value ?? 0));
     const pct = g.target_value ? Math.min(100, Math.round(((g.current_value || 0) / g.target_value) * 100)) : 0;
-    const statusColor: Record<string, string> = { active: "bg-blue-100 text-blue-700 border-blue-200", completed: "bg-green-100 text-green-700 border-green-200", cancelled: "bg-gray-100 text-gray-500 border-gray-200" };
+    const statusColor: Record<string, string> = { active: "bg-blue-100 text-blue-700 border-blue-200", completed: "bg-green-100 text-green-700 border-green-200", cancelled: "bg-muted/30 text-muted-foreground border-border" };
     return (
       <div className="border border-border rounded-lg overflow-hidden mb-2">
         <button onClick={() => setOpen(o => !o)} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left">
-          <Badge className={`${statusColor[g.status] || "bg-gray-100 text-gray-500 border"} border text-xs capitalize`}>{g.status}</Badge>
+          <Badge className={`${statusColor[g.status] || "bg-muted/30 text-muted-foreground border"} border text-xs capitalize`}>{g.status}</Badge>
           <div className="flex-1 min-w-0"><span className="font-semibold text-sm">{g.title}</span>{g.username && <span className="text-muted-foreground text-xs ml-2">→ {g.username}</span>}</div>
           {g.target_value && <span className="text-muted-foreground text-xs flex-shrink-0">{g.current_value || 0}/{g.target_value} {g.unit || ""}</span>}
           {open ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}

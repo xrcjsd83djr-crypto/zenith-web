@@ -40,14 +40,14 @@ import { useState, useEffect } from "react";
     }, [guildId]);
 
     const statCards = [
-      { label: "Total Staff",    value: stats.totalStaff ?? 0,          icon: <Users className="w-4 h-4" />,         color: "text-blue-500",    bg: "bg-blue-50" },
-      { label: "Active Staff",   value: stats.activeStaff ?? 0,         icon: <Activity className="w-4 h-4" />,      color: "text-emerald-500", bg: "bg-emerald-50" },
-      { label: "Pending Apps",   value: stats.pendingApplications ?? 0, icon: <FileText className="w-4 h-4" />,      color: "text-purple-500",  bg: "bg-purple-50" },
-      { label: "Active Strikes", value: stats.activeStrikes ?? 0,       icon: <AlertTriangle className="w-4 h-4" />, color: "text-red-500",     bg: "bg-red-50" },
-      { label: "On LOA",         value: stats.activeLoa ?? 0,           icon: <Clock className="w-4 h-4" />,         color: "text-amber-500",   bg: "bg-amber-50" },
-      { label: "Recent Promos",  value: stats.recentPromotions ?? 0,    icon: <TrendingUp className="w-4 h-4" />,    color: "text-emerald-500", bg: "bg-emerald-50" },
-      { label: "Recent Hires",   value: stats.recentHires ?? 0,         icon: <UserPlus className="w-4 h-4" />,      color: "text-cyan-500",    bg: "bg-cyan-50" },
-      { label: "Avg Activity",   value: `${stats.avgActivityScore ?? 0}pts`, icon: <Star className="w-4 h-4" />,   color: "text-yellow-500",  bg: "bg-yellow-50" },
+      { label: "Total Staff",    value: stats.totalStaff ?? 0,          icon: <Users className="w-4 h-4" />,         color: "text-blue-500",    bg: "bg-blue-500/15" },
+      { label: "Active Staff",   value: stats.activeStaff ?? 0,         icon: <Activity className="w-4 h-4" />,      color: "text-emerald-500", bg: "bg-emerald-500/15" },
+      { label: "Pending Apps",   value: stats.pendingApplications ?? 0, icon: <FileText className="w-4 h-4" />,      color: "text-purple-500",  bg: "bg-purple-500/15" },
+      { label: "Active Strikes", value: stats.activeStrikes ?? 0,       icon: <AlertTriangle className="w-4 h-4" />, color: "text-red-500",     bg: "bg-red-500/10" },
+      { label: "On LOA",         value: stats.activeLoa ?? 0,           icon: <Clock className="w-4 h-4" />,         color: "text-amber-500",   bg: "bg-amber-500/10" },
+      { label: "Recent Promos",  value: stats.recentPromotions ?? 0,    icon: <TrendingUp className="w-4 h-4" />,    color: "text-emerald-500", bg: "bg-emerald-500/15" },
+      { label: "Recent Hires",   value: stats.recentHires ?? 0,         icon: <UserPlus className="w-4 h-4" />,      color: "text-cyan-500",    bg: "bg-cyan-500/15" },
+      { label: "Avg Activity",   value: `${stats.avgActivityScore ?? 0}pts`, icon: <Star className="w-4 h-4" />,   color: "text-yellow-500",  bg: "bg-yellow-500/15" },
     ];
 
     const top5 = leaderboard.slice(0, 5);
@@ -77,7 +77,7 @@ import { useState, useEffect } from "react";
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {statCards.map((stat, i) => (
-            <Card key={i} className="border-border bg-white shadow-sm hover:shadow-md transition-shadow">
+            <Card key={i} className="border-border bg-card shadow-sm hover:shadow-md transition-shadow">
               <CardContent className="p-4">
                 <div className={`inline-flex p-2 rounded-xl ${stat.bg} ${stat.color} mb-3`}>{stat.icon}</div>
                 <div className="text-2xl font-extrabold text-foreground">{stat.value}</div>
@@ -88,7 +88,7 @@ import { useState, useEffect } from "react";
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <Card className="lg:col-span-2 border-border bg-white shadow-sm">
+          <Card className="lg:col-span-2 border-border bg-card shadow-sm">
             <CardContent className="p-5">
               <h3 className="text-sm font-bold mb-4">Activity Leaderboard</h3>
               {chartData.length === 0 ? (
@@ -100,10 +100,10 @@ import { useState, useEffect } from "react";
               ) : (
                 <ResponsiveContainer width="100%" height={210}>
                   <BarChart data={chartData} margin={{ top: 5, right: 5, left: -25, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6b7280" }} />
-                    <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} />
-                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: 12 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: "rgba(255,255,255,0.45)" }} />
+                    <YAxis tick={{ fontSize: 11, fill: "rgba(255,255,255,0.45)" }} />
+                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", fontSize: 12 }} />
                     <Bar dataKey="score" fill="#d4af37" radius={[4, 4, 0, 0]} name="Activity Score" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -112,12 +112,12 @@ import { useState, useEffect } from "react";
           </Card>
 
           <div className="space-y-4">
-            <Card className="border-border bg-white shadow-sm">
+            <Card className="border-border bg-card shadow-sm">
               <CardContent className="p-5">
                 <h3 className="text-sm font-bold mb-3 flex items-center justify-between">
                   Needs Attention
                   {(stats.pendingApplications > 0 || stats.activeStrikes > 5) && (
-                    <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-red-50 text-red-500">
+                    <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-red-500/10 text-red-500">
                       {stats.pendingApplications + (stats.activeStrikes > 5 ? 1 : 0)} items
                     </span>
                   )}
@@ -125,7 +125,7 @@ import { useState, useEffect } from "react";
                 <div className="space-y-2">
                   {stats.pendingApplications > 0 && (
                     <Link href={`/dashboard/${guildId}/applications`}>
-                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-orange-50 border border-orange-100 text-orange-800 hover:bg-orange-100 transition-colors cursor-pointer">
+                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-300 hover:bg-orange-500/15 transition-colors cursor-pointer">
                         <FileText className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-orange-500" />
                         <div className="text-xs font-medium">{stats.pendingApplications} pending application{stats.pendingApplications !== 1 ? "s" : ""}</div>
                       </div>
@@ -133,7 +133,7 @@ import { useState, useEffect } from "react";
                   )}
                   {stats.activeStrikes > 5 && (
                     <Link href={`/dashboard/${guildId}/strikes`}>
-                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-red-50 border border-red-100 text-red-800 hover:bg-red-100 transition-colors cursor-pointer">
+                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 hover:bg-red-500/15 transition-colors cursor-pointer">
                         <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-red-500" />
                         <div className="text-xs font-medium">High strike count ({stats.activeStrikes})</div>
                       </div>
@@ -141,7 +141,7 @@ import { useState, useEffect } from "react";
                   )}
                   {stats.activeLoa > 0 && (
                     <Link href={`/dashboard/${guildId}/loa`}>
-                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-100 text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer">
+                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/15 transition-colors cursor-pointer">
                         <Clock className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-500" />
                         <div className="text-xs font-medium">{stats.activeLoa} active LOA{stats.activeLoa !== 1 ? "s" : ""}</div>
                       </div>
@@ -155,7 +155,7 @@ import { useState, useEffect } from "react";
             </Card>
 
             {recentStrikes.length > 0 && (
-              <Card className="border-border bg-white shadow-sm">
+              <Card className="border-border bg-card shadow-sm">
                 <CardContent className="p-5">
                   <h3 className="text-sm font-bold mb-3">Recent Strikes</h3>
                   <div className="space-y-2">
@@ -172,7 +172,7 @@ import { useState, useEffect } from "react";
             )}
 
             {pendingLoas.length > 0 && (
-              <Card className="border-border bg-white shadow-sm">
+              <Card className="border-border bg-card shadow-sm">
                 <CardContent className="p-5">
                   <h3 className="text-sm font-bold mb-3">Pending LOAs</h3>
                   <div className="space-y-2">

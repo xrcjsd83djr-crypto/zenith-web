@@ -43,7 +43,7 @@ import { Link } from "wouter";
 
     return (
       <div className="min-h-screen bg-background pb-20">
-        <nav className="bg-white border-b-2 sticky top-0 z-10 shadow-sm" style={{ borderColor: 'rgba(212,175,55,.4)' }}>
+        <nav className="border-b sticky top-0 z-10 backdrop-blur-sm" style={{ background: "rgba(13,15,20,0.95)", borderColor: "rgba(212,175,55,0.25)" }}" style={{ borderColor: 'rgba(212,175,55,.4)' }}>
           <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-sm"
@@ -68,11 +68,11 @@ import { Link } from "wouter";
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {[1,2,3,4].map(i => (
-                <div key={i} className="h-44 bg-white rounded-2xl border border-border animate-pulse" />
+                <div key={i} className="h-44 bg-card rounded-2xl border border-border animate-pulse" />
               ))}
             </div>
           ) : guilds?.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-3xl border border-border shadow-sm">
+            <div className="text-center py-20 bg-card rounded-3xl border border-border shadow-sm">
               <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
                 style={{ background: 'rgba(212,175,55,.1)' }}>
                 <Plus className="w-8 h-8" style={{ color: '#d4af37' }} />
@@ -104,7 +104,7 @@ import { Link } from "wouter";
     const iconUrl = guild.iconUrl || (guild.icon ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png` : null);
 
     return (
-      <div className={`group relative bg-white rounded-2xl border p-6 flex flex-col items-center text-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+      <div className={`group relative bg-card rounded-2xl border p-6 flex flex-col items-center text-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
         guild.isPremium ? 'border-primary/40 ring-1 ring-primary/15' : 'border-border'
       }`}>
         {guild.isPremium && (

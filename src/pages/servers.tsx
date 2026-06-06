@@ -43,7 +43,7 @@ import { Link } from "wouter";
 
     return (
       <div className="min-h-screen bg-background pb-20">
-        <nav className="border-b sticky top-0 z-10 backdrop-blur-sm" style={{ background: "rgba(13,15,20,0.95)", borderColor: "rgba(212,175,55,0.25)" }}" style={{ borderColor: 'rgba(212,175,55,.4)' }}>
+        <nav className="border-b sticky top-0 z-10 backdrop-blur-sm" style={{ background: "rgba(13,15,20,0.95)", borderColor: "rgba(212,175,55,0.25)" }}>
           <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-sm"

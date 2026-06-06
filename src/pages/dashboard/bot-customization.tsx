@@ -58,7 +58,7 @@ function ImageUpload({ label, desc, value, onChange, disabled }: { label: string
             value={value.startsWith('data:') ? '' : value}
             onChange={e => { onChange(e.target.value); setPreviewErr(false); }}
             placeholder="https://example.com/image.png"
-            className="bg-white border-border text-xs h-7"
+            className="bg-card border-border text-xs h-7"
             disabled={disabled}
           />
           {value.startsWith('data:') && <p className="text-[10px] text-green-600">✓ Local image uploaded</p>}
@@ -171,10 +171,10 @@ export default function BotCustomizationPage({ guildId }: { guildId: string }) {
 
       <Tabs defaultValue="embed" className="w-full">
         <TabsList className="bg-muted/50 border border-border w-full justify-start flex-wrap h-auto gap-1 p-1">
-          <TabsTrigger value="embed" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="embed" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
             <Palette size={13} />Embed Settings
           </TabsTrigger>
-          <TabsTrigger value="identity" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="identity" className="flex items-center gap-1.5 text-xs data-[state=active]:bg-card data-[state=active]:shadow-sm">
             <Settings2 size={13} />Bot Identity
             <Star size={10} className="ml-0.5" style={{ color: '#d4af37' }} />
           </TabsTrigger>
@@ -182,7 +182,7 @@ export default function BotCustomizationPage({ guildId }: { guildId: string }) {
 
         {/* Embed Settings — available to all */}
         <TabsContent value="embed" className="mt-4 space-y-4">
-          <Card className="border-border bg-white shadow-sm">
+          <Card className="border-border bg-card shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">Embed Appearance <span className="text-xs font-normal text-muted-foreground">(free for all servers)</span></CardTitle>
               <CardDescription>Customize the color and footer of all bot embeds in your server.</CardDescription>
@@ -192,7 +192,7 @@ export default function BotCustomizationPage({ guildId }: { guildId: string }) {
                 <Label className="font-semibold text-sm">Embed Color</Label>
                 <div className="flex items-center gap-3">
                   <input type="color" value={data.embedColor} onChange={e => setData(d => ({ ...d, embedColor: e.target.value }))} className="w-12 h-10 rounded-lg border border-border cursor-pointer" />
-                  <Input value={data.embedColor} onChange={e => setData(d => ({ ...d, embedColor: e.target.value }))} className="bg-white border-border font-mono w-36" placeholder="#d4af37" />
+                  <Input value={data.embedColor} onChange={e => setData(d => ({ ...d, embedColor: e.target.value }))} className="bg-card border-border font-mono w-36" placeholder="#d4af37" />
                   <div className="flex gap-2 flex-wrap">
                     {['#d4af37', '#5865F2', '#57F287', '#ED4245', '#FEE75C', '#EB459E', '#3BA55C'].map(c => (
                       <button key={c} type="button" onClick={() => setData(d => ({ ...d, embedColor: c }))} className="w-7 h-7 rounded-full border-2 transition-all hover:scale-110" style={{ background: c, borderColor: data.embedColor === c ? '#000' : 'transparent' }} />
@@ -202,7 +202,7 @@ export default function BotCustomizationPage({ guildId }: { guildId: string }) {
               </div>
               <div className="space-y-2">
                 <Label className="font-semibold text-sm">Footer Text</Label>
-                <Input value={data.embedFooter} onChange={e => setData(d => ({ ...d, embedFooter: e.target.value }))} placeholder="Zenith Staff Management" className="bg-white border-border" maxLength={100} />
+                <Input value={data.embedFooter} onChange={e => setData(d => ({ ...d, embedFooter: e.target.value }))} placeholder="Zenith Staff Management" className="bg-card border-border" maxLength={100} />
                 <p className="text-xs text-muted-foreground">Appears at the bottom of every bot embed. Keep it short and professional.</p>
               </div>
 
@@ -238,7 +238,7 @@ export default function BotCustomizationPage({ guildId }: { guildId: string }) {
             </Card>
           )}
 
-          <Card className={`border-border bg-white shadow-sm ${!data.isPremium ? 'opacity-60 pointer-events-none' : ''}`}>
+          <Card className={`border-border bg-card shadow-sm ${!data.isPremium ? 'opacity-60 pointer-events-none' : ''}`}>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Bot Identity</CardTitle>
               <CardDescription>These settings are applied when the bot restarts. They affect how the bot appears in your Discord server.</CardDescription>
@@ -251,7 +251,7 @@ export default function BotCustomizationPage({ guildId }: { guildId: string }) {
                   value={data.customBotName}
                   onChange={e => setData(d => ({ ...d, customBotName: e.target.value }))}
                   placeholder="e.g. Liberty County HR Bot"
-                  className="bg-white border-border"
+                  className="bg-card border-border"
                 />
                 <p className="text-xs text-muted-foreground">The display name shown in Discord. Changing the actual username requires Bot Token scope.</p>
               </div>
@@ -271,7 +271,7 @@ export default function BotCustomizationPage({ guildId }: { guildId: string }) {
                   value={data.customBotStatus}
                   onChange={e => setData(d => ({ ...d, customBotStatus: e.target.value }))}
                   placeholder="e.g. Watching Liberty County | /help"
-                  className="bg-white border-border"
+                  className="bg-card border-border"
                   maxLength={128}
                 />
               </div>

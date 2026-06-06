@@ -56,6 +56,10 @@ import StaffHealthPage from "@/pages/dashboard/staff-health";
 import LeaderboardPage from "@/pages/dashboard/leaderboard";
 import InactivityRadarPage from "@/pages/dashboard/inactivity-radar";
 import SmartReportsPage from "@/pages/dashboard/smart-reports";
+import AIInsightsPage from "@/pages/dashboard/ai-insights";
+import StaffTimelinePage from "@/pages/dashboard/staff-timeline";
+import AutoPromotionPage from "@/pages/dashboard/autopromotion";
+import PatrolMonitorPage from "@/pages/dashboard/patrol-monitor";
 
 const queryClient = new QueryClient();
 
@@ -124,6 +128,11 @@ function DashboardRoutes({ params }: { params: { guildId: string } }) {
         <Route path="/dashboard/:guildId/inactivity-radar"   component={() => <InactivityRadarPage guildId={guildId} />} />
         <Route path="/dashboard/:guildId/smart-reports"      component={() => <SmartReportsPage    guildId={guildId} />} />
         <Route path="/dashboard/:guildId/account-settings"   component={() => <AccountSettingsPage guildId={guildId} />} />
+        {/* Advanced Features */}
+        <Route path="/dashboard/:guildId/ai-insights"        component={() => <AIInsightsPage      guildId={guildId} />} />
+        <Route path="/dashboard/:guildId/staff-timeline"     component={() => <StaffTimelinePage   guildId={guildId} />} />
+        <Route path="/dashboard/:guildId/autopromotion"      component={() => <AutoPromotionPage   guildId={guildId} />} />
+        <Route path="/dashboard/:guildId/patrol-monitor"     component={() => <PatrolMonitorPage   guildId={guildId} />} />
         <Route component={NotFound} />
       </Switch>
     </DashboardLayout>

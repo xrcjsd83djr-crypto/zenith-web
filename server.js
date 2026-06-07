@@ -2190,6 +2190,7 @@ if (DATABASE_URL) {
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS embed_color TEXT DEFAULT '#d4af37';
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS embed_footer TEXT DEFAULT 'Zenith Staff Management';
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS staff_role_ids TEXT[] DEFAULT '{}';
+        ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS panel_id UUID REFERENCES application_panels(id) ON DELETE CASCADE;
         ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP;
         ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS panel_title TEXT;
         ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS avatar_url TEXT;

@@ -2866,7 +2866,20 @@ const publicPath = join(__dirname, 'dist');
     res.status(400).json({ error: 'Unknown interaction type' });
   });
 
-  app.use(express.static(publicPath));
+  // Hashed assets are immutable — long-term cache is safe
+  app.use('/assets', express.static(join(publicPath, 'assets'), { maxAge: '1y', immutable: true }));
+  // Everything else (index.html) — never cache so browser always gets the latest build
+  app.use(express.static(publicPath, {
+    etag: false,
+    lastModified: false,
+    setHeaders: (res, fp) => {
+      if (fp.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      }
+    },
+  }));
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -5043,7 +5056,12 @@ async function postMigrationIncidentIfNeeded() {
 }
 
 // Catch-all → index.html
-app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
+app.get('*', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(join(publicPath, 'index.html'));
+});
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);

@@ -26,6 +26,7 @@ interface AppPanel {
   id: string; title: string; description: string; questions: Question[];
   button_label: string; review_role_ids: string[]; review_channel_id: string;
   enabled: boolean; created_at: string; required_role_id?: string; rules?: string;
+  results_channel_id?: string; allow_reapply?: "never" | "always" | "after_days"; reapply_cooldown_days?: number;
 }
 interface AppHub {
   id: string; guild_id: string; title: string; description: string;
@@ -811,7 +812,7 @@ export default function ApplicationsPage({ guildId }: { guildId: string }) {
   const qLimit = isPremium ? 100 : FREE_QUESTION_LIMIT;
 
   const newPanel = (): Partial<AppPanel> => ({
-    title:"", description:"", button_label:"Apply Now", questions:[], review_role_ids:[], review_channel_id:"", enabled:true, required_role_id:"", rules:""
+    title:"", description:"", button_label:"Apply Now", questions:[], review_role_ids:[], review_channel_id:"", enabled:true, required_role_id:"", rules:"", results_channel_id:"", allow_reapply:"never", reapply_cooldown_days:30
   });
   const newHub = (): Partial<AppHub> => ({
     title:"Apply for Staff", description:"", embed_color:"#d4af37", panel_ids:[], channel_id:"", footer_text:""
@@ -1191,6 +1192,57 @@ export default function ApplicationsPage({ guildId }: { guildId: string }) {
                   onMultiChange={(ids) => setEditPanel(p=>({...p, review_role_ids: ids}))}
                   placeholder="Select reviewer roles..."
                 />
+              </div>
+
+              {/* Results Channel (Premium) */}
+              <div className="border-t pt-4 space-y-2">
+                <Label className="text-sm font-semibold flex items-center gap-1.5">
+                  <Hash size={13} style={{color:"#d4af37"}}/>Results Channel
+                  {!isPremium && <span className="ml-1 text-[10px] bg-yellow-100 text-yellow-700 border border-yellow-200 rounded-full px-1.5 py-0.5 font-semibold">Premium</span>}
+                </Label>
+                <p className="text-xs text-muted-foreground">When an application is accepted or rejected, a result announcement is posted to this channel.</p>
+                {isPremium ? (
+                  <ChannelPicker
+                    guildId={guildId}
+                    value={editPanel.results_channel_id||""}
+                    onChange={(id) => setEditPanel(p=>({...p, results_channel_id: id}))}
+                    placeholder="Select results announcement channel..."
+                  />
+                ) : (
+                  <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-yellow-300/40 bg-yellow-50/5 text-xs text-muted-foreground">
+                    <Lock size={11} className="text-yellow-600 flex-shrink-0" />
+                    Upgrade to Premium to unlock results channel announcements.
+                  </div>
+                )}
+              </div>
+
+              {/* Re-apply Policy */}
+              <div className="border-t pt-4 space-y-2">
+                <Label className="text-sm font-semibold flex items-center gap-1.5"><RefreshCw size={13} style={{color:"#d4af37"}}/>Re-apply Policy</Label>
+                <p className="text-xs text-muted-foreground">Controls whether applicants can submit again after being accepted or rejected.</p>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {([
+                    {val:"never",   label:"Never",          desc:"Cannot re-apply once accepted"},
+                    {val:"always",  label:"Always Allow",   desc:"Can always re-apply"},
+                    {val:"after_days",label:"After cooldown",desc:"Re-apply after X days"},
+                  ] as const).map(opt=>(
+                    <button key={opt.val} type="button"
+                      onClick={()=>setEditPanel(p=>({...p,allow_reapply:opt.val}))}
+                      className={`rounded-lg border px-2 py-2 text-xs text-left transition-all ${(editPanel.allow_reapply||"never")===opt.val?"border-[#d4af37] bg-[#d4af37]/10 text-foreground":"border-border text-muted-foreground hover:border-border/80"}`}>
+                      <p className="font-semibold">{opt.label}</p>
+                      <p className="text-[10px] mt-0.5 opacity-75 leading-tight">{opt.desc}</p>
+                    </button>
+                  ))}
+                </div>
+                {editPanel.allow_reapply==="after_days" && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <label className="text-xs text-muted-foreground whitespace-nowrap">Cooldown (days):</label>
+                    <Input type="number" min="1" max="365"
+                      value={editPanel.reapply_cooldown_days||30}
+                      onChange={e=>setEditPanel(p=>({...p,reapply_cooldown_days:parseInt(e.target.value)||30}))}
+                      className="h-8 w-24 text-sm" />
+                  </div>
+                )}
               </div>
 
               {/* Panel-specific Rules */}

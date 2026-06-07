@@ -3071,9 +3071,14 @@ const publicPath = join(__dirname, 'dist');
     // New columns for application panels
     await query(`ALTER TABLE application_panels ADD COLUMN IF NOT EXISTS required_role_id TEXT`).catch(() => {});
     await query(`ALTER TABLE application_panels ADD COLUMN IF NOT EXISTS rules TEXT DEFAULT ''`).catch(() => {});
+    await query(`ALTER TABLE application_panels ADD COLUMN IF NOT EXISTS results_channel_id TEXT`).catch(() => {});
+    await query(`ALTER TABLE application_panels ADD COLUMN IF NOT EXISTS allow_reapply TEXT DEFAULT 'never'`).catch(() => {});
+    await query(`ALTER TABLE application_panels ADD COLUMN IF NOT EXISTS reapply_cooldown_days INTEGER DEFAULT 30`).catch(() => {});
     await query(`ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`).catch(() => {});
     // Guild-level master rules
     await query(`ALTER TABLE servers ADD COLUMN IF NOT EXISTS guild_rules TEXT DEFAULT ''`).catch(() => {});
+    // Webhook URL cache for application hubs (enables custom avatar/name)
+    await query(`ALTER TABLE application_hubs ADD COLUMN IF NOT EXISTS webhook_url TEXT`).catch(() => {});
     console.log('[DB] Extended tables migrated');
   } catch (err) {
     console.error('[DB] Extended migration error:', err.message);
@@ -3810,6 +3815,21 @@ app.get('/api/guilds/:id/embed-config/bot', requireBotSecret, async (req, res) =
 
 // ── Changelog / Status ────────────────────────────────────────────────────
 const CHANGELOG = [
+  { version: '2.8.0', date: '2026-06-07', type: 'fix', changes: [
+    'Submit endpoint: required role is now actually enforced via Discord API member check',
+    'Submit endpoint: re-apply policy (never / always / after X days) now enforced per panel',
+    'Review DMs now include the server name in accept and reject messages',
+    'Flagged applications now send the same rejected DM format (not a separate message)',
+    'Hub post: better error messages for Missing Permissions (explains exactly what to check)',
+    'Hub post: now uses webhooks when custom bot name/avatar is set — enables custom identity per message',
+    'DB: new columns — results_channel_id, allow_reapply, reapply_cooldown_days on panels; webhook_url on hubs',
+    'Applications: results_channel_id picker added (Premium) — post accept/reject decisions to a Discord channel',
+    'Applications: re-apply policy selector in panel editor (Never / Always / After cooldown + days input)',
+    'Apply portal: rules shown on intro screen only — form screen has collapsible "View Rules" toggle',
+    'Apply portal: "By clicking Apply Now you agree to the rules" moved to intro screen only',
+    'Overview tab: complete redesign — server banner, KPI cards, 7-day activity chart, quick actions, activity feed, pro features showcase',
+    'Bot customization: custom avatar is now used for webhook-based hub posts (no global avatar change)',
+  ] },
   { version: '2.7.0', date: '2026-06-07', type: 'feature', changes: [
     'Applications system is now fully functional — further updates yet to make',
     'Fixed critical bug: "Post to Discord" hub was using wrong token (apak_key) — now correctly uses bot token',
@@ -4009,12 +4029,43 @@ for (const [route, file] of pages) {
     const username = req.session?.user?.username;
     if (!DATABASE_URL) return res.status(503).json({ error: 'Service unavailable' });
     try {
-      const pR = await query('SELECT id, title, enabled, review_channel_id, review_role_ids FROM application_panels WHERE id=$1 AND guild_id=$2', [panelId, id]);
+      const pR = await query('SELECT id, title, enabled, review_channel_id, review_role_ids, required_role_id, allow_reapply, reapply_cooldown_days FROM application_panels WHERE id=$1 AND guild_id=$2', [panelId, id]);
       if (!pR.rows.length) return res.status(404).json({ error: 'Panel not found' });
       const panel = pR.rows[0];
       if (!panel.enabled) return res.status(403).json({ error: 'This application is currently closed' });
+
+      // ── Enforce required role ──
+      if (panel.required_role_id && DISCORD_BOT_TOKEN) {
+        try {
+          const mRes = await fetch(`${DISCORD_API}/guilds/${id}/members/${userId}`, {
+            headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+          });
+          if (mRes.status === 404) return res.status(403).json({ error: 'You must be a member of this server to apply.' });
+          if (mRes.ok) {
+            const member = await mRes.json();
+            if (!Array.isArray(member.roles) || !member.roles.includes(panel.required_role_id)) {
+              return res.status(403).json({ error: 'You do not have the required role to apply for this panel.' });
+            }
+          }
+        } catch {}
+      }
+
+      // ── Duplicate pending check ──
       const dupR = await query("SELECT id FROM application_submissions WHERE panel_id=$1 AND user_id=$2 AND status IN ('pending','flagged')", [panelId, userId]);
-      if (dupR.rows.length) return res.status(409).json({ error: 'You already have a pending application for this panel' });
+      if (dupR.rows.length) return res.status(409).json({ error: 'You already have a pending application for this panel.' });
+
+      // ── Re-apply policy ──
+      const reapply = panel.allow_reapply || 'never';
+      if (reapply === 'never') {
+        const prevR = await query("SELECT id FROM application_submissions WHERE panel_id=$1 AND user_id=$2 AND status='accepted'", [panelId, userId]);
+        if (prevR.rows.length) return res.status(409).json({ error: 'You have already been accepted for this panel and cannot re-apply.' });
+      } else if (reapply === 'after_days') {
+        const days = parseInt(panel.reapply_cooldown_days) || 30;
+        const prevR = await query(`SELECT id FROM application_submissions WHERE panel_id=$1 AND user_id=$2 AND status IN ('rejected','flagged') AND created_at > NOW() - INTERVAL '${days} days'`, [panelId, userId]);
+        if (prevR.rows.length) return res.status(409).json({ error: `You must wait ${days} days after rejection before re-applying.` });
+      }
+      // allow_reapply === 'always' → no additional check
+
       const { answers } = req.body;
       const r = await query(
         'INSERT INTO application_submissions (guild_id, panel_id, panel_title, user_id, username, answers) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
@@ -4061,11 +4112,14 @@ for (const [route, file] of pages) {
     const reviewChannelId = req.body.reviewChannelId || req.body.review_channel_id || null;
     const requiredRoleId = req.body.required_role_id || req.body.requiredRoleId || null;
     const rules = req.body.rules || '';
+    const resultsChannelId = req.body.results_channel_id || req.body.resultsChannelId || null;
+    const allowReapply = req.body.allow_reapply || 'never';
+    const reapplyCooldownDays = parseInt(req.body.reapply_cooldown_days) || 30;
     if (!DATABASE_URL || !title) return res.status(400).json({ error: 'Title required' });
     try {
       const r = await query(
-        'INSERT INTO application_panels (guild_id, title, description, button_label, questions, review_role_ids, review_channel_id, enabled, required_role_id, rules) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
-        [id, title, description || '', buttonLabel, JSON.stringify(questions), reviewRoleIds, reviewChannelId, enabled !== false, requiredRoleId, rules]
+        'INSERT INTO application_panels (guild_id, title, description, button_label, questions, review_role_ids, review_channel_id, enabled, required_role_id, rules, results_channel_id, allow_reapply, reapply_cooldown_days) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *',
+        [id, title, description || '', buttonLabel, JSON.stringify(questions), reviewRoleIds, reviewChannelId, enabled !== false, requiredRoleId, rules, resultsChannelId, allowReapply, reapplyCooldownDays]
       );
       res.json(r.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -4081,10 +4135,13 @@ for (const [route, file] of pages) {
     const reviewChannelId = req.body.reviewChannelId || req.body.review_channel_id || null;
     const requiredRoleId = req.body.required_role_id || req.body.requiredRoleId || null;
     const rules = req.body.rules !== undefined ? req.body.rules : '';
+    const resultsChannelId = req.body.results_channel_id || req.body.resultsChannelId || null;
+    const allowReapply = req.body.allow_reapply || 'never';
+    const reapplyCooldownDays = parseInt(req.body.reapply_cooldown_days) || 30;
     try {
       const r = await query(
-        'UPDATE application_panels SET title=$1, description=$2, button_label=$3, questions=$4, review_role_ids=$5, review_channel_id=$6, enabled=$7, required_role_id=$8, rules=$9 WHERE id=$10 AND guild_id=$11 RETURNING *',
-        [title, description || '', buttonLabel, JSON.stringify(questions), reviewRoleIds, reviewChannelId, enabled !== false, requiredRoleId, rules, panelId, id]
+        'UPDATE application_panels SET title=$1, description=$2, button_label=$3, questions=$4, review_role_ids=$5, review_channel_id=$6, enabled=$7, required_role_id=$8, rules=$9, results_channel_id=$10, allow_reapply=$11, reapply_cooldown_days=$12 WHERE id=$13 AND guild_id=$14 RETURNING *',
+        [title, description || '', buttonLabel, JSON.stringify(questions), reviewRoleIds, reviewChannelId, enabled !== false, requiredRoleId, rules, resultsChannelId, allowReapply, reapplyCooldownDays, panelId, id]
       );
       if (!r.rows.length) return res.status(404).json({ error: 'Panel not found' });
       res.json(r.rows[0]);
@@ -4120,17 +4177,40 @@ for (const [route, file] of pages) {
       const sub = r.rows[0];
       await logActivity(id, req.session?.user?.id, req.session?.user?.username, 'application_' + status, { submissionId: subId, applicant: sub.username }).catch(() => {});
 
-      // DM the applicant with their result
+      // ── DM applicant + post to results channel ──
       if (DISCORD_BOT_TOKEN && sub.user_id) {
         (async () => {
           try {
-            const cfgR = await query(`SELECT embed_color, embed_footer FROM server_config WHERE guild_id=$1`, [id]).catch(() => ({ rows: [] }));
-            const embedColor = status === 'accepted' ? 0x57F287 : 0xED4245;
+            const [cfgR, serverR, panelR] = await Promise.all([
+              query(`SELECT embed_color, embed_footer FROM server_config WHERE guild_id=$1`, [id]).catch(() => ({ rows: [] })),
+              query(`SELECT name FROM servers WHERE id=$1`, [id]).catch(() => ({ rows: [] })),
+              query(`SELECT results_channel_id FROM application_panels WHERE id=$1`, [sub.panel_id]).catch(() => ({ rows: [] })),
+            ]);
+            const serverName = serverR.rows[0]?.name || 'the server';
             const embedFooter = cfgR.rows[0]?.embed_footer || 'Zenith Staff Management';
-            const title = status === 'accepted' ? '✅ Application Accepted' : '❌ Application Rejected';
-            const desc = status === 'accepted'
-              ? `Your application for **${sub.panel_title || 'Staff Position'}** has been **accepted**! Congratulations!`
-              : `Your application for **${sub.panel_title || 'Staff Position'}** has been **rejected**.`;
+            const resultsChannelId = panelR.rows[0]?.results_channel_id;
+
+            // flagged → same rejected DM; both rejected and flagged send a rejection DM
+            const isAccepted = status === 'accepted';
+            const dmColor = isAccepted ? 0x57F287 : 0xED4245;
+            const dmTitle = isAccepted ? '✅ Application Accepted' : '❌ Application Rejected';
+            const dmDesc = isAccepted
+              ? `Your application for **${sub.panel_title || 'Staff Position'}** in **${serverName}** has been **accepted**! Congratulations — welcome to the team! 🎉`
+              : `Your application for **${sub.panel_title || 'Staff Position'}** in **${serverName}** has been **rejected**.`;
+
+            const embed = {
+              color: dmColor,
+              title: dmTitle,
+              description: dmDesc,
+              fields: [
+                ...(reviewerNotes ? [{ name: 'Reviewer Notes', value: reviewerNotes, inline: false }] : []),
+                { name: 'Reviewed By', value: reviewerUsername || req.session?.user?.username || 'Management', inline: true },
+              ],
+              footer: { text: `${serverName} · ${embedFooter}` },
+              timestamp: new Date().toISOString(),
+            };
+
+            // Send DM to applicant
             const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
               method: 'POST',
               headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
@@ -4141,19 +4221,27 @@ for (const [route, file] of pages) {
               await fetch(`${DISCORD_API}/channels/${dm.id}/messages`, {
                 method: 'POST',
                 headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  embeds: [{
-                    color: embedColor,
-                    title,
-                    description: desc,
-                    fields: [
-                      ...(reviewerNotes ? [{ name: 'Reviewer Notes', value: reviewerNotes, inline: false }] : []),
-                      { name: 'Reviewed By', value: reviewerUsername || req.session?.user?.username || 'Management', inline: true },
-                    ],
-                    footer: { text: embedFooter },
-                    timestamp: new Date().toISOString(),
-                  }],
-                }),
+                body: JSON.stringify({ embeds: [embed] }),
+              }).catch(() => {});
+            }
+
+            // Post to results channel (Premium feature)
+            if (resultsChannelId) {
+              const resultEmbed = {
+                color: dmColor,
+                title: isAccepted ? '✅ Application Accepted' : '❌ Application Rejected',
+                description: `**${sub.username}** (<@${sub.user_id}>) has been **${isAccepted ? 'accepted' : 'rejected'}** for **${sub.panel_title || 'Staff Position'}**.`,
+                fields: [
+                  ...(reviewerNotes ? [{ name: 'Reviewer Notes', value: reviewerNotes, inline: false }] : []),
+                  { name: 'Reviewed By', value: `${reviewerUsername || req.session?.user?.username || 'Management'}`, inline: true },
+                ],
+                footer: { text: embedFooter },
+                timestamp: new Date().toISOString(),
+              };
+              await fetch(`${DISCORD_API}/channels/${resultsChannelId}/messages`, {
+                method: 'POST',
+                headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ embeds: [resultEmbed] }),
               }).catch(() => {});
             }
           } catch { /* DMs may be disabled */ }
@@ -4558,21 +4646,22 @@ app.patch('/api/guilds/:id/config/prefix', requireAuth, async (req, res) => {
       const hubRes = await query('SELECT * FROM application_hubs WHERE id=$1 AND guild_id=$2', [hubId, id]);
       if (!hubRes.rows.length) return res.status(404).json({ error: 'Hub not found' });
       const hub = hubRes.rows[0];
-      if (!hub.channel_id) return res.status(400).json({ error: 'No channel configured for this hub' });
+      if (!hub.channel_id) return res.status(400).json({ error: 'No channel configured for this hub. Edit the hub and select a channel.' });
 
-      // Fetch panel details for button labels and portal URLs
       const panelIds = hub.panel_ids || [];
-      if (!panelIds.length) return res.status(400).json({ error: 'No panels selected for this hub' });
+      if (!panelIds.length) return res.status(400).json({ error: 'No panels selected for this hub.' });
 
       const panelRes = await query('SELECT id, title, button_label FROM application_panels WHERE guild_id=$1 AND id=ANY($2) AND enabled=true', [id, panelIds]);
       const panels = panelRes.rows;
-      if (!panels.length) return res.status(400).json({ error: 'No active panels found for this hub' });
+      if (!panels.length) return res.status(400).json({ error: 'No active panels found for this hub. Make sure your panels are enabled.' });
 
-      // Use the global DISCORD_BOT_TOKEN (not per-server apak_key)
-      if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured on this server' });
-      const botToken = DISCORD_BOT_TOKEN;
+      if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'DISCORD_BOT_TOKEN is not set in Railway environment variables.' });
 
-      // Build components (link buttons, max 5 per row)
+      // Get custom bot settings for this server (for webhook posting with custom avatar/name)
+      const botCfgR = await query('SELECT custom_bot_name, custom_bot_avatar FROM servers WHERE id=$1', [id]).catch(() => ({ rows: [] }));
+      const customName = botCfgR.rows[0]?.custom_bot_name;
+      const customAvatar = botCfgR.rows[0]?.custom_bot_avatar;
+
       const SITE_URL = process.env.SITE_URL || 'https://zenithbot.up.railway.app';
       const buttons = panelIds
         .map(pid => panels.find(p => p.id === pid))
@@ -4583,13 +4672,11 @@ app.patch('/api/guilds/:id/config/prefix', requireAuth, async (req, res) => {
           url: `${SITE_URL}/portal/${id}/${p.id}`
         }));
 
-      // Split into rows of max 5
       const components = [];
       for (let i = 0; i < buttons.length; i += 5) {
         components.push({ type: 1, components: buttons.slice(i, i + 5) });
       }
 
-      // Build embed
       const colorHex = (hub.embed_color || '#d4af37').replace('#', '');
       const embedColor = parseInt(colorHex, 16) || 0xd4af37;
       const embed = {
@@ -4600,15 +4687,67 @@ app.patch('/api/guilds/:id/config/prefix', requireAuth, async (req, res) => {
       };
       if (hub.footer_text) embed.footer = { text: hub.footer_text };
 
-      const discordRes = await fetch(`https://discord.com/api/v10/channels/${hub.channel_id}/messages`, {
+      // ── Try webhook (allows custom avatar + name per server) ──
+      let webhookUrl = hub.webhook_url;
+      if (customName || customAvatar) {
+        // Try creating or reusing a webhook for this channel
+        if (!webhookUrl) {
+          try {
+            const whRes = await fetch(`${DISCORD_API}/channels/${hub.channel_id}/webhooks`, {
+              method: 'POST',
+              headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: customName || 'Zenith Applications' }),
+            });
+            if (whRes.ok) {
+              const wh = await whRes.json();
+              webhookUrl = `https://discord.com/api/webhooks/${wh.id}/${wh.token}`;
+              await query('UPDATE application_hubs SET webhook_url=$1 WHERE id=$2', [webhookUrl, hubId]).catch(() => {});
+            }
+          } catch {}
+        }
+
+        if (webhookUrl) {
+          try {
+            const whPayload = {
+              embeds: [embed], components,
+              ...(customName ? { username: customName } : {}),
+              ...(customAvatar && customAvatar.startsWith('http') ? { avatar_url: customAvatar } : {}),
+            };
+            const wRes = await fetch(`${webhookUrl}?wait=true`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(whPayload),
+            });
+            if (wRes.ok) {
+              const wData = await wRes.json();
+              await logActivity(id, req.session?.user?.id, req.session?.user?.username, 'hub_posted', { hubId, channelId: hub.channel_id, title: hub.title, via: 'webhook' }).catch(() => {});
+              return res.json({ ok: true, messageId: wData.id, via: 'webhook' });
+            }
+            // Webhook stale — clear it and fall through to bot message
+            await query('UPDATE application_hubs SET webhook_url=NULL WHERE id=$1', [hubId]).catch(() => {});
+          } catch {}
+        }
+      }
+
+      // ── Fallback: regular bot message ──
+      const discordRes = await fetch(`${DISCORD_API}/channels/${hub.channel_id}/messages`, {
         method: 'POST',
-        headers: { Authorization: `Bot ${botToken}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ embeds: [embed], components }),
       });
       const discordBody = await discordRes.json();
-      if (!discordRes.ok) return res.status(400).json({ error: discordBody.message || 'Discord API error', code: discordBody.code });
+      if (!discordRes.ok) {
+        let errMsg = discordBody.message || 'Discord API error';
+        if (discordBody.code === 50013) {
+          errMsg = 'Missing Permissions — the bot cannot post in that channel. Make sure the bot role has Send Messages + Embed Links permissions in that channel (or no deny overrides exist). Admin role alone is sometimes not sufficient if a channel has explicit deny overrides.';
+        } else if (discordBody.code === 10003) {
+          errMsg = 'Unknown channel — the channel ID is invalid or the bot cannot see it.';
+        } else if (discordBody.code === 50001) {
+          errMsg = 'The bot does not have access to this channel. Make sure the bot is in your server.';
+        }
+        return res.status(400).json({ error: errMsg, code: discordBody.code });
+      }
 
-      await logActivity(id, req.session?.user?.id, req.session?.user?.username, 'hub_posted', { hubId, channelId: hub.channel_id, title: hub.title }).catch(()=>{});
+      await logActivity(id, req.session?.user?.id, req.session?.user?.username, 'hub_posted', { hubId, channelId: hub.channel_id, title: hub.title }).catch(() => {});
       res.json({ ok: true, messageId: discordBody.id });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });

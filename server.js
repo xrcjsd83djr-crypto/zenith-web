@@ -2192,6 +2192,9 @@ if (DATABASE_URL) {
         ALTER TABLE server_config ADD COLUMN IF NOT EXISTS staff_role_ids TEXT[] DEFAULT '{}';
         ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS panel_id UUID REFERENCES application_panels(id) ON DELETE CASCADE;
         ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP;
+          ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS reviewer_notes TEXT;
+          ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS reviewer_id TEXT;
+          ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS reviewer_username TEXT;
         ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS panel_title TEXT;
         ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS avatar_url TEXT;
         ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS last_active TIMESTAMP;
@@ -3930,7 +3933,7 @@ for (const [route, file] of pages) {
       if (!pR.rows.length) return res.status(404).json({ error: 'Panel not found' });
       const panel = pR.rows[0];
       if (!panel.enabled) return res.status(403).json({ error: 'This application is currently closed' });
-      const dupR = await query("SELECT id FROM application_submissions WHERE panel_id=$1 AND user_id=$2 AND status='pending'", [panelId, userId]);
+      const dupR = await query("SELECT id FROM application_submissions WHERE panel_id=$1 AND user_id=$2 AND status IN ('pending','flagged')", [panelId, userId]);
       if (dupR.rows.length) return res.status(409).json({ error: 'You already have a pending application for this panel' });
       const { answers } = req.body;
       const r = await query(
@@ -4023,7 +4026,7 @@ for (const [route, file] of pages) {
   app.post('/api/guilds/:id/applications/:subId/review', requireAuth, async (req, res) => {
     const { id, subId } = req.params;
     const { status, reviewerNotes, reviewerId, reviewerUsername } = req.body;
-    if (!['accepted','rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    if (!['accepted','rejected','flagged'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
     try {
       const r = await query(
         'UPDATE application_submissions SET status=$1, reviewer_notes=$2, reviewer_id=$3, reviewer_username=$4, reviewed_at=NOW() WHERE id=$5 AND guild_id=$6 RETURNING *',

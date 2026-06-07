@@ -2993,6 +2993,17 @@ const publicPath = join(__dirname, 'dist');
         enabled BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE TABLE IF NOT EXISTS application_hubs (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          guild_id TEXT NOT NULL,
+          title TEXT NOT NULL DEFAULT 'Apply for Staff',
+          description TEXT DEFAULT '',
+          embed_color TEXT DEFAULT '#d4af37',
+          panel_ids TEXT[] DEFAULT '{}',
+          channel_id TEXT DEFAULT '',
+          footer_text TEXT DEFAULT '',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
       CREATE TABLE IF NOT EXISTS application_submissions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         guild_id TEXT NOT NULL,
@@ -4424,7 +4435,113 @@ app.patch('/api/guilds/:id/config/prefix', requireAuth, async (req, res) => {
 });
 
 
-// Catch-all → index.html
+
+  // ─── Application Hubs (multi-panel Discord posts) ────────────────────────────
+  app.get('/api/guilds/:id/application-hubs', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    if (!DATABASE_URL) return res.json([]);
+    try {
+      const r = await query('SELECT * FROM application_hubs WHERE guild_id=$1 ORDER BY created_at DESC', [id]);
+      res.json(r.rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.post('/api/guilds/:id/application-hubs', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { title, description, embed_color, panel_ids, channel_id, footer_text } = req.body;
+    if (!DATABASE_URL || !title) return res.status(400).json({ error: 'Title required' });
+    try {
+      const r = await query(
+        'INSERT INTO application_hubs (guild_id, title, description, embed_color, panel_ids, channel_id, footer_text) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+        [id, title, description||'', embed_color||'#d4af37', panel_ids||[], channel_id||'', footer_text||'']
+      );
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.put('/api/guilds/:id/application-hubs/:hubId', requireAuth, async (req, res) => {
+    const { id, hubId } = req.params;
+    const { title, description, embed_color, panel_ids, channel_id, footer_text } = req.body;
+    try {
+      const r = await query(
+        'UPDATE application_hubs SET title=$1, description=$2, embed_color=$3, panel_ids=$4, channel_id=$5, footer_text=$6 WHERE id=$7 AND guild_id=$8 RETURNING *',
+        [title, description||'', embed_color||'#d4af37', panel_ids||[], channel_id||'', footer_text||'', hubId, id]
+      );
+      if (!r.rows.length) return res.status(404).json({ error: 'Hub not found' });
+      res.json(r.rows[0]);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.delete('/api/guilds/:id/application-hubs/:hubId', requireAuth, async (req, res) => {
+    const { id, hubId } = req.params;
+    try { await query('DELETE FROM application_hubs WHERE id=$1 AND guild_id=$2', [hubId, id]); res.json({ ok: true }); }
+    catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.post('/api/guilds/:id/application-hubs/:hubId/post', requireAuth, async (req, res) => {
+    const { id, hubId } = req.params;
+    if (!DATABASE_URL) return res.status(400).json({ error: 'Database not configured' });
+    try {
+      const hubRes = await query('SELECT * FROM application_hubs WHERE id=$1 AND guild_id=$2', [hubId, id]);
+      if (!hubRes.rows.length) return res.status(404).json({ error: 'Hub not found' });
+      const hub = hubRes.rows[0];
+      if (!hub.channel_id) return res.status(400).json({ error: 'No channel configured for this hub' });
+
+      // Fetch panel details for button labels and portal URLs
+      const panelIds = hub.panel_ids || [];
+      if (!panelIds.length) return res.status(400).json({ error: 'No panels selected for this hub' });
+
+      const panelRes = await query('SELECT id, title, button_label FROM application_panels WHERE guild_id=$1 AND id=ANY($2) AND enabled=true', [id, panelIds]);
+      const panels = panelRes.rows;
+      if (!panels.length) return res.status(400).json({ error: 'No active panels found for this hub' });
+
+      // Fetch bot token for this guild
+      const sRes = await query('SELECT apak_key FROM servers WHERE id=$1', [id]);
+      if (!sRes.rows.length || !sRes.rows[0].apak_key) return res.status(400).json({ error: 'Bot not configured for this server' });
+      const botToken = sRes.rows[0].apak_key;
+
+      // Build components (link buttons, max 5 per row)
+      const SITE_URL = process.env.SITE_URL || 'https://zenithbot.up.railway.app';
+      const buttons = panelIds
+        .map(pid => panels.find(p => p.id === pid))
+        .filter(Boolean)
+        .map(p => ({
+          type: 2, style: 5,
+          label: p.button_label || p.title || 'Apply',
+          url: `${SITE_URL}/portal/${id}/${p.id}`
+        }));
+
+      // Split into rows of max 5
+      const components = [];
+      for (let i = 0; i < buttons.length; i += 5) {
+        components.push({ type: 1, components: buttons.slice(i, i + 5) });
+      }
+
+      // Build embed
+      const colorHex = (hub.embed_color || '#d4af37').replace('#', '');
+      const embedColor = parseInt(colorHex, 16) || 0xd4af37;
+      const embed = {
+        title: hub.title,
+        description: hub.description || undefined,
+        color: embedColor,
+        timestamp: new Date().toISOString(),
+      };
+      if (hub.footer_text) embed.footer = { text: hub.footer_text };
+
+      const discordRes = await fetch(`https://discord.com/api/v10/channels/${hub.channel_id}/messages`, {
+        method: 'POST',
+        headers: { Authorization: `Bot ${botToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ embeds: [embed], components }),
+      });
+      const discordBody = await discordRes.json();
+      if (!discordRes.ok) return res.status(400).json({ error: discordBody.message || 'Discord API error', code: discordBody.code });
+
+      await logActivity(id, req.session?.user?.id, req.session?.user?.username, 'hub_posted', { hubId, channelId: hub.channel_id, title: hub.title }).catch(()=>{});
+      res.json({ ok: true, messageId: discordBody.id });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // Catch-all → index.html
 app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
 
 app.listen(PORT, '0.0.0.0', () => {

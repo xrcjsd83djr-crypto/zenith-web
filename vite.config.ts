@@ -11,6 +11,9 @@ export default defineConfig({
     },
     dedupe: ["react", "react-dom"],
   },
+  define: {
+    __BUILD_TIME__: JSON.stringify(Date.now()),
+  },
   build: {
     outDir: "dist",
     emptyOutDir: true,

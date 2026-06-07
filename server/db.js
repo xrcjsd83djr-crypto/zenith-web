@@ -75,8 +75,8 @@ export function createSessionStore() {
   const PgSession = connectPgSimple(session);
   return new PgSession({
     pool: masterPool,
-    tableName: 'pg_sessions',
-    createTableIfMissing: true,
+    tableName: 'session',
+    createTableIfMissing: false,
     pruneSessionInterval: 300,
   });
 }

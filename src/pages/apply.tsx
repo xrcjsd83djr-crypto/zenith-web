@@ -29,7 +29,7 @@ export default function ApplyPage({ guildId, panelId }: { guildId: string; panel
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [screen, setScreen] = useState<"intro" | "form">("intro");
+  const [screen, setScreen] = useState<"intro" | "form" | "role-blocked">("intro");
   const [rulesOpen, setRulesOpen] = useState(false);
 
   useEffect(() => {
@@ -140,23 +140,6 @@ export default function ApplyPage({ guildId, panelId }: { guildId: string; panel
       <p className="text-white/20 text-xs mt-2">Powered by <a href="https://zenithbot.up.railway.app/" target="_blank" rel="noreferrer" className="hover:text-white/30">Zenith</a></p>
     </div>
   );
-  // ── Role check: block before they start if they lack required role ────────
-  if (memberCheck.isMember === true && panel?.required_role_id) {
-    const hasRole = (memberCheck.roles || []).includes(panel.required_role_id);
-    if (!hasRole) return (
-      <div className="min-h-screen bg-[#0d0f14] flex flex-col items-center justify-center p-6 text-center text-white">
-        {panel?.guildIcon && <img src={panel.guildIcon} alt="" className="w-20 h-20 rounded-2xl mb-4 object-cover shadow-xl" />}
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: "rgba(139,92,246,.12)" }}>
-          <Shield className="w-8 h-8 text-purple-400" />
-        </div>
-        <h1 className="text-2xl font-bold mb-2">Role Required</h1>
-        <p className="text-white/50 max-w-sm">You don't have the required role to apply for <strong className="text-white">{panel?.title}</strong>. Ask a server admin if you believe this is a mistake.</p>
-        <p className="text-white/30 text-xs mt-6">Applying as: {user.username}</p>
-        <p className="text-white/20 text-xs mt-2">Powered by <a href="https://zenithbot.up.railway.app/" target="_blank" rel="noreferrer" className="hover:text-white/30">Zenith</a></p>
-      </div>
-    );
-  }
-
   if (submitted) return (
     <div className="min-h-screen bg-[#0d0f14] flex flex-col items-center justify-center p-6 text-center text-white">
       {panel?.guildIcon && <img src={panel.guildIcon} alt="" className="w-16 h-16 rounded-2xl mb-4 object-cover" />}
@@ -166,6 +149,21 @@ export default function ApplyPage({ guildId, panelId }: { guildId: string; panel
       <h1 className="text-2xl font-bold mb-2">Application Submitted!</h1>
       <p className="text-white/50 max-w-sm">Thanks {user.username}! Your application for <strong className="text-white">{panel?.title}</strong> has been received. You'll be notified via Discord DM with the decision.</p>
       <p className="text-white/20 text-xs mt-8">Powered by <a href="https://zenithbot.up.railway.app/" target="_blank" rel="noreferrer" className="hover:text-white/30">Zenith</a></p>
+    </div>
+  );
+
+  // ── Role-blocked Screen (shown after clicking Start Application) ─────────────
+  if (screen === "role-blocked") return (
+    <div className="min-h-screen bg-[#0d0f14] flex flex-col items-center justify-center p-6 text-center text-white">
+      {panel?.guildIcon && <img src={panel.guildIcon} alt="" className="w-20 h-20 rounded-2xl mb-4 object-cover shadow-xl" />}
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: "rgba(139,92,246,.12)" }}>
+        <Shield className="w-8 h-8 text-purple-400" />
+      </div>
+      <h1 className="text-2xl font-bold mb-2">Role Required</h1>
+      <p className="text-white/50 max-w-sm">You don't have the required role to apply for <strong className="text-white">{panel?.title}</strong>. Ask a server admin if you believe this is a mistake.</p>
+      <button onClick={() => setScreen("intro")} className="mt-5 text-xs text-white/30 hover:text-white/60 transition-colors">← Go back</button>
+      <p className="text-white/30 text-xs mt-3">Applying as: {user.username}</p>
+      <p className="text-white/20 text-xs mt-2">Powered by <a href="https://zenithbot.up.railway.app/" target="_blank" rel="noreferrer" className="hover:text-white/30">Zenith</a></p>
     </div>
   );
 
@@ -226,7 +224,13 @@ export default function ApplyPage({ guildId, panelId }: { guildId: string; panel
 
         <Button className="gap-2 font-bold px-8 py-3 text-base rounded-xl shadow-lg w-full"
           style={{ background: "linear-gradient(135deg,#d4af37,#f0c040)", color: "#000" }}
-          onClick={() => setScreen("form")}>
+          onClick={() => {
+            if (panel?.required_role_id) {
+              const hasRole = (memberCheck?.roles || []).includes(panel.required_role_id);
+              if (!hasRole) { setScreen("role-blocked"); return; }
+            }
+            setScreen("form");
+          }}>
           {buttonLabel} <ChevronRight className="w-4 h-4" />
         </Button>
 

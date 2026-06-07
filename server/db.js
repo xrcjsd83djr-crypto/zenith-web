@@ -118,6 +118,55 @@ export async function initDb() {
     console.error('[DB] Failed to create guild_db_assignments:', err.message);
   }
 
+  try {
+    await masterPool.query(`
+      CREATE TABLE IF NOT EXISTS system_outages (
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title            TEXT NOT NULL,
+        description      TEXT NOT NULL,
+        severity         TEXT DEFAULT 'minor',
+        status           TEXT DEFAULT 'investigating',
+        affected_systems TEXT[] DEFAULT '{}',
+        resolution       TEXT,
+        started_at       TIMESTAMP DEFAULT NOW(),
+        resolved_at      TIMESTAMP,
+        discord_posted   BOOLEAN DEFAULT FALSE,
+        created_at       TIMESTAMP DEFAULT NOW(),
+        updated_at       TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await masterPool.query(`
+      CREATE TABLE IF NOT EXISTS platform_config (
+        key        TEXT PRIMARY KEY,
+        value      TEXT,
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // Seed the DB migration incident (idempotent via fixed UUID)
+    const startedAt = new Date(Date.now() - 3.5 * 60 * 60 * 1000);
+    await masterPool.query(
+      `INSERT INTO system_outages
+         (id, title, description, severity, status, affected_systems, resolution, started_at, resolved_at, discord_posted)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),TRUE)
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        '00000000-0000-4000-8000-000000000001',
+        'Database Migration Failure — PostgreSQL → Turso',
+        'An attempted migration from Supabase (PostgreSQL) to Turso/SQLite failed under production conditions. SQL dialect incompatibilities caused API failures and session loss across all servers.',
+        'major',
+        'resolved',
+        ['Database', 'API Server', 'Sessions'],
+        'Fully reverted to Supabase PostgreSQL. Multi-DB sharding architecture implemented for future scale. All data was intact — Supabase DB was never modified during the incident. Sessions re-established on next deploy.',
+        startedAt,
+      ]
+    );
+    console.log('[DB] system_outages + platform_config ready');
+  } catch (err) {
+    console.error('[DB] Failed to create outage tables:', err.message);
+  }
+
   for (let slot = 1; slot <= 3; slot++) {
     if (!DB_URLS[slot]) continue;
     try {

@@ -16,7 +16,7 @@ interface Panel {
   questions: Question[]; enabled: boolean; guildName: string; guildIcon?: string;
   required_role_id?: string; rules?: string; guild_rules?: string;
 }
-interface MemberCheck { isMember: boolean | null; guildName?: string; guildIcon?: string; }
+interface MemberCheck { isMember: boolean | null; guildName?: string; guildIcon?: string; roles?: string[]; }
 
 export default function ApplyPage({ guildId, panelId }: { guildId: string; panelId: string }) {
   const { user, isLoading: authLoading } = useAuth();
@@ -140,6 +140,22 @@ export default function ApplyPage({ guildId, panelId }: { guildId: string; panel
       <p className="text-white/20 text-xs mt-2">Powered by <a href="https://zenithbot.up.railway.app/" target="_blank" rel="noreferrer" className="hover:text-white/30">Zenith</a></p>
     </div>
   );
+  // ── Role check: block before they start if they lack required role ────────
+  if (memberCheck.isMember === true && panel?.required_role_id) {
+    const hasRole = (memberCheck.roles || []).includes(panel.required_role_id);
+    if (!hasRole) return (
+      <div className="min-h-screen bg-[#0d0f14] flex flex-col items-center justify-center p-6 text-center text-white">
+        {panel?.guildIcon && <img src={panel.guildIcon} alt="" className="w-20 h-20 rounded-2xl mb-4 object-cover shadow-xl" />}
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: "rgba(139,92,246,.12)" }}>
+          <Shield className="w-8 h-8 text-purple-400" />
+        </div>
+        <h1 className="text-2xl font-bold mb-2">Role Required</h1>
+        <p className="text-white/50 max-w-sm">You don't have the required role to apply for <strong className="text-white">{panel?.title}</strong>. Ask a server admin if you believe this is a mistake.</p>
+        <p className="text-white/30 text-xs mt-6">Applying as: {user.username}</p>
+        <p className="text-white/20 text-xs mt-2">Powered by <a href="https://zenithbot.up.railway.app/" target="_blank" rel="noreferrer" className="hover:text-white/30">Zenith</a></p>
+      </div>
+    );
+  }
 
   if (submitted) return (
     <div className="min-h-screen bg-[#0d0f14] flex flex-col items-center justify-center p-6 text-center text-white">
@@ -178,13 +194,7 @@ export default function ApplyPage({ guildId, panelId }: { guildId: string; panel
             className="text-xs text-white/30 hover:text-white/60 transition-colors whitespace-nowrap">Switch</button>
         </div>
 
-        {/* Required role badge */}
-        {panel?.required_role_id && (
-          <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3 mb-4 flex items-center gap-2.5">
-            <Shield className="w-4 h-4 text-purple-400 flex-shrink-0" />
-            <p className="text-xs text-purple-300">This application requires a specific server role to be eligible.</p>
-          </div>
-        )}
+
 
         {/* What to expect */}
         <div className="space-y-2 mb-4">

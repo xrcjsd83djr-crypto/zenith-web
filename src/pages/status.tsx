@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
   interface SystemStatus { status: string; latency?: number; }
   interface StatusData { api: SystemStatus; database: SystemStatus; bot: SystemStatus; overall: string; timestamp: string; features?: Record<string,string>; }
   interface ChangelogEntry { version: string; date: string; type: string; changes: string[]; }
+  interface Outage { id: string; title: string; description: string; severity: string; status: string; affected_systems: string[]; resolution?: string; started_at: string; resolved_at?: string; }
 
   const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string; label: string }> = {
     operational:     { bg: "bg-emerald-500/10", text: "text-emerald-400", dot: "bg-emerald-400", label: "Operational" },
@@ -74,16 +75,19 @@ import { useState, useEffect, useCallback } from "react";
     const [refreshing, setRefreshing] = useState(false);
     const [lastChecked, setLastChecked] = useState<Date | null>(null);
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+    const [outages, setOutages] = useState<Outage[]>([]);
 
     const fetchData = useCallback(async (isRefresh = false) => {
       if (isRefresh) setRefreshing(true);
       try {
-        const [s, c] = await Promise.all([
+        const [s, c, o] = await Promise.all([
           fetch("/api/status").then(r => r.ok ? r.json() : null),
           fetch("/api/changelog").then(r => r.ok ? r.json() : []),
+          fetch("/api/outages").then(r => r.ok ? r.json() : []),
         ]);
         if (s) setStatusData(s);
         if (c) setChangelog(c);
+        if (o) setOutages(o);
         setLastChecked(new Date());
       } catch {}
       setLoading(false);
@@ -150,6 +154,73 @@ import { useState, useEffect, useCallback } from "react";
               </button>
             </div>
           </div>
+
+          {/* Incident History */}
+          {outages.length > 0 && (
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-widest text-white/30 mb-4">Incident History</h2>
+              <div className="space-y-3">
+                {outages.map(o => {
+                  const isResolved = o.status === 'resolved';
+                  const sevBadge: Record<string, string> = {
+                    minor:    'bg-yellow-500/15 text-yellow-400 border border-yellow-500/20',
+                    moderate: 'bg-orange-500/15 text-orange-400 border border-orange-500/20',
+                    major:    'bg-red-500/15 text-red-400 border border-red-500/20',
+                    critical: 'bg-purple-500/15 text-purple-400 border border-purple-500/20',
+                  };
+                  const isOpen = expanded[`inc-${o.id}`];
+                  return (
+                    <div key={o.id} className={`rounded-2xl border overflow-hidden ${isResolved ? 'border-white/[0.08] bg-white/[0.02]' : 'border-red-500/30 bg-red-500/5'}`}>
+                      <button className="w-full flex items-start gap-3 px-5 py-4 hover:bg-white/5 transition-colors text-left"
+                        onClick={() => setExpanded(e => ({ ...e, [`inc-${o.id}`]: !e[`inc-${o.id}`] }))}>
+                        <div className="flex-shrink-0 mt-0.5">
+                          {isResolved
+                            ? <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            : <AlertTriangle className="w-4 h-4 text-red-400" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="font-semibold text-sm text-white truncate">{o.title}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${sevBadge[o.severity] || sevBadge.minor}`}>
+                              {o.severity.toUpperCase()}
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isResolved ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                              {o.status.charAt(0).toUpperCase() + o.status.slice(1)}
+                            </span>
+                            <span className="text-xs text-white/25">{new Date(o.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                        </div>
+                        {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-white/20 flex-shrink-0 mt-1" /> : <ChevronRight className="w-3.5 h-3.5 text-white/20 flex-shrink-0 mt-1" />}
+                      </button>
+                      {isOpen && (
+                        <div className="px-5 pb-5 border-t border-white/[0.07] bg-black/10 space-y-3 pt-4">
+                          <p className="text-sm text-white/50 leading-relaxed">{o.description}</p>
+                          {o.affected_systems?.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {o.affected_systems.map(s => (
+                                <span key={s} className="text-xs bg-white/5 border border-white/10 text-white/50 px-2.5 py-1 rounded-full">{s}</span>
+                              ))}
+                            </div>
+                          )}
+                          {o.resolution && (
+                            <div className="rounded-xl bg-emerald-500/5 border border-emerald-500/15 p-4">
+                              <p className="text-xs font-bold text-emerald-400 mb-1.5 uppercase tracking-wide">Resolution</p>
+                              <p className="text-sm text-white/50 leading-relaxed">{o.resolution}</p>
+                              {o.resolved_at && (
+                                <p className="text-xs text-emerald-400/50 mt-2">Resolved {new Date(o.resolved_at).toLocaleString()}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Service cards */}
           <div>

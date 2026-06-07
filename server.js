@@ -2,7 +2,7 @@ import express from 'express';
 import session from 'express-session';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { initDb, upsertUser, query, TursoSessionStore } from './server/db.js';
+import { initDb, upsertUser, query, createSessionStore } from './server/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -32,9 +32,8 @@ const {
   DISCORD_BOT_TOKEN,
   SESSION_SECRET = 'zenith-secret-key-123',
   BOT_SECRET,
-  TURSO_DATABASE_URL,
 } = process.env;
-const DATABASE_URL = TURSO_DATABASE_URL;
+const DATABASE_URL = process.env.DATABASE_URL_1 || process.env.DATABASE_URL;
 // Use DISCORD_CLIENT_ID as application ID for custom command registration
 const DISCORD_APPLICATION_ID = process.env.DISCORD_APPLICATION_ID || DISCORD_CLIENT_ID;
 
@@ -48,7 +47,7 @@ const INTERACTIONS_PUBLIC_KEY = process.env.INTERACTIONS_PUBLIC_KEY || '';
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '2mb' }));
 
-const sessionStore = DATABASE_URL ? new TursoSessionStore() : undefined;
+const sessionStore = DATABASE_URL ? createSessionStore() : undefined;
 
 app.use(session({
   store: sessionStore,

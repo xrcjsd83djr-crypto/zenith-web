@@ -3815,11 +3815,8 @@ for (const [route, file] of pages) {
   app.get(route, (_req, res) => res.sendFile(join(publicPath, file)));
 }
 
-// Catch-all → index.html
-app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
 
-// ── 24. Start ────────────────────────────────────────────────────────────
-
+// ─── Application Panels ────────────────────────────────────────────────────
   // ─── Application Panels ───────────────────────────────────────────────────
   app.get('/api/guilds/:id/application-panels', requireAuth, async (req, res) => {
     const { id } = req.params;
@@ -4285,6 +4282,10 @@ app.patch('/api/guilds/:id/config/prefix', requireAuth, async (req, res) => {
     res.json({ ok: true, prefix: clean });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+
+// Catch-all → index.html
+app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);

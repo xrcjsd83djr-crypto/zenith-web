@@ -29,6 +29,7 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
     import PortalPage from "@/pages/portal";
     import ApplyPage from "@/pages/apply";
     import StatusPage from "@/pages/status";
+    import IncidentPage from "@/pages/incident";
     import UpdatesPage from "@/pages/updates";
     import ManagePremiumPage from "@/pages/dashboard/manage-premium";
     import NotesPage from "@/pages/dashboard/notes";
@@ -146,6 +147,7 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
           <Route path="/privacy" component={PrivacyPage} />
           <Route path="/premium" component={PremiumPage} />
           <Route path="/status" component={StatusPage} />
+          <Route path="/status/incidents/:slug" component={({ params }) => <IncidentPage slug={params.slug} />} />
           <Route path="/updates" component={UpdatesPage} />
           <Route path="/portal/:apak" component={({ params }) => <PortalPage apak={params.apak} />} />
           <Route path="/portal/:guildId/:panelId" component={({ params }) => <ApplyPage guildId={params.guildId} panelId={params.panelId} />} />

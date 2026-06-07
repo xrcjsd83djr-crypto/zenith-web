@@ -3740,6 +3740,18 @@ app.get('/api/guilds/:id/embed-config/bot', requireBotSecret, async (req, res) =
 
 // ── Changelog / Status ────────────────────────────────────────────────────
 const CHANGELOG = [
+  { version: '2.6.0', date: '2026-06-07', type: 'fix', changes: [
+      'Fixed critical routing bug: application-panel routes were after Express catch-all, blocking all GET requests',
+      'Application panels now save, load, and refresh correctly',
+      'Fixed portal link — /portal/:guildId/:panelId now correctly opens the public application form',
+      'Added public application submission portal (applicants fill & submit forms via link)',
+      'Notify review channel via Discord embed on new application submission',
+      'Duplicate application guard: users cannot submit twice to same panel',
+      'Added Status page with real-time system health checks and feature matrix',
+      'Added Update Logs page with full version history, filtering, and search',
+      'Status & Updates embedded in Account Settings dashboard tab',
+    ] },
+  
   { version: '2.5.0', date: '2026-05-20', type: 'fix', changes: ['Fixed TypeScript syntax crash (const params: any[] on line 2311)', 'Fixed shifts start/end endpoints to accept bot-secret auth', 'Fixed custom command use tracking endpoint auth', 'Fixed mass-DM INSERT using non-existent DB columns', 'Fixed DB migration: shifts now always have shift_type/notes/duration_mins columns', 'Fixed DB migration: server_announcements now has mass_dm/dm_sent/dm_failed columns', 'Rank-request POST now accepts bot-secret (enables /requestrank Discord command)', 'Notes POST now accepts bot-secret (enables /note from bot)', 'Performance review POST now accepts bot-secret'] },
   { version: '2.4.0', date: '2026-05-19', type: 'feature', changes: ['Fixed critical server startup crash (db.js migrations)', 'Fixed inactivity scanner table name bug (activity_logs)', 'Added auto-strike escalation when warning threshold is reached', 'Added mass-DM endpoint alias for announcements page', 'Bot now registers custom commands as guild slash commands', 'Bot customization now applies changes to Discord via REST', 'Rank limit enforced: free=5, premium=unlimited', 'Division limit enforced: free=5, premium=50', 'Announcements dialog crash fixed (empty Select value)', 'Added /commend and /note Discord commands', 'Custom command use count tracking'] },
     { version: '2.3.0', date: '2026-05-18', type: 'feature', changes: ['Added Duty Roster — check in/out of active duty', 'Added Staff Handbook — configurable docs for your server', 'Added Commendations — recognize outstanding staff', 'Added Rank Requests — staff can request promotions via dashboard', 'Added Weekly Schedule planner', 'Added Strike Automation config page (Premium)', 'Added Advanced Analytics with 7-day trends (Premium)', 'Added Custom Commands builder (Premium)', 'Added Inactivity Scanner (Premium)', 'Added Mass DM to all staff (Premium)'] },
@@ -3751,12 +3763,40 @@ const CHANGELOG = [
 app.get('/api/changelog', (_req, res) => res.json(CHANGELOG));
 
 app.get('/api/status', async (_req, res) => {
-  const status = { api: 'operational', database: 'unknown', bot: 'unknown', timestamp: new Date().toISOString() };
-  if (DATABASE_URL) {
-    try { await query('SELECT 1'); status.database = 'operational'; } catch { status.database = 'degraded'; }
-  } else { status.database = 'not_configured'; }
-  res.json(status);
-});
+    const status = {
+      api: { status: 'operational', latency: 1 },
+      database: { status: 'unknown', latency: null },
+      bot: { status: 'unknown', latency: null },
+      overall: 'operational',
+      features: {
+        applications: 'operational', strikes: 'operational', warnings: 'operational',
+        loa: 'operational', shifts: 'operational', roster: 'operational',
+        promotions: 'operational', training: 'operational', analytics: 'operational',
+        ai_insights: 'operational', patrol: 'operational', announcements: 'operational',
+        custom_cmds: 'operational', autopromotion: 'operational', goals: 'operational',
+        incidents: 'operational', handbook: 'operational', discord_bot: 'unknown',
+      },
+      timestamp: new Date().toISOString(),
+    };
+    if (DATABASE_URL) {
+      const t = Date.now();
+      try { await query('SELECT 1'); status.database = { status: 'operational', latency: Date.now() - t }; }
+      catch { status.database = { status: 'degraded', latency: null }; }
+    } else { status.database = { status: 'not_configured', latency: null }; }
+    if (DISCORD_BOT_TOKEN) {
+      const t = Date.now();
+      try {
+        const r = await fetch(`${DISCORD_API}/users/@me`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } });
+        status.bot = { status: r.ok ? 'operational' : 'degraded', latency: Date.now() - t };
+        status.features.discord_bot = r.ok ? 'operational' : 'degraded';
+      } catch { status.bot = { status: 'degraded', latency: null }; status.features.discord_bot = 'degraded'; }
+    } else { status.bot = { status: 'not_configured', latency: null }; status.features.discord_bot = 'not_configured'; }
+    const statuses = [status.api.status, status.database.status, status.bot.status];
+    if (statuses.some(s => s === 'degraded')) status.overall = 'degraded';
+    else if (statuses.some(s => s === 'not_configured')) status.overall = 'partial';
+    else status.overall = 'operational';
+    res.json(status);
+  });
 
 // ── Bot Customization (extended — embed settings + image upload) ───────────
 app.post('/api/guilds/:id/bot-customization/image', requireAuth, async (req, res) => {
@@ -3816,6 +3856,54 @@ for (const [route, file] of pages) {
 }
 
 
+// ─── Public Application Form ─────────────────────────────────────────────────
+  app.get('/api/guilds/:id/application-panels/:panelId/public', async (req, res) => {
+    const { id, panelId } = req.params;
+    if (!DATABASE_URL) return res.status(503).json({ error: 'Service unavailable' });
+    try {
+      const r = await query('SELECT id, guild_id, title, description, button_label, questions, enabled FROM application_panels WHERE id=$1 AND guild_id=$2', [panelId, id]);
+      if (!r.rows.length) return res.status(404).json({ error: 'Application panel not found' });
+      const panel = r.rows[0];
+      if (!panel.enabled) return res.status(403).json({ error: 'This application is currently closed' });
+      const gR = await query('SELECT name FROM servers WHERE id=$1', [id]).catch(() => ({ rows: [] }));
+      const questions = typeof panel.questions === 'string' ? JSON.parse(panel.questions) : (panel.questions || []);
+      res.json({ ...panel, questions, guildName: gR.rows[0]?.name || 'Unknown Server' });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.post('/api/guilds/:id/application-panels/:panelId/submit', requireAuth, async (req, res) => {
+    const { id, panelId } = req.params;
+    const userId = req.session?.user?.id;
+    const username = req.session?.user?.username;
+    if (!DATABASE_URL) return res.status(503).json({ error: 'Service unavailable' });
+    try {
+      const pR = await query('SELECT id, title, enabled, review_channel_id, review_role_ids FROM application_panels WHERE id=$1 AND guild_id=$2', [panelId, id]);
+      if (!pR.rows.length) return res.status(404).json({ error: 'Panel not found' });
+      const panel = pR.rows[0];
+      if (!panel.enabled) return res.status(403).json({ error: 'This application is currently closed' });
+      const dupR = await query("SELECT id FROM application_submissions WHERE panel_id=$1 AND user_id=$2 AND status='pending'", [panelId, userId]);
+      if (dupR.rows.length) return res.status(409).json({ error: 'You already have a pending application for this panel' });
+      const { answers } = req.body;
+      const r = await query(
+        'INSERT INTO application_submissions (guild_id, panel_id, panel_title, user_id, username, answers) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+        [id, panelId, panel.title, userId, username, JSON.stringify(answers || {})]
+      );
+      // Notify review channel
+      if (DISCORD_BOT_TOKEN && panel.review_channel_id) {
+        fetch(`${DISCORD_API}/channels/${panel.review_channel_id}/messages`, {
+          method: 'POST',
+          headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ embeds: [{ color: 0xd4af37, title: '📬 New Application Received',
+            description: `**${username}** submitted an application for **${panel.title}**`,
+            fields: [{ name: 'Applicant', value: `<@${userId}>`, inline: true }, { name: 'Panel', value: panel.title, inline: true }],
+            timestamp: new Date().toISOString(), footer: { text: 'Zenith Applications' } }] }),
+        }).catch(() => {});
+      }
+      res.json({ ok: true, submissionId: r.rows[0].id });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  
 // ─── Application Panels ────────────────────────────────────────────────────
   // ─── Application Panels ───────────────────────────────────────────────────
   app.get('/api/guilds/:id/application-panels', requireAuth, async (req, res) => {

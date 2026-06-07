@@ -752,6 +752,87 @@ export async function initDb() {
       });
     }
 
+    // ── Missing tables (added during Supabase->Turso migration) ──────────────
+    await exec(`CREATE TABLE IF NOT EXISTS application_hubs (
+      id TEXT PRIMARY KEY,
+      guild_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      embed_color TEXT DEFAULT '#d4af37',
+      panel_ids TEXT DEFAULT '[]',
+      channel_id TEXT,
+      footer_text TEXT,
+      webhook_url TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`).catch(()=>{});
+
+    await exec(`CREATE TABLE IF NOT EXISTS staff_handbook (
+      id TEXT PRIMARY KEY,
+      guild_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT,
+      section TEXT,
+      sort_order INTEGER DEFAULT 0,
+      is_premium INTEGER DEFAULT 0,
+      is_public INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`).catch(()=>{});
+
+    await exec(`CREATE TABLE IF NOT EXISTS strike_automation (
+      id TEXT PRIMARY KEY,
+      guild_id TEXT NOT NULL,
+      enabled INTEGER DEFAULT 0,
+      threshold INTEGER DEFAULT 3,
+      action TEXT DEFAULT 'demotion',
+      dm_message TEXT,
+      remove_role_id TEXT,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )`).catch(()=>{});
+
+    // ── Additional column migrations from Supabase schema ────────────────────
+    const extraMigrations = [
+      'ALTER TABLE servers ADD COLUMN IF NOT EXISTS guild_rules TEXT',
+      'ALTER TABLE server_config ADD COLUMN IF NOT EXISTS premium_enabled INTEGER DEFAULT 0',
+      'ALTER TABLE server_config ADD COLUMN IF NOT EXISTS shift_tracking_enabled INTEGER DEFAULT 1',
+      'ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_strikes INTEGER DEFAULT 1',
+      'ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_promotions INTEGER DEFAULT 1',
+      'ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_loa INTEGER DEFAULT 1',
+      'ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_commendations INTEGER DEFAULT 1',
+      'ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_applications INTEGER DEFAULT 1',
+      'ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_staff_changes INTEGER DEFAULT 1',
+      'ALTER TABLE server_config ADD COLUMN IF NOT EXISTS log_shifts INTEGER DEFAULT 1',
+      'ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS source TEXT',
+      'ALTER TABLE application_panels ADD COLUMN IF NOT EXISTS required_role_id TEXT',
+      'ALTER TABLE application_panels ADD COLUMN IF NOT EXISTS rules TEXT',
+      'ALTER TABLE application_panels ADD COLUMN IF NOT EXISTS results_channel_id TEXT',
+      'ALTER TABLE application_panels ADD COLUMN IF NOT EXISTS allow_reapply INTEGER DEFAULT 0',
+      'ALTER TABLE application_panels ADD COLUMN IF NOT EXISTS reapply_cooldown_days INTEGER DEFAULT 0',
+      'ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS panel_title TEXT',
+      'ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS panel_id TEXT',
+      'ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS reviewer_notes TEXT',
+      'ALTER TABLE commendations ADD COLUMN IF NOT EXISTS given_by_id TEXT',
+      'ALTER TABLE commendations ADD COLUMN IF NOT EXISTS given_by_username TEXT',
+      'ALTER TABLE commendations ADD COLUMN IF NOT EXISTS reason TEXT',
+      'ALTER TABLE duty_roster ADD COLUMN IF NOT EXISTS role TEXT',
+      'ALTER TABLE incident_reports ADD COLUMN IF NOT EXISTS updated_at TEXT',
+      'ALTER TABLE rank_requests ADD COLUMN IF NOT EXISTS reviewed_by TEXT',
+      'ALTER TABLE rank_requests ADD COLUMN IF NOT EXISTS reviewed_by_name TEXT',
+      'ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS loa_status TEXT',
+      'ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS avatar TEXT',
+      'ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS position TEXT',
+      'ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS hours INTEGER DEFAULT 0',
+      'ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS rank_id TEXT',
+      'ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS last_active TEXT',
+    ];
+    for (const m of extraMigrations) {
+      await exec(m).catch(e => {
+        if (!e.message?.includes('already exists') && !e.message?.includes('duplicate column')) {
+          console.warn('[DB] Extra migration note:', e.message?.slice(0, 100));
+        }
+      });
+    }
+
     await exec(`CREATE INDEX IF NOT EXISTS idx_shifts_guild_user ON shifts(guild_id, user_id)`).catch(() => {});
     await exec(`CREATE INDEX IF NOT EXISTS idx_shifts_guild_started ON shifts(guild_id, started_at)`).catch(() => {});
     await exec(`CREATE INDEX IF NOT EXISTS idx_activity_logs_guild ON activity_logs(guild_id, created_at)`).catch(() => {});

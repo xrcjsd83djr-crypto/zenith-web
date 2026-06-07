@@ -141,7 +141,7 @@ import { Link } from "wouter";
           </div>
         </section>
 
-        {/* Pricing / Premium */}
+        {/* Pricing */}
         <section className="py-24 px-4">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
@@ -164,7 +164,6 @@ import { Link } from "wouter";
                   Start for free
                 </Button>
               </div>
-
               <div className="p-8 rounded-3xl relative overflow-hidden" style={{ border: "2px solid #d4af37", background: "rgba(212,175,55,.06)" }}>
                 <div className="absolute top-4 right-4 flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-black" style={{ background: "#d4af37" }}>
                   <Star className="w-3 h-3 mr-1 fill-current" /> Zenith Pro
@@ -206,4 +205,3 @@ import { Link } from "wouter";
       </div>
     );
   }
-  

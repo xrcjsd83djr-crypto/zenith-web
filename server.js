@@ -3857,6 +3857,54 @@ for (const [route, file] of pages) {
 }
 
 
+// ─── Discord Member Lookup ────────────────────────────────────────────────────
+  app.get('/api/guilds/:id/members/:userId/check', async (req, res) => {
+    const { id, userId } = req.params;
+    if (!DISCORD_BOT_TOKEN) return res.json({ isMember: null, reason: 'bot_not_configured' });
+    try {
+      const r = await fetch(`${DISCORD_API}/guilds/${id}/members/${userId}`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } });
+      if (r.ok) { const m = await r.json(); return res.json({ isMember: true, joinedAt: m.joined_at }); }
+      if (r.status === 404) {
+        const gR = await fetch(`${DISCORD_API}/guilds/${id}`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } });
+        const guild = gR.ok ? await gR.json() : null;
+        return res.json({ isMember: false, guildName: guild?.name, guildIcon: guild?.icon ? `https://cdn.discordapp.com/icons/${id}/${guild.icon}.png` : null });
+      }
+      res.json({ isMember: null, reason: 'check_failed' });
+    } catch { res.json({ isMember: null, reason: 'error' }); }
+  });
+
+  app.get('/api/guilds/:id/members/:userId/info', requireAuth, async (req, res) => {
+    const { id, userId } = req.params;
+    if (!DISCORD_BOT_TOKEN) return res.status(503).json({ error: 'Bot not configured' });
+    try {
+      const [memberR, userR] = await Promise.all([
+        fetch(`${DISCORD_API}/guilds/${id}/members/${userId}`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } }),
+        fetch(`${DISCORD_API}/users/${userId}`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } }),
+      ]);
+      const member = memberR.ok ? await memberR.json() : null;
+      const user = userR.ok ? await userR.json() : null;
+      let roles = [];
+      if (member?.roles?.length) {
+        const rolesR = await fetch(`${DISCORD_API}/guilds/${id}/roles`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } });
+        if (rolesR.ok) {
+          const allRoles = await rolesR.json();
+          roles = allRoles.filter(r => member.roles.includes(r.id)).sort((a, b) => b.position - a.position).map(r => ({ id: r.id, name: r.name, color: r.color }));
+        }
+      }
+      const snowflakeMs = userId ? Number((BigInt(userId) >> 22n) + 1420070400000n) : null;
+      res.json({
+        userId, username: member?.user?.username || user?.username || userId,
+        globalName: member?.user?.global_name || user?.global_name,
+        avatar: member?.user?.avatar ? `https://cdn.discordapp.com/avatars/${userId}/${member.user.avatar}.png?size=256` : (user?.avatar ? `https://cdn.discordapp.com/avatars/${userId}/${user.avatar}.png?size=256` : null),
+        joinedServer: member?.joined_at || null,
+        accountCreated: snowflakeMs ? new Date(snowflakeMs).toISOString() : null,
+        nickname: member?.nick || null, roles, isMember: !!member,
+        premiumSince: member?.premium_since || null, pending: member?.pending || false,
+      });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  
 // ─── Public Application Form ─────────────────────────────────────────────────
   app.get('/api/guilds/:id/application-panels/:panelId/public', async (req, res) => {
     const { id, panelId } = req.params;

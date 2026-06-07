@@ -40,6 +40,8 @@ const DISCORD_APPLICATION_ID = process.env.DISCORD_APPLICATION_ID || DISCORD_CLI
 const DISCORD_BOT_INVITE = `https://discord.com/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&permissions=8&scope=bot%20applications.commands`;
 const SUPPORT_SERVER_ID   = process.env.SUPPORT_SERVER_ID || '1501905192277377214';
 const SUPPORT_SERVER_INVITE = 'https://discord.gg/UmDQqXPCfF';
+const DISCORD_STATUS_CHANNEL_ID = process.env.DISCORD_STATUS_CHANNEL_ID || '1513258409577681036';
+const APP_URL = process.env.APP_URL || 'https://zenithbot.up.railway.app';
 const PREMIUM_ROLE_ID     = process.env.PREMIUM_ROLE_ID || '1505732884168704050';
 const INTERACTIONS_PUBLIC_KEY = process.env.INTERACTIONS_PUBLIC_KEY || '';
 
@@ -4774,10 +4776,211 @@ app.patch('/api/guilds/:id/config/prefix', requireAuth, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
-  // Catch-all → index.html
+// ── System Outages API ──────────────────────────────────────────────────────
+app.get('/api/outages', async (_req, res) => {
+  if (!DATABASE_URL) return res.json([]);
+  try {
+    const r = await query('SELECT * FROM system_outages ORDER BY started_at DESC LIMIT 20');
+    res.json(r.rows);
+  } catch { res.json([]); }
+});
+
+app.post('/api/outages', requireBotSecret, async (req, res) => {
+  const { title, description, severity = 'minor', status = 'investigating', affected_systems = [], resolution } = req.body;
+  if (!title || !description) return res.status(400).json({ error: 'title and description required' });
+  try {
+    const r = await query(
+      `INSERT INTO system_outages (title, description, severity, status, affected_systems, resolution, resolved_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [title, description, severity, status, affected_systems, resolution || null,
+       status === 'resolved' ? new Date() : null]
+    );
+    const outage = r.rows[0];
+    postOutageToDiscord(outage).catch(() => {});
+    updateDiscordStatusMessage().catch(() => {});
+    res.json(outage);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/outages/:id', requireBotSecret, async (req, res) => {
+  const { id } = req.params;
+  const { status, resolution, description } = req.body;
+  try {
+    const r = await query(
+      `UPDATE system_outages SET
+         status = COALESCE($1, status),
+         resolution = COALESCE($2, resolution),
+         description = COALESCE($3, description),
+         resolved_at = CASE WHEN $1 = 'resolved' AND resolved_at IS NULL THEN NOW() ELSE resolved_at END,
+         updated_at = NOW()
+       WHERE id = $4 RETURNING *`,
+      [status || null, resolution || null, description || null, id]
+    );
+    const outage = r.rows[0];
+    if (outage) {
+      postOutageToDiscord(outage).catch(() => {});
+      updateDiscordStatusMessage().catch(() => {});
+    }
+    res.json(outage || { ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Discord Status Channel ──────────────────────────────────────────────────
+let _statusMsgId = null;
+
+async function getStoredStatusMsgId() {
+  if (_statusMsgId) return _statusMsgId;
+  try {
+    const r = await query(`SELECT value FROM platform_config WHERE key='discord_status_message_id'`);
+    _statusMsgId = r.rows[0]?.value || null;
+  } catch {}
+  return _statusMsgId;
+}
+
+async function storeStatusMsgId(id) {
+  _statusMsgId = id;
+  await query(
+    `INSERT INTO platform_config (key, value) VALUES ('discord_status_message_id', $1)
+     ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
+    [id]
+  ).catch(() => {});
+}
+
+async function buildStatusEmbed() {
+  let dbOk = false; let botOk = false; let dbMs = null; let botMs = null;
+  const t1 = Date.now();
+  try { await query('SELECT 1'); dbOk = true; dbMs = Date.now() - t1; } catch {}
+  if (DISCORD_BOT_TOKEN) {
+    const t2 = Date.now();
+    try {
+      const r = await fetch(`${DISCORD_API}/users/@me`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } });
+      botOk = r.ok; botMs = Date.now() - t2;
+    } catch {}
+  } else { botOk = true; }
+
+  const allOk = dbOk && botOk;
+  const color = allOk ? 0x2ecc71 : 0xe74c3c;
+  const icon = allOk ? '🟢' : '🔴';
+
+  return {
+    content: null,
+    embeds: [{
+      title: `${icon} Zenith — Live System Status`,
+      description: allOk
+        ? '**All systems are fully operational.**\nYou can use all Zenith features normally.'
+        : '**Some systems are experiencing issues.**\nOur team is investigating.',
+      color,
+      fields: [
+        { name: '🌐 API Server', value: `✅ Operational`, inline: true },
+        { name: '🗄️ Database',   value: dbOk  ? `✅ Operational${dbMs ? ` (${dbMs}ms)` : ''}` : '❌ Degraded', inline: true },
+        { name: '🤖 Discord Bot', value: botOk ? `✅ Operational${botMs ? ` (${botMs}ms)` : ''}` : '❌ Degraded', inline: true },
+        { name: '📊 Full Status Page', value: `[View detailed status & incident history](${APP_URL}/status)`, inline: false },
+        { name: '💬 Need Help?', value: `Join our [support server](${SUPPORT_SERVER_INVITE}) for assistance.`, inline: false },
+      ],
+      footer: { text: 'Zenith Status • Auto-updates every 5 minutes' },
+      timestamp: new Date().toISOString(),
+    }],
+  };
+}
+
+async function updateDiscordStatusMessage() {
+  if (!DISCORD_BOT_TOKEN || !DISCORD_STATUS_CHANNEL_ID) return;
+  try {
+    const payload = await buildStatusEmbed();
+    const msgId = await getStoredStatusMsgId();
+
+    if (msgId) {
+      const editRes = await fetch(`${DISCORD_API}/channels/${DISCORD_STATUS_CHANNEL_ID}/messages/${msgId}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (editRes.ok) return;
+      _statusMsgId = null;
+    }
+
+    // Post fresh message
+    const postRes = await fetch(`${DISCORD_API}/channels/${DISCORD_STATUS_CHANNEL_ID}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (postRes.ok) {
+      const msg = await postRes.json();
+      await storeStatusMsgId(msg.id);
+      // Pin it
+      await fetch(`${DISCORD_API}/channels/${DISCORD_STATUS_CHANNEL_ID}/pins/${msg.id}`, {
+        method: 'PUT', headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+      }).catch(() => {});
+    }
+  } catch (err) { console.error('[Discord Status]', err.message); }
+}
+
+async function postOutageToDiscord(outage) {
+  if (!DISCORD_BOT_TOKEN || !DISCORD_STATUS_CHANNEL_ID) return;
+  const sevColor = { minor: 0xf39c12, moderate: 0xe67e22, major: 0xe74c3c, critical: 0x8e44ad };
+  const isResolved = outage.status === 'resolved';
+  const color = isResolved ? 0x2ecc71 : (sevColor[outage.severity] || 0xe74c3c);
+  const systems = Array.isArray(outage.affected_systems) ? outage.affected_systems.join(', ') : (outage.affected_systems || '');
+  try {
+    await fetch(`${DISCORD_API}/channels/${DISCORD_STATUS_CHANNEL_ID}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: isResolved ? null : `@here`,
+        embeds: [{
+          title: `${isResolved ? '✅ RESOLVED' : '🚨 INCIDENT'}: ${outage.title}`,
+          description: outage.description,
+          color,
+          fields: [
+            { name: 'Severity', value: (outage.severity || 'minor').charAt(0).toUpperCase() + (outage.severity || 'minor').slice(1), inline: true },
+            { name: 'Status',   value: (outage.status || '').charAt(0).toUpperCase() + (outage.status || '').slice(1), inline: true },
+            ...(systems ? [{ name: 'Affected Systems', value: systems, inline: true }] : []),
+            ...(outage.resolution ? [{ name: '✅ Resolution', value: outage.resolution }] : []),
+            { name: '📊 Status Page', value: `[View full incident details](${APP_URL}/status)` },
+            { name: '💬 Need Help?', value: `Join our [support server](${SUPPORT_SERVER_INVITE})` },
+          ],
+          footer: { text: 'Zenith Incident Report' },
+          timestamp: new Date().toISOString(),
+        }],
+      }),
+    });
+  } catch (err) { console.error('[Discord Incident]', err.message); }
+}
+
+async function postMigrationIncidentIfNeeded() {
+  if (!DISCORD_BOT_TOKEN || !DISCORD_STATUS_CHANNEL_ID) return;
+  try {
+    const r = await query(`SELECT value FROM platform_config WHERE key='migration_incident_posted'`);
+    if (r.rows[0]?.value === 'true') return;
+    const startedAt = new Date(Date.now() - 3.5 * 60 * 60 * 1000);
+    await postOutageToDiscord({
+      title: 'Database Migration Failure — PostgreSQL → Turso',
+      description: 'An attempted migration from Supabase (PostgreSQL) to Turso/SQLite failed under production conditions. SQL dialect incompatibilities caused API failures and session loss across all servers for ~3.5 hours.',
+      severity: 'major',
+      status: 'resolved',
+      affected_systems: ['Database', 'API Server', 'Sessions'],
+      resolution: 'Fully reverted to Supabase PostgreSQL. Multi-DB sharding architecture implemented for future scale. All data was intact — Supabase DB was never modified during the incident. Sessions re-established on redeploy.',
+      started_at: startedAt,
+    });
+    await query(
+      `INSERT INTO platform_config (key, value) VALUES ('migration_incident_posted','true')
+       ON CONFLICT (key) DO UPDATE SET value='true', updated_at=NOW()`
+    ).catch(() => {});
+  } catch (err) { console.error('[Discord Migration Incident]', err.message); }
+}
+
+// Catch-all → index.html
 app.get('*', (_req, res) => res.sendFile(join(publicPath, 'index.html')));
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Zenith] Server running on port ${PORT}`);
+  if (DISCORD_BOT_TOKEN) {
+    setTimeout(async () => {
+      await updateDiscordStatusMessage().catch(() => {});
+      await postMigrationIncidentIfNeeded().catch(() => {});
+      setInterval(() => updateDiscordStatusMessage().catch(() => {}), 5 * 60 * 1000);
+    }, 4000);
+  }
 });
 

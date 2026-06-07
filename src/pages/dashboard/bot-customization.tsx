@@ -113,7 +113,7 @@ export default function BotCustomizationPage({ guildId }: { guildId: string }) {
         body: JSON.stringify({ customBotName: data.customBotName, customBotAvatar: data.customBotAvatar, customBotStatus: data.customBotStatus }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
-      showToast('ok', 'Bot identity saved! Changes apply on next bot restart.');
+      showToast('ok', 'Bot nickname updated instantly in your server! Avatar and status stored for bot messages.');
     } catch (err: any) { showToast('err', err.message); }
     setSaving(false);
   };
@@ -241,7 +241,7 @@ export default function BotCustomizationPage({ guildId }: { guildId: string }) {
           <Card className={`border-border bg-card shadow-sm ${!data.isPremium ? 'opacity-60 pointer-events-none' : ''}`}>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Bot Identity</CardTitle>
-              <CardDescription>These settings are applied when the bot restarts. They affect how the bot appears in your Discord server.</CardDescription>
+              <CardDescription>Bot nickname applies instantly in your server. Avatar and status are stored and used for bot-sent messages.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="space-y-2">

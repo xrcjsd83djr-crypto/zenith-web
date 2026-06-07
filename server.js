@@ -1364,30 +1364,79 @@ app.post('/api/guilds/:id/bot-customization', requireAuth, async (req, res) => {
       `UPDATE servers SET custom_bot_name = $1, custom_bot_avatar = $2, custom_bot_status = $3, updated_at = NOW() WHERE id = $4`,
       [customBotName || null, customBotAvatar || null, customBotStatus || null, id]
     );
-        // Apply bot name/avatar to Discord via REST API (best-effort, rate-limited)
-      if (process.env.DISCORD_BOT_TOKEN && (customBotName || customBotAvatar)) {
-        const patch = {};
-        if (customBotName && customBotName.trim()) patch.username = customBotName.trim();
-        if (customBotAvatar && customBotAvatar.startsWith('data:')) patch.avatar = customBotAvatar;
-        if (customBotAvatar && customBotAvatar.startsWith('http')) {
-          try {
-            const imgRes = await fetch(customBotAvatar);
-            if (imgRes.ok) {
-              const buf = Buffer.from(await imgRes.arrayBuffer());
-              const ct = imgRes.headers.get('content-type') || 'image/png';
-              patch.avatar = `data:${ct};base64,${buf.toString('base64')}`;
-            }
-          } catch {}
-        }
-        // NOTE: We intentionally do NOT call /users/@me PATCH to change the global bot identity.
-        // That would affect all servers. Instead, per-server customization is surfaced via
-        // webhooks or nickname changes only — the stored name/avatar is used for webhook messages.
-        // Changing the global bot username here is a known loophole that breaks other servers.
+      // Apply per-server bot nickname instantly via Discord API.
+      // This ONLY sets the nickname in THIS specific server — the global bot identity
+      // (username, avatar, status) is never modified, preserving it across all other servers.
+      if (DISCORD_BOT_TOKEN) {
+        try {
+          await fetch(`${DISCORD_API}/guilds/${id}/members/@me`, {
+            method: 'PATCH',
+            headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nick: customBotName ? customBotName.trim() : null }),
+          });
+        } catch {}
       }
-      res.json({ success: true });
+      res.json({ success: true, instant: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to save bot customization' });
   }
+});
+
+// ── Guild-level rules ─────────────────────────────────────────────────────
+app.get('/api/guilds/:id/guild-rules', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ rules: '' });
+  try {
+    const r = await query('SELECT guild_rules FROM servers WHERE id=$1', [id]);
+    res.json({ rules: r.rows[0]?.guild_rules || '' });
+  } catch { res.json({ rules: '' }); }
+});
+
+app.post('/api/guilds/:id/guild-rules', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { rules } = req.body;
+  if (!DATABASE_URL) return res.status(400).json({ error: 'No database' });
+  try {
+    await query(
+      `INSERT INTO servers (id, name, guild_rules) VALUES ($1, $1, $2)
+       ON CONFLICT (id) DO UPDATE SET guild_rules = $2`,
+      [id, rules || '']
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Application Insights (Premium) ────────────────────────────────────────
+app.get('/api/guilds/:id/application-insights', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  if (!DATABASE_URL) return res.json({ premium: false });
+  try {
+    const pR = await query('SELECT is_premium FROM servers WHERE id=$1', [id]);
+    if (!pR.rows[0]?.is_premium) return res.status(403).json({ error: 'Premium required', premium: false });
+    const [totalR, panelR, recentR, avgR] = await Promise.all([
+      query('SELECT status, COUNT(*) as count FROM application_submissions WHERE guild_id=$1 GROUP BY status', [id]),
+      query(`SELECT ap.title, COUNT(s.id) as total,
+        SUM(CASE WHEN s.status='accepted' THEN 1 ELSE 0 END) as accepted,
+        SUM(CASE WHEN s.status='pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN s.status='rejected' THEN 1 ELSE 0 END) as rejected
+        FROM application_panels ap
+        LEFT JOIN application_submissions s ON s.panel_id=ap.id
+        WHERE ap.guild_id=$1 GROUP BY ap.id,ap.title ORDER BY total DESC LIMIT 10`, [id]),
+      query(`SELECT DATE_TRUNC('day', created_at)::date as day, COUNT(*) as count, status
+        FROM application_submissions
+        WHERE guild_id=$1 AND created_at > NOW() - INTERVAL '30 days'
+        GROUP BY day,status ORDER BY day`, [id]),
+      query(`SELECT AVG(EXTRACT(EPOCH FROM (reviewed_at-created_at))/3600) as avg_hours
+        FROM application_submissions WHERE guild_id=$1 AND reviewed_at IS NOT NULL`, [id]),
+    ]);
+    res.json({
+      premium: true,
+      byStatus: totalR.rows,
+      byPanel: panelR.rows,
+      recent30days: recentR.rows,
+      avgResponseHours: parseFloat(avgR.rows[0]?.avg_hours || '0') || 0,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── 19. Settings ─────────────────────────────────────────────────────────
@@ -3019,6 +3068,12 @@ const publicPath = join(__dirname, 'dist');
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    // New columns for application panels
+    await query(`ALTER TABLE application_panels ADD COLUMN IF NOT EXISTS required_role_id TEXT`).catch(() => {});
+    await query(`ALTER TABLE application_panels ADD COLUMN IF NOT EXISTS rules TEXT DEFAULT ''`).catch(() => {});
+    await query(`ALTER TABLE application_submissions ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ`).catch(() => {});
+    // Guild-level master rules
+    await query(`ALTER TABLE servers ADD COLUMN IF NOT EXISTS guild_rules TEXT DEFAULT ''`).catch(() => {});
     console.log('[DB] Extended tables migrated');
   } catch (err) {
     console.error('[DB] Extended migration error:', err.message);
@@ -3755,6 +3810,20 @@ app.get('/api/guilds/:id/embed-config/bot', requireBotSecret, async (req, res) =
 
 // ── Changelog / Status ────────────────────────────────────────────────────
 const CHANGELOG = [
+  { version: '2.7.0', date: '2026-06-07', type: 'feature', changes: [
+    'Applications system is now fully functional — further updates yet to make',
+    'Fixed critical bug: "Post to Discord" hub was using wrong token (apak_key) — now correctly uses bot token',
+    'Bot customization: nickname now applies instantly in your server (no restart required)',
+    'Bot customization: per-server nickname change NEVER affects the global bot identity across other servers',
+    'Applications: channel selection via searchable dropdown (fetches real Discord channels)',
+    'Applications: required role per panel — only members with the role can apply',
+    'Applications: master guild-wide rules + per-panel rules support',
+    'Applications portal: progress bar shows completion through questions',
+    'Applications portal: rules displayed before Apply Now with agreement text',
+    'Applications: Insights tab (Premium) — charts, acceptance rates, response times, per-panel analytics',
+    'Applications: review channel picker (searchable dropdown) replaces raw ID input',
+    'Applications: review role picker replaces raw ID input',
+  ] },
   { version: '2.6.0', date: '2026-06-07', type: 'fix', changes: [
       'Fixed critical routing bug: application-panel routes were after Express catch-all, blocking all GET requests',
       'Application panels now save, load, and refresh correctly',
@@ -3924,13 +3993,13 @@ for (const [route, file] of pages) {
     const { id, panelId } = req.params;
     if (!DATABASE_URL) return res.status(503).json({ error: 'Service unavailable' });
     try {
-      const r = await query('SELECT id, guild_id, title, description, button_label, questions, enabled FROM application_panels WHERE id=$1 AND guild_id=$2', [panelId, id]);
+      const r = await query('SELECT id, guild_id, title, description, button_label, questions, enabled, required_role_id, rules FROM application_panels WHERE id=$1 AND guild_id=$2', [panelId, id]);
       if (!r.rows.length) return res.status(404).json({ error: 'Application panel not found' });
       const panel = r.rows[0];
       if (!panel.enabled) return res.status(403).json({ error: 'This application is currently closed' });
-      const gR = await query('SELECT name FROM servers WHERE id=$1', [id]).catch(() => ({ rows: [] }));
+      const gR = await query('SELECT name, guild_rules FROM servers WHERE id=$1', [id]).catch(() => ({ rows: [] }));
       const questions = typeof panel.questions === 'string' ? JSON.parse(panel.questions) : (panel.questions || []);
-      res.json({ ...panel, questions, guildName: gR.rows[0]?.name || 'Unknown Server' });
+      res.json({ ...panel, questions, guildName: gR.rows[0]?.name || 'Unknown Server', guild_rules: gR.rows[0]?.guild_rules || '' });
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
@@ -3990,11 +4059,13 @@ for (const [route, file] of pages) {
     const questions = req.body.questions || [];
     const reviewRoleIds = req.body.reviewRoleIds || req.body.review_role_ids || [];
     const reviewChannelId = req.body.reviewChannelId || req.body.review_channel_id || null;
+    const requiredRoleId = req.body.required_role_id || req.body.requiredRoleId || null;
+    const rules = req.body.rules || '';
     if (!DATABASE_URL || !title) return res.status(400).json({ error: 'Title required' });
     try {
       const r = await query(
-        'INSERT INTO application_panels (guild_id, title, description, button_label, questions, review_role_ids, review_channel_id, enabled) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
-        [id, title, description || '', buttonLabel, JSON.stringify(questions), reviewRoleIds, reviewChannelId, enabled !== false]
+        'INSERT INTO application_panels (guild_id, title, description, button_label, questions, review_role_ids, review_channel_id, enabled, required_role_id, rules) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *',
+        [id, title, description || '', buttonLabel, JSON.stringify(questions), reviewRoleIds, reviewChannelId, enabled !== false, requiredRoleId, rules]
       );
       res.json(r.rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
@@ -4008,10 +4079,12 @@ for (const [route, file] of pages) {
     const questions = req.body.questions || [];
     const reviewRoleIds = req.body.reviewRoleIds || req.body.review_role_ids || [];
     const reviewChannelId = req.body.reviewChannelId || req.body.review_channel_id || null;
+    const requiredRoleId = req.body.required_role_id || req.body.requiredRoleId || null;
+    const rules = req.body.rules !== undefined ? req.body.rules : '';
     try {
       const r = await query(
-        'UPDATE application_panels SET title=$1, description=$2, button_label=$3, questions=$4, review_role_ids=$5, review_channel_id=$6, enabled=$7 WHERE id=$8 AND guild_id=$9 RETURNING *',
-        [title, description || '', buttonLabel, JSON.stringify(questions), reviewRoleIds, reviewChannelId, enabled !== false, panelId, id]
+        'UPDATE application_panels SET title=$1, description=$2, button_label=$3, questions=$4, review_role_ids=$5, review_channel_id=$6, enabled=$7, required_role_id=$8, rules=$9 WHERE id=$10 AND guild_id=$11 RETURNING *',
+        [title, description || '', buttonLabel, JSON.stringify(questions), reviewRoleIds, reviewChannelId, enabled !== false, requiredRoleId, rules, panelId, id]
       );
       if (!r.rows.length) return res.status(404).json({ error: 'Panel not found' });
       res.json(r.rows[0]);
@@ -4495,10 +4568,9 @@ app.patch('/api/guilds/:id/config/prefix', requireAuth, async (req, res) => {
       const panels = panelRes.rows;
       if (!panels.length) return res.status(400).json({ error: 'No active panels found for this hub' });
 
-      // Fetch bot token for this guild
-      const sRes = await query('SELECT apak_key FROM servers WHERE id=$1', [id]);
-      if (!sRes.rows.length || !sRes.rows[0].apak_key) return res.status(400).json({ error: 'Bot not configured for this server' });
-      const botToken = sRes.rows[0].apak_key;
+      // Use the global DISCORD_BOT_TOKEN (not per-server apak_key)
+      if (!DISCORD_BOT_TOKEN) return res.status(400).json({ error: 'Bot token not configured on this server' });
+      const botToken = DISCORD_BOT_TOKEN;
 
       // Build components (link buttons, max 5 per row)
       const SITE_URL = process.env.SITE_URL || 'https://zenithbot.up.railway.app';

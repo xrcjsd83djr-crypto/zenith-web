@@ -128,11 +128,25 @@ export async function initDb() {
         status           TEXT DEFAULT 'investigating',
         affected_systems TEXT[] DEFAULT '{}',
         resolution       TEXT,
+        slug             TEXT UNIQUE,
         started_at       TIMESTAMP DEFAULT NOW(),
         resolved_at      TIMESTAMP,
         discord_posted   BOOLEAN DEFAULT FALSE,
         created_at       TIMESTAMP DEFAULT NOW(),
         updated_at       TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // Add slug column to existing tables that don't have it yet
+    await masterPool.query(`ALTER TABLE system_outages ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE`).catch(() => {});
+
+    await masterPool.query(`
+      CREATE TABLE IF NOT EXISTS system_outage_updates (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        outage_id  UUID NOT NULL REFERENCES system_outages(id) ON DELETE CASCADE,
+        status     TEXT NOT NULL DEFAULT 'update',
+        message    TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
       )
     `);
 
@@ -145,14 +159,17 @@ export async function initDb() {
     `);
 
     // Seed the DB migration incident (idempotent via fixed UUID)
-    const startedAt = new Date(Date.now() - 3.5 * 60 * 60 * 1000);
+    const incidentId = '00000000-0000-4000-8000-000000000001';
+    const startedAt  = new Date('2026-06-07T18:32:00.000Z');
+    const resolvedAt = new Date('2026-06-07T22:02:00.000Z');
     await masterPool.query(
       `INSERT INTO system_outages
-         (id, title, description, severity, status, affected_systems, resolution, started_at, resolved_at, discord_posted)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),TRUE)
+         (id, slug, title, description, severity, status, affected_systems, resolution, started_at, resolved_at, discord_posted)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,TRUE)
        ON CONFLICT (id) DO NOTHING`,
       [
-        '00000000-0000-4000-8000-000000000001',
+        incidentId,
+        'DBPG01',
         'Database Migration Failure — PostgreSQL → Turso',
         'An attempted migration from Supabase (PostgreSQL) to Turso/SQLite failed under production conditions. SQL dialect incompatibilities caused API failures and session loss across all servers.',
         'major',
@@ -160,9 +177,34 @@ export async function initDb() {
         ['Database', 'API Server', 'Sessions'],
         'Fully reverted to Supabase PostgreSQL. Multi-DB sharding architecture implemented for future scale. All data was intact — Supabase DB was never modified during the incident. Sessions re-established on next deploy.',
         startedAt,
+        resolvedAt,
       ]
     );
-    console.log('[DB] system_outages + platform_config ready');
+
+    // Backfill slug for existing record if it was already inserted without a slug
+    await masterPool.query(
+      `UPDATE system_outages SET slug = 'DBPG01' WHERE id = $1 AND slug IS NULL`,
+      [incidentId]
+    ).catch(() => {});
+
+    // Seed timeline updates for the migration incident
+    const updates = [
+      { status: 'investigating', message: 'We are investigating reports of database connectivity issues and API failures following a planned migration. All features dependent on database access may be unavailable.',                                                           created_at: new Date('2026-06-07T18:35:00.000Z') },
+      { status: 'identified',    message: 'The issue has been identified. The migration from PostgreSQL to Turso/SQLite introduced SQL dialect incompatibilities that caused API failures. We are reverting to the previous Supabase PostgreSQL setup.',                      created_at: new Date('2026-06-07T19:10:00.000Z') },
+      { status: 'monitoring',    message: 'Revert to Supabase PostgreSQL is complete. We are monitoring all systems for stability. Multi-DB sharding has been added to support future scaling without requiring another migration.',                                         created_at: new Date('2026-06-07T21:30:00.000Z') },
+      { status: 'resolved',      message: 'All systems are fully operational. The database has been restored to Supabase PostgreSQL and all API endpoints are responding normally. Sessions have been re-established. No data was lost during the incident.',               created_at: resolvedAt },
+    ];
+    for (const u of updates) {
+      await masterPool.query(
+        `INSERT INTO system_outage_updates (outage_id, status, message, created_at)
+         SELECT $1,$2,$3,$4 WHERE NOT EXISTS (
+           SELECT 1 FROM system_outage_updates WHERE outage_id=$1 AND status=$2 AND created_at=$4
+         )`,
+        [incidentId, u.status, u.message, u.created_at]
+      ).catch(() => {});
+    }
+
+    console.log('[DB] system_outages + platform_config + outage_updates ready');
   } catch (err) {
     console.error('[DB] Failed to create outage tables:', err.message);
   }

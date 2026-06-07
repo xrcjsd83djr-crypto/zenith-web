@@ -4878,17 +4878,18 @@ app.post('/api/outages', requireBotSecret, async (req, res) => {
 
 app.patch('/api/outages/:id', requireBotSecret, async (req, res) => {
   const { id } = req.params;
-  const { status, resolution, description, update_message } = req.body;
+  const { title, status, resolution, description, update_message } = req.body;
   try {
     const r = await query(
       `UPDATE system_outages SET
+         title = COALESCE($5, title),
          status = COALESCE($1, status),
          resolution = COALESCE($2, resolution),
          description = COALESCE($3, description),
          resolved_at = CASE WHEN $1 = 'resolved' AND resolved_at IS NULL THEN NOW() ELSE resolved_at END,
          updated_at = NOW()
        WHERE id = $4 RETURNING *`,
-      [status || null, resolution || null, description || null, id]
+      [status || null, resolution || null, description || null, id, title || null]
     );
     const outage = r.rows[0];
     if (outage) {
@@ -4969,17 +4970,16 @@ async function updateDiscordStatusMessage() {
     const payload = await buildStatusEmbed();
     const msgId = await getStoredStatusMsgId();
 
+    // Delete the old status message so the new one goes to the bottom (sticky behaviour)
     if (msgId) {
-      const editRes = await fetch(`${DISCORD_API}/channels/${DISCORD_STATUS_CHANNEL_ID}/messages/${msgId}`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (editRes.ok) return;
+      await fetch(`${DISCORD_API}/channels/${DISCORD_STATUS_CHANNEL_ID}/messages/${msgId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+      }).catch(() => {});
       _statusMsgId = null;
     }
 
-    // Post fresh message
+    // Always post a fresh message at the bottom of the channel
     const postRes = await fetch(`${DISCORD_API}/channels/${DISCORD_STATUS_CHANNEL_ID}/messages`, {
       method: 'POST',
       headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
@@ -4988,10 +4988,6 @@ async function updateDiscordStatusMessage() {
     if (postRes.ok) {
       const msg = await postRes.json();
       await storeStatusMsgId(msg.id);
-      // Pin it
-      await fetch(`${DISCORD_API}/channels/${DISCORD_STATUS_CHANNEL_ID}/pins/${msg.id}`, {
-        method: 'PUT', headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
-      }).catch(() => {});
     }
   } catch (err) { console.error('[Discord Status]', err.message); }
 }
@@ -5030,8 +5026,41 @@ async function postOutageToDiscord(outage) {
         }],
       }),
     });
+    // Re-post the status panel AFTER the incident so it always sits at the bottom
+    updateDiscordStatusMessage().catch(() => {});
   } catch (err) { console.error('[Discord Incident]', err.message); }
 }
+
+// Admin: delete Discord messages that contain sensitive keywords
+app.post('/api/admin/discord/purge-sensitive', requireBotSecret, async (req, res) => {
+  if (!DISCORD_BOT_TOKEN || !DISCORD_STATUS_CHANNEL_ID) return res.status(503).json({ error: 'Discord not configured' });
+  const SENSITIVE = ['supabase', 'turso', 'sqlite', 'postgresql', 'postgres →', '→ turso', 'multi-db', 'multi-db sharding'];
+  try {
+    let deleted = 0;
+    let before = undefined;
+    for (let page = 0; page < 5; page++) {
+      const url = `${DISCORD_API}/channels/${DISCORD_STATUS_CHANNEL_ID}/messages?limit=100${before ? `&before=${before}` : ''}`;
+      const r = await fetch(url, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } });
+      const msgs = await r.json();
+      if (!Array.isArray(msgs) || msgs.length === 0) break;
+      before = msgs[msgs.length - 1].id;
+      for (const m of msgs) {
+        const text = [
+          m.content || '',
+          ...(m.embeds || []).map(e => `${e.title||''} ${e.description||''} ${(e.fields||[]).map(f=>f.value||'').join(' ')}`),
+        ].join(' ').toLowerCase();
+        if (SENSITIVE.some(kw => text.includes(kw))) {
+          await fetch(`${DISCORD_API}/channels/${DISCORD_STATUS_CHANNEL_ID}/messages/${m.id}`, {
+            method: 'DELETE', headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` },
+          }).catch(() => {});
+          deleted++;
+          await new Promise(r => setTimeout(r, 300)); // rate-limit buffer
+        }
+      }
+    }
+    res.json({ deleted });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 async function postMigrationIncidentIfNeeded() {
   if (!DISCORD_BOT_TOKEN || !DISCORD_STATUS_CHANNEL_ID) return;
@@ -5040,12 +5069,13 @@ async function postMigrationIncidentIfNeeded() {
     if (r.rows[0]?.value === 'true') return;
     const startedAt = new Date(Date.now() - 3.5 * 60 * 60 * 1000);
     await postOutageToDiscord({
-      title: 'Database Migration Failure — PostgreSQL → Turso',
-      description: 'An attempted migration from Supabase (PostgreSQL) to Turso/SQLite failed under production conditions. SQL dialect incompatibilities caused API failures and session loss across all servers for ~3.5 hours.',
+      title: 'Database Migration Incident',
+      description: 'A planned database migration encountered compatibility issues under production conditions, causing API failures and session loss across all servers for approximately 3.5 hours.',
       severity: 'major',
       status: 'resolved',
+      slug: 'DBPG01',
       affected_systems: ['Database', 'API Server', 'Sessions'],
-      resolution: 'Fully reverted to Supabase PostgreSQL. Multi-DB sharding architecture implemented for future scale. All data was intact — Supabase DB was never modified during the incident. Sessions re-established on redeploy.',
+      resolution: 'Migration rolled back. All systems restored and sessions re-established. No data loss occurred.',
       started_at: startedAt,
     });
     await query(

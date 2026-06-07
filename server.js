@@ -1338,6 +1338,19 @@ app.post('/api/guilds/:id/applications-config', requireAuth, async (req, res) =>
 });
 
 // ── 18.5 Bot Customization ──────────────────────────────────────────────
+// Bot-accessible global status endpoint — returns most recently set custom status across all servers
+app.get('/api/bot/global-status', async (req, res) => {
+  const secret = req.headers['x-bot-secret'];
+  if (!secret || secret !== process.env.BOT_SECRET) return res.status(401).json({ error: 'Unauthorized' });
+  if (!DATABASE_URL) return res.json({ status: null });
+  try {
+    const r = await query(
+      `SELECT custom_bot_status, custom_bot_name FROM servers WHERE custom_bot_status IS NOT NULL AND custom_bot_status != '' ORDER BY updated_at DESC LIMIT 1`
+    );
+    res.json({ status: r.rows[0]?.custom_bot_status || null, name: r.rows[0]?.custom_bot_name || null });
+  } catch { res.json({ status: null }); }
+});
+
 app.get('/api/guilds/:id/bot-customization', requireAuth, async (req, res) => {
   const { id } = req.params;
   if (!DATABASE_URL) return res.json({ isPremium: false });

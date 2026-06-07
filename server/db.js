@@ -1,4 +1,4 @@
-import { createClient } from '@libsql/client';
+// db v3 - pg→sqlite compat - 2026-06-07T21:15:28Z\nimport { createClient } from '@libsql/client';
 import session from 'express-session';
 
 const TURSO_URL   = process.env.TURSO_DATABASE_URL;

@@ -30,6 +30,8 @@ import { Link } from "wouter";
               <span className="font-bold text-xl tracking-tight text-white">Zenith</span>
             </div>
             <div className="hidden md:flex items-center gap-6">
+              <Link href="/status" className="text-sm font-medium text-white/50 hover:text-white transition-colors flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />Status</Link>
+              <Link href="/updates" className="text-sm font-medium text-white/50 hover:text-white transition-colors">Updates</Link>
               <Link href="/tos" className="text-sm font-medium text-white/50 hover:text-white transition-colors">Terms</Link>
               <a href="https://discord.gg/UmDQqXPCfF" target="_blank" rel="noreferrer" className="text-sm font-medium text-white/50 hover:text-white transition-colors">Support</a>
               <Link href="/privacy" className="text-sm font-medium text-white/50 hover:text-white transition-colors">Privacy</Link>

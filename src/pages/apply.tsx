@@ -152,7 +152,7 @@ import { useState, useEffect } from "react";
               style={{ background: "linear-gradient(135deg,#d4af37,#f0c040)" }}>
               {submitting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Submitting...</> : (panel.button_label || "Submit Application")}
             </Button>
-            <p className="text-center text-xs text-white/20 pb-4">Powered by <span style={{ color: "#d4af37" }}>Zenith</span></p>
+            <p className="text-center text-xs text-white/20 pb-4">Powered by <a href="https://zenithbot.up.railway.app/" target="_blank" rel="noreferrer" className="hover:text-white/50 transition-colors">Zenith</a></p>
           </form>
         </div>
       </div>

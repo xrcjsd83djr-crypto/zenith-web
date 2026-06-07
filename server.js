@@ -130,10 +130,12 @@ async function handleAuthCallback(req, res) {
     req.session.discordAccessToken = tokens.access_token;
     req.session.user = userData;
 
+    const dest = req.session.returnTo || '/servers';
+    delete req.session.returnTo;
     req.session.save((err) => {
       if (err) console.error('[Auth] Session save error:', err);
       if (DATABASE_URL) upsertUser(userData).catch(() => {});
-      res.redirect('/servers');
+      res.redirect(dest);
     });
   } catch (err) {
     console.error('[auth] Callback error:', err);
@@ -142,6 +144,7 @@ async function handleAuthCallback(req, res) {
 }
 
 app.get('/auth/discord', (req, res) => {
+  if (req.query.redirect) req.session.returnTo = req.query.redirect;
   const params = new URLSearchParams({
     client_id: DISCORD_CLIENT_ID,
     redirect_uri: DISCORD_REDIRECT_URI,
@@ -151,6 +154,7 @@ app.get('/auth/discord', (req, res) => {
   res.redirect(`https://discord.com/api/oauth2/authorize?${params}`);
 });
 app.get('/api/auth/discord', (req, res) => {
+  if (req.query.redirect) req.session.returnTo = req.query.redirect;
   const params = new URLSearchParams({
     client_id: DISCORD_CLIENT_ID,
     redirect_uri: DISCORD_REDIRECT_URI,
@@ -1364,15 +1368,33 @@ app.post('/api/guilds/:id/bot-customization', requireAuth, async (req, res) => {
       `UPDATE servers SET custom_bot_name = $1, custom_bot_avatar = $2, custom_bot_status = $3, updated_at = NOW() WHERE id = $4`,
       [customBotName || null, customBotAvatar || null, customBotStatus || null, id]
     );
-      // Apply per-server bot nickname instantly via Discord API.
-      // This ONLY sets the nickname in THIS specific server — the global bot identity
-      // (username, avatar, status) is never modified, preserving it across all other servers.
+      // Apply per-server nickname + guild avatar instantly via Discord API.
       if (DISCORD_BOT_TOKEN) {
         try {
+          const patch = { nick: customBotName ? customBotName.trim() : null };
+          // Apply guild-specific avatar if provided (base64 data URI or fetch from URL)
+          if (customBotAvatar && customBotAvatar.trim()) {
+            try {
+              let avatarData = customBotAvatar.trim();
+              if (avatarData.startsWith('http')) {
+                // Fetch the image and convert to base64 data URI
+                const imgRes = await fetch(avatarData);
+                if (imgRes.ok) {
+                  const contentType = imgRes.headers.get('content-type') || 'image/png';
+                  const buffer = await imgRes.arrayBuffer();
+                  const b64 = Buffer.from(buffer).toString('base64');
+                  avatarData = `data:${contentType};base64,${b64}`;
+                }
+              }
+              patch.avatar = avatarData;
+            } catch (avatarErr) {
+              console.error('[bot-customization] Avatar fetch error:', avatarErr);
+            }
+          }
           await fetch(`${DISCORD_API}/guilds/${id}/members/@me`, {
             method: 'PATCH',
             headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nick: customBotName ? customBotName.trim() : null }),
+            body: JSON.stringify(patch),
           });
         } catch {}
       }
@@ -3523,15 +3545,6 @@ app.post('/api/guilds/:id/custom-commands', requireAuth, async (req, res) => {
        RETURNING *`,
       [id, safeName, description || '', response.trim(), embedTitle || null, embedColor || '#5865F2', !!isEmbed, requiresRole || null]
     );
-    // Auto-register as guild slash command in Discord
-    const ccRow = r.rows[0];
-    if (DISCORD_BOT_TOKEN && process.env.DISCORD_APPLICATION_ID && ccRow) {
-      fetch(`${DISCORD_API}/applications/${process.env.DISCORD_APPLICATION_ID}/guilds/${id}/commands`, {
-        method: 'POST',
-        headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: ccRow.name, description: (ccRow.description || 'Custom command').slice(0, 100), type: 1 }),
-      }).catch(() => {});
-    }
     res.json(r.rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -3966,7 +3979,7 @@ for (const [route, file] of pages) {
     if (!DISCORD_BOT_TOKEN) return res.json({ isMember: null, reason: 'bot_not_configured' });
     try {
       const r = await fetch(`${DISCORD_API}/guilds/${id}/members/${userId}`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } });
-      if (r.ok) { const m = await r.json(); return res.json({ isMember: true, joinedAt: m.joined_at }); }
+      if (r.ok) { const m = await r.json(); return res.json({ isMember: true, joinedAt: m.joined_at, roles: m.roles || [] }); }
       if (r.status === 404) {
         const gR = await fetch(`${DISCORD_API}/guilds/${id}`, { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } });
         const guild = gR.ok ? await gR.json() : null;
@@ -4668,7 +4681,7 @@ app.patch('/api/guilds/:id/config/prefix', requireAuth, async (req, res) => {
         .filter(Boolean)
         .map(p => ({
           type: 2, style: 5,
-          label: p.button_label || p.title || 'Apply',
+          label: p.title || p.button_label || 'Apply',
           url: `${SITE_URL}/portal/${id}/${p.id}`
         }));
 

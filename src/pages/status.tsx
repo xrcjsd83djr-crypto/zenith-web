@@ -1,138 +1,239 @@
-import { useState, useEffect } from "react";
-import { Link } from "wouter";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle, AlertTriangle, Clock, Zap } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+  import { Link } from "wouter";
+  import { ChevronDown, ChevronRight, RefreshCw, CheckCircle2, AlertTriangle, XCircle, Minus, Activity, Database, Bot, Wifi, Zap, Users, Shield, Clock, BarChart2, Book, Award, Megaphone, MessageSquare, FileText, Brain, Command, Radio, Target, Calendar, Inbox } from "lucide-react";
 
-interface StatusData { api: string; database: string; bot: string; timestamp: string; }
-interface ChangelogEntry { version: string; date: string; type: string; changes: string[]; }
+  interface SystemStatus { status: string; latency?: number; }
+  interface StatusData { api: SystemStatus; database: SystemStatus; bot: SystemStatus; overall: string; timestamp: string; features?: Record<string,string>; }
+  interface ChangelogEntry { version: string; date: string; type: string; changes: string[]; }
 
-function StatusDot({ status }: { status: string }) {
-  const map: Record<string, { color: string; label: string }> = {
-    operational: { color: 'bg-green-400', label: 'Operational' },
-    degraded: { color: 'bg-yellow-400', label: 'Degraded' },
-    not_configured: { color: 'bg-gray-300', label: 'Not Configured' },
-    unknown: { color: 'bg-gray-300', label: 'Unknown' },
+  const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+    operational:     { bg: "bg-emerald-500/10", text: "text-emerald-400", dot: "bg-emerald-400", label: "Operational" },
+    degraded:        { bg: "bg-yellow-500/10",  text: "text-yellow-400",  dot: "bg-yellow-400",  label: "Degraded" },
+    not_configured:  { bg: "bg-zinc-500/10",    text: "text-zinc-400",    dot: "bg-zinc-500",    label: "Not Configured" },
+    partial:         { bg: "bg-orange-500/10",  text: "text-orange-400",  dot: "bg-orange-400",  label: "Partial Outage" },
+    unknown:         { bg: "bg-zinc-500/10",    text: "text-zinc-400",    dot: "bg-zinc-500",    label: "Unknown" },
   };
-  const s = map[status] || map.unknown;
-  return (
-    <span className="flex items-center gap-1.5 text-sm">
-      <span className={`w-2.5 h-2.5 rounded-full ${s.color} ${status === 'operational' ? 'animate-pulse' : ''}`} />
-      {s.label}
-    </span>
-  );
-}
 
-const TYPE_STYLES: Record<string, { badge: string; icon: JSX.Element }> = {
-  major:   { badge: 'bg-purple-100 text-purple-700 border-purple-200', icon: <Zap size={12} /> },
-  feature: { badge: 'bg-blue-100 text-blue-700 border-blue-200', icon: <CheckCircle size={12} /> },
-  fix:     { badge: 'bg-green-100 text-green-700 border-green-200', icon: <AlertTriangle size={12} /> },
-  patch:   { badge: 'bg-muted/30 text-muted-foreground border-border', icon: <Clock size={12} /> },
-};
+  const FEATURES = [
+    { id: "applications", name: "Applications", desc: "Staff application panels, public apply form, submission review workflow, and DM notifications on decision.", icon: Inbox, category: "Core" },
+    { id: "strikes",      name: "Strikes",       desc: "Strike issuance, history log, auto-escalation to warnings, and appeal tracking.",       icon: Shield,        category: "Discipline" },
+    { id: "warnings",     name: "Warnings",      desc: "Formal warning system with severity levels, staff history, and Discord logging.",        icon: AlertTriangle,  category: "Discipline" },
+    { id: "loa",          name: "Leave of Absence", desc: "LOA requests, manager approvals, active duration tracking, and auto-expiry.",        icon: Clock,          category: "Core" },
+    { id: "shifts",       name: "Shift Tracking", desc: "Real-time on-duty timer, shift history, duration summaries, and shift card exports.", icon: Activity,        category: "Core" },
+    { id: "roster",       name: "Duty Roster",    desc: "Check-in/out of duty assignments with live roster view.",                              icon: Users,          category: "Core" },
+    { id: "promotions",   name: "Promotions",     desc: "Rank promotion and demotion history with reviewer tracking and Discord notifications.", icon: Zap,            category: "Management" },
+    { id: "training",     name: "Training",       desc: "Training program builder, completion tracking, and trainer/trainee history.",           icon: Award,          category: "Management" },
+    { id: "analytics",    name: "Analytics",      desc: "Staff performance analytics with 7-day trend charts and activity breakdowns.",         icon: BarChart2,      category: "Intelligence" },
+    { id: "ai_insights",  name: "AI Insights",    desc: "AI-powered staff health scoring, performance predictions, and smart recommendations.", icon: Brain,          category: "Intelligence" },
+    { id: "patrol",       name: "Patrol Monitor", desc: "Live patrol activity tracker integrating with ERLC session data.",                    icon: Radio,           category: "Intelligence" },
+    { id: "announcements",name: "Announcements",  desc: "Staff broadcast system with optional mass DM to all staff members.",                  icon: Megaphone,      category: "Communication" },
+    { id: "custom_cmds",  name: "Custom Commands",desc: "Guild slash command builder — create /commands that trigger bot responses.",           icon: Command,        category: "Automation" },
+    { id: "autopromotion",name: "Auto-Promotion", desc: "Automated rank promotion rules based on activity thresholds and time-in-role.",       icon: Target,          category: "Automation" },
+    { id: "goals",        name: "Staff Goals",    desc: "Set and track performance goals for individual staff members.",                        icon: Calendar,       category: "Management" },
+    { id: "incidents",    name: "Incident Reports",desc: "Document and track in-game incidents, severity, and resolution status.",             icon: FileText,       category: "Discipline" },
+    { id: "handbook",     name: "Handbook",       desc: "Configurable staff handbook sections accessible from the bot and dashboard.",          icon: Book,           category: "Core" },
+    { id: "discord_bot",  name: "Discord Bot",    desc: "Bot commands, slash command registration, interaction handling, and event listeners.", icon: MessageSquare,  category: "Infrastructure" },
+  ];
 
-export default function StatusPage() {
-  const [status, setStatus] = useState<StatusData | null>(null);
-  const [changelog, setChangelog] = useState<ChangelogEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const CATEGORIES = ["Core", "Discipline", "Management", "Intelligence", "Automation", "Communication", "Infrastructure"];
 
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/status').then(r => r.ok ? r.json() : null),
-      fetch('/api/changelog').then(r => r.ok ? r.json() : null),
-    ]).then(([s, c]) => {
-      if (s) setStatus(s);
-      if (c) setChangelog(c);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
+  function StatusPill({ status }: { status: string }) {
+    const s = STATUS_COLORS[status] || STATUS_COLORS.unknown;
+    return (
+      <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${s.bg} ${s.text}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${s.dot} ${status === "operational" ? "animate-pulse" : ""}`} />
+        {s.label}
+      </span>
+    );
+  }
 
-  const allOperational = status && status.api === 'operational' && (status.database === 'operational' || status.database === 'not_configured');
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-card/90 backdrop-blur border-b border-gray-100">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-sm" style={{ background: 'linear-gradient(135deg,#d4af37,#ffd700)' }}>Z</div>
-            <span className="font-bold tracking-tight" style={{ color: '#b8941f' }}>Zenith</span>
-          </Link>
-          <div className="flex gap-3 text-sm text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors">Home</Link>
-            <Link href="/servers" className="hover:text-foreground transition-colors">Dashboard</Link>
+  function ServiceCard({ name, icon: Icon, status, latency }: { name: string; icon: any; status: SystemStatus; latency?: number }) {
+    const s = STATUS_COLORS[status.status] || STATUS_COLORS.unknown;
+    return (
+      <div className={`rounded-2xl border border-white/10 bg-white/[0.04] p-5 flex flex-col gap-3`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center">
+              <Icon className="w-4.5 h-4.5 text-white/60" />
+            </div>
+            <span className="font-semibold text-sm text-white">{name}</span>
           </div>
+          <StatusPill status={status.status} />
         </div>
-      </nav>
+        {status.latency !== undefined && status.latency !== null && (
+          <div className="text-xs text-white/30 font-mono">{status.latency}ms response</div>
+        )}
+      </div>
+    );
+  }
 
-      <div className="max-w-3xl mx-auto px-4 pt-24 pb-16 space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-extrabold tracking-tight mb-2">System Status</h1>
-          <p className="text-muted-foreground">Real-time status and release notes for Zenith</p>
-          {status && (
-            <p className="text-xs text-muted-foreground mt-2">Last checked: {new Date(status.timestamp).toLocaleTimeString()}</p>
+  export default function StatusPage() {
+    const [statusData, setStatusData] = useState<StatusData | null>(null);
+    const [changelog, setChangelog] = useState<ChangelogEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [lastChecked, setLastChecked] = useState<Date | null>(null);
+    const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+    const fetchData = useCallback(async (isRefresh = false) => {
+      if (isRefresh) setRefreshing(true);
+      try {
+        const [s, c] = await Promise.all([
+          fetch("/api/status").then(r => r.ok ? r.json() : null),
+          fetch("/api/changelog").then(r => r.ok ? r.json() : []),
+        ]);
+        if (s) setStatusData(s);
+        if (c) setChangelog(c);
+        setLastChecked(new Date());
+      } catch {}
+      setLoading(false);
+      setRefreshing(false);
+    }, []);
+
+    useEffect(() => {
+      fetchData();
+      const interval = setInterval(() => fetchData(true), 30000);
+      return () => clearInterval(interval);
+    }, [fetchData]);
+
+    const overall = statusData?.overall || "unknown";
+    const overallStyle = STATUS_COLORS[overall] || STATUS_COLORS.unknown;
+
+    const featuresWithStatus = FEATURES.map(f => ({
+      ...f,
+      status: statusData?.features?.[f.id] || (statusData ? "operational" : "unknown"),
+    }));
+
+    const TYPE_STYLES: Record<string, { badge: string; label: string }> = {
+      major:   { badge: "bg-purple-500/20 text-purple-300 border border-purple-500/30", label: "Major Release" },
+      feature: { badge: "bg-blue-500/20 text-blue-300 border border-blue-500/30",       label: "New Features" },
+      fix:     { badge: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30", label: "Bug Fix" },
+      patch:   { badge: "bg-zinc-500/20 text-zinc-300 border border-zinc-500/30",       label: "Patch" },
+    };
+
+    return (
+      <div className="min-h-screen bg-[#0d0f14] text-white">
+        {/* Navbar */}
+        <nav className="border-b border-white/5 bg-[#0d0f14]/80 backdrop-blur-md sticky top-0 z-50">
+          <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-black font-bold text-lg" style={{ background: "linear-gradient(135deg,#d4af37,#ffd700)" }}>Z</div>
+              <span className="font-bold text-white">Zenith</span>
+            </Link>
+            <div className="flex items-center gap-3">
+              <Link href="/updates" className="text-sm text-white/40 hover:text-white transition-colors">Updates</Link>
+              <Link href="/servers" className="text-sm font-medium text-white/70 hover:text-white transition-colors">Dashboard</Link>
+            </div>
+          </div>
+        </nav>
+
+        <div className="max-w-5xl mx-auto px-4 py-12 space-y-10">
+          {/* Overall status banner */}
+          <div>
+            <div className={`rounded-2xl border ${overallStyle.bg} border-white/10 p-6 flex items-center justify-between`}>
+              <div className="flex items-center gap-4">
+                {overall === "operational" ? <CheckCircle2 className={`w-8 h-8 ${overallStyle.text}`} /> : overall === "degraded" ? <AlertTriangle className={`w-8 h-8 ${overallStyle.text}`} /> : <Minus className={`w-8 h-8 ${overallStyle.text}`} />}
+                <div>
+                  <h1 className={`text-xl font-bold ${overall === "operational" ? "text-white" : overallStyle.text}`}>
+                    {overall === "operational" ? "All Systems Operational" : overall === "degraded" ? "Some Systems Degraded" : "Status Unknown"}
+                  </h1>
+                  <p className="text-white/40 text-sm mt-0.5">
+                    {lastChecked ? `Last checked ${lastChecked.toLocaleTimeString()}` : "Checking..."}
+                    {" "}• Auto-refreshes every 30s
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => fetchData(true)} disabled={refreshing}
+                className="flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-white/10 hover:border-white/20">
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          {/* Service cards */}
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-white/30 mb-4">Infrastructure</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <ServiceCard name="API Server" icon={Wifi} status={statusData?.api || { status: loading ? "unknown" : "operational" }} />
+              <ServiceCard name="Database" icon={Database} status={statusData?.database || { status: "unknown" }} />
+              <ServiceCard name="Discord Bot" icon={Bot} status={statusData?.bot || { status: "unknown" }} />
+            </div>
+          </div>
+
+          {/* Feature matrix */}
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-white/30 mb-4">Features</h2>
+            <div className="space-y-1">
+              {CATEGORIES.map(cat => {
+                const catFeatures = featuresWithStatus.filter(f => f.category === cat);
+                if (!catFeatures.length) return null;
+                return (
+                  <div key={cat}>
+                    <div className="text-xs text-white/20 font-semibold uppercase tracking-widest px-2 py-2 mt-3">{cat}</div>
+                    {catFeatures.map(f => {
+                      const isOpen = expanded[f.id];
+                      const Icon = f.icon;
+                      return (
+                        <div key={f.id} className="rounded-xl border border-white/[0.07] bg-white/[0.03] overflow-hidden mb-1">
+                          <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left"
+                            onClick={() => setExpanded(e => ({ ...e, [f.id]: !e[f.id] }))}>
+                            <Icon className="w-4 h-4 text-white/40 flex-shrink-0" />
+                            <span className="flex-1 text-sm font-medium text-white/80">{f.name}</span>
+                            <StatusPill status={f.status} />
+                            {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-white/20 ml-2" /> : <ChevronRight className="w-3.5 h-3.5 text-white/20 ml-2" />}
+                          </button>
+                          {isOpen && (
+                            <div className="px-4 pb-4 pt-1 border-t border-white/[0.07] bg-white/[0.02]">
+                              <p className="text-sm text-white/40 leading-relaxed">{f.desc}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recent updates from changelog */}
+          {changelog.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-white/30">Recent Changes</h2>
+                <Link href="/updates" className="text-xs text-white/30 hover:text-white transition-colors">View all →</Link>
+              </div>
+              <div className="space-y-3">
+                {changelog.slice(0, 3).map(entry => {
+                  const t = TYPE_STYLES[entry.type] || TYPE_STYLES.patch;
+                  const isOpen = expanded[`cl-${entry.version}`];
+                  return (
+                    <div key={entry.version} className="rounded-xl border border-white/[0.07] bg-white/[0.03] overflow-hidden">
+                      <button className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left"
+                        onClick={() => setExpanded(e => ({ ...e, [`cl-${entry.version}`]: !e[`cl-${entry.version}`] }))}>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${t.badge}`}>{t.label}</span>
+                        <span className="font-mono text-sm text-white/80 font-semibold">v{entry.version}</span>
+                        <span className="text-xs text-white/30 flex-1">{entry.date}</span>
+                        <span className="text-xs text-white/30 mr-2">{entry.changes.length} change{entry.changes.length !== 1 ? "s" : ""}</span>
+                        {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-white/20" /> : <ChevronRight className="w-3.5 h-3.5 text-white/20" />}
+                      </button>
+                      {isOpen && (
+                        <ul className="px-4 pb-4 pt-1 border-t border-white/[0.07] space-y-1">
+                          {entry.changes.map((c, i) => (
+                            <li key={i} className="text-sm text-white/40 flex items-start gap-2">
+                              <span className="text-white/20 mt-1 flex-shrink-0">•</span>{c}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
-
-        {/* Status card */}
-        <Card className={`border shadow-sm ${allOperational ? 'border-green-200 bg-green-50/40' : 'border-yellow-200 bg-yellow-50/40'}`}>
-          <CardContent className="p-5">
-            {loading ? (
-              <div className="flex items-center gap-2 text-muted-foreground"><div className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#d4af37', borderTopColor: 'transparent' }} />Checking status...</div>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 mb-4">
-                  {allOperational
-                    ? <><CheckCircle className="text-green-600 w-5 h-5" /><span className="font-bold text-green-800">All systems operational</span></>
-                    : <><AlertTriangle className="text-yellow-600 w-5 h-5" /><span className="font-bold text-yellow-800">Some services may be degraded</span></>}
-                </div>
-                {status && (
-                  <div className="grid grid-cols-3 gap-4">
-                    {[
-                      { label: 'API', status: status.api },
-                      { label: 'Database', status: status.database },
-                      { label: 'Bot', status: status.bot },
-                    ].map(s => (
-                      <div key={s.label} className="text-center">
-                        <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
-                        <StatusDot status={s.status} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Changelog */}
-        <div>
-          <h2 className="text-xl font-bold mb-4">Release Notes</h2>
-          <div className="space-y-4">
-            {changelog.map((entry, i) => {
-              const style = TYPE_STYLES[entry.type] || TYPE_STYLES.patch;
-              return (
-                <Card key={entry.version} className={`border-border bg-card shadow-sm ${i === 0 ? 'ring-2 ring-amber-200' : ''}`}>
-                  <CardContent className="p-5">
-                    <div className="flex items-center gap-2 mb-3 flex-wrap">
-                      <span className="font-bold text-base">v{entry.version}</span>
-                      {i === 0 && <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px]">Latest</Badge>}
-                      <Badge className={`${style.badge} border text-[10px] flex items-center gap-1`}>{style.icon}{entry.type}</Badge>
-                      <span className="text-xs text-muted-foreground ml-auto">{entry.date}</span>
-                    </div>
-                    <ul className="space-y-1">
-                      {entry.changes.map((c, j) => (
-                        <li key={j} className="flex items-start gap-2 text-sm text-muted-foreground">
-                          <CheckCircle size={13} className="text-green-500 flex-shrink-0 mt-0.5" />
-                          {c}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }

@@ -4776,7 +4776,46 @@ app.patch('/api/guilds/:id/config/prefix', requireAuth, async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
+// ── Real-time stats ──────────────────────────────────────────────────────────
+app.get('/api/stats', async (_req, res) => {
+  const uptimeSec = process.uptime();
+  const uptimeHours   = Math.floor(uptimeSec / 3600);
+  const uptimeMinutes = Math.floor((uptimeSec % 3600) / 60);
+  const t1 = Date.now();
+  try {
+    const [guilds, users] = await Promise.all([
+      query('SELECT COUNT(*) FROM guild_db_assignments'),
+      query('SELECT COUNT(*) FROM users'),
+    ]);
+    res.json({
+      activeServers: parseInt(guilds.rows[0].count) || 0,
+      usersManaged:  parseInt(users.rows[0].count)  || 0,
+      uptimeHours,
+      uptimeMinutes,
+      responseTime: Date.now() - t1,
+    });
+  } catch {
+    res.json({ activeServers: 0, usersManaged: 0, uptimeHours, uptimeMinutes, responseTime: Date.now() - t1 });
+  }
+});
+
 // ── System Outages API ──────────────────────────────────────────────────────
+function generateSlug() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let s = '';
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+async function getOutageWithUpdates(id) {
+  const [oRes, uRes] = await Promise.all([
+    query('SELECT * FROM system_outages WHERE id = $1', [id]),
+    query('SELECT * FROM system_outage_updates WHERE outage_id = $1 ORDER BY created_at ASC', [id]),
+  ]);
+  if (!oRes.rows[0]) return null;
+  return { ...oRes.rows[0], updates: uRes.rows };
+}
+
 app.get('/api/outages', async (_req, res) => {
   if (!DATABASE_URL) return res.json([]);
   try {
@@ -4785,17 +4824,39 @@ app.get('/api/outages', async (_req, res) => {
   } catch { res.json([]); }
 });
 
+app.get('/api/outages/by-slug/:slug', async (req, res) => {
+  if (!DATABASE_URL) return res.status(404).json({ error: 'Not found' });
+  try {
+    const r = await query('SELECT * FROM system_outages WHERE slug = $1', [req.params.slug]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'Incident not found' });
+    const outage = await getOutageWithUpdates(r.rows[0].id);
+    res.json(outage);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/outages', requireBotSecret, async (req, res) => {
   const { title, description, severity = 'minor', status = 'investigating', affected_systems = [], resolution } = req.body;
   if (!title || !description) return res.status(400).json({ error: 'title and description required' });
+  let slug = generateSlug();
+  // Ensure slug uniqueness
+  for (let i = 0; i < 5; i++) {
+    const exists = await query('SELECT id FROM system_outages WHERE slug = $1', [slug]).catch(() => ({ rows: [] }));
+    if (!exists.rows[0]) break;
+    slug = generateSlug();
+  }
   try {
     const r = await query(
-      `INSERT INTO system_outages (title, description, severity, status, affected_systems, resolution, resolved_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [title, description, severity, status, affected_systems, resolution || null,
+      `INSERT INTO system_outages (slug, title, description, severity, status, affected_systems, resolution, resolved_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [slug, title, description, severity, status, affected_systems, resolution || null,
        status === 'resolved' ? new Date() : null]
     );
     const outage = r.rows[0];
+    // Seed initial investigating update
+    await query(
+      `INSERT INTO system_outage_updates (outage_id, status, message) VALUES ($1, $2, $3)`,
+      [outage.id, status === 'resolved' ? 'resolved' : 'investigating', description]
+    ).catch(() => {});
     postOutageToDiscord(outage).catch(() => {});
     updateDiscordStatusMessage().catch(() => {});
     res.json(outage);
@@ -4804,7 +4865,7 @@ app.post('/api/outages', requireBotSecret, async (req, res) => {
 
 app.patch('/api/outages/:id', requireBotSecret, async (req, res) => {
   const { id } = req.params;
-  const { status, resolution, description } = req.body;
+  const { status, resolution, description, update_message } = req.body;
   try {
     const r = await query(
       `UPDATE system_outages SET
@@ -4818,6 +4879,12 @@ app.patch('/api/outages/:id', requireBotSecret, async (req, res) => {
     );
     const outage = r.rows[0];
     if (outage) {
+      // Add a timeline update entry
+      const msg = update_message || resolution || description || `Status updated to ${status || 'unknown'}`;
+      await query(
+        `INSERT INTO system_outage_updates (outage_id, status, message) VALUES ($1, $2, $3)`,
+        [id, status || 'update', msg]
+      ).catch(() => {});
       postOutageToDiscord(outage).catch(() => {});
       updateDiscordStatusMessage().catch(() => {});
     }
@@ -4922,6 +4989,10 @@ async function postOutageToDiscord(outage) {
   const isResolved = outage.status === 'resolved';
   const color = isResolved ? 0x2ecc71 : (sevColor[outage.severity] || 0xe74c3c);
   const systems = Array.isArray(outage.affected_systems) ? outage.affected_systems.join(', ') : (outage.affected_systems || '');
+  const incidentUrl = outage.slug
+    ? `${APP_URL}/status/incidents/${outage.slug}`
+    : `${APP_URL}/status`;
+  const incidentId = outage.slug ? `#${outage.slug}` : '';
   try {
     await fetch(`${DISCORD_API}/channels/${DISCORD_STATUS_CHANNEL_ID}/messages`, {
       method: 'POST',
@@ -4933,14 +5004,15 @@ async function postOutageToDiscord(outage) {
           description: outage.description,
           color,
           fields: [
-            { name: 'Severity', value: (outage.severity || 'minor').charAt(0).toUpperCase() + (outage.severity || 'minor').slice(1), inline: true },
-            { name: 'Status',   value: (outage.status || '').charAt(0).toUpperCase() + (outage.status || '').slice(1), inline: true },
-            ...(systems ? [{ name: 'Affected Systems', value: systems, inline: true }] : []),
+            { name: 'Severity',  value: (outage.severity || 'minor').charAt(0).toUpperCase() + (outage.severity || 'minor').slice(1), inline: true },
+            { name: 'Status',    value: (outage.status || '').charAt(0).toUpperCase() + (outage.status || '').slice(1), inline: true },
+            ...(incidentId ? [{ name: 'Incident ID', value: `\`${incidentId}\``, inline: true }] : []),
+            ...(systems ? [{ name: 'Affected Systems', value: systems }] : []),
             ...(outage.resolution ? [{ name: '✅ Resolution', value: outage.resolution }] : []),
-            { name: '📊 Status Page', value: `[View full incident details](${APP_URL}/status)` },
+            { name: '📄 Incident Page', value: `[View live updates & timeline](${incidentUrl})` },
             { name: '💬 Need Help?', value: `Join our [support server](${SUPPORT_SERVER_INVITE})` },
           ],
-          footer: { text: 'Zenith Incident Report' },
+          footer: { text: `Zenith Incident Report${incidentId ? ` • ${incidentId}` : ''}` },
           timestamp: new Date().toISOString(),
         }],
       }),

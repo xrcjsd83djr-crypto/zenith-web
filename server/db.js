@@ -62,7 +62,7 @@ export class TursoSessionStore extends session.Store {
   get(sid, cb) {
     query('SELECT sess FROM session WHERE sid = ? AND expired_at > ?', [sid, Date.now()])
       .then(r => cb(null, r.rows[0] ? JSON.parse(r.rows[0].sess) : null))
-      .catch(cb);
+      .catch(err => { console.error('[Session] get error:', err.message); cb(null, null); });
   }
   set(sid, sess, cb) {
     const exp = sess?.cookie?.expires
@@ -70,17 +70,21 @@ export class TursoSessionStore extends session.Store {
       : Date.now() + 7 * 24 * 60 * 60 * 1000;
     query('INSERT OR REPLACE INTO session (sid, sess, expired_at) VALUES (?, ?, ?)',
       [sid, JSON.stringify(sess), exp])
-      .then(() => cb(null)).catch(cb);
+      .then(() => cb(null))
+      .catch(err => { console.error('[Session] set error:', err.message); cb(null); });
   }
   destroy(sid, cb) {
-    query('DELETE FROM session WHERE sid = ?', [sid]).then(() => cb(null)).catch(cb);
+    query('DELETE FROM session WHERE sid = ?', [sid])
+      .then(() => cb(null))
+      .catch(err => { console.error('[Session] destroy error:', err.message); cb(null); });
   }
   touch(sid, sess, cb) {
     const exp = sess?.cookie?.expires
       ? new Date(sess.cookie.expires).getTime()
       : Date.now() + 7 * 24 * 60 * 60 * 1000;
     query('UPDATE session SET expired_at = ? WHERE sid = ?', [exp, sid])
-      .then(() => cb(null)).catch(cb);
+      .then(() => cb(null))
+      .catch(err => { console.error('[Session] touch error:', err.message); cb(null); });
   }
 }
 

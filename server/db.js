@@ -17,11 +17,34 @@ function getClient() {
 export const pool = {};
 
 // ── SQL adapter ──────────────────────────────────────────────────────────────
-// Converts Postgres-style $1,$2 params → ? and fixes Postgres-only functions
+// Converts Postgres-specific SQL → SQLite/Turso compatible SQL
 function adaptSql(text) {
   return text
-    .replace(/\$\d+/g, '?')
-    .replace(/\bNOW\(\)/gi, 'CURRENT_TIMESTAMP');
+    // 1. NOW() ± INTERVAL 'N unit' → datetime('now', '±N unit')  (must run BEFORE bare NOW())
+    .replace(/NOW\(\)\s*-\s*INTERVAL\s*'(\d+)\s*(days?|hours?|minutes?|seconds?)'/gi,
+      (_, n, u) => `datetime('now', '-${n} ${u.replace(/s$/,'').toLowerCase()}s')`)
+    .replace(/NOW\(\)\s*\+\s*INTERVAL\s*'(\d+)\s*(days?|hours?|minutes?|seconds?)'/gi,
+      (_, n, u) => `datetime('now', '+${n} ${u.replace(/s$/,'').toLowerCase()}s')`)
+    // 2. created_at > NOW() - INTERVAL patterns already replaced above; replace bare NOW()
+    .replace(/\bNOW\(\)/gi, "datetime('now')")
+    // 3. EXTRACT(EPOCH FROM (a - b)) → (unixepoch(a) - unixepoch(b))
+    .replace(/EXTRACT\s*\(\s*EPOCH\s+FROM\s*\(\s*([^()]+?)\s*-\s*([^()]+?)\s*\)\s*\)/gi,
+      (_, a, b) => `(unixepoch(${a.trim()}) - unixepoch(${b.trim()}))`)
+    .replace(/EXTRACT\s*\(\s*EPOCH\s+FROM\s+([^)]+?)\s*\)/gi,
+      (_, e) => `unixepoch(${e.trim()})`)
+    // 4. DATE_TRUNC
+    .replace(/DATE_TRUNC\s*\(\s*'day'\s*,\s*([^)]+?)\s*\)/gi, 'date($1)')
+    .replace(/DATE_TRUNC\s*\(\s*'month'\s*,\s*([^)]+?)\s*\)/gi, "strftime('%Y-%m-01',$1)")
+    .replace(/DATE_TRUNC\s*\(\s*'week'\s*,\s*([^)]+?)\s*\)/gi, "date($1,'weekday 1','-7 days')")
+    // 5. ILIKE → LIKE (SQLite LIKE is already case-insensitive for ASCII)
+    .replace(/\bILIKE\b/gi, 'LIKE')
+    // 6. PostgreSQL type casts ::type → remove
+    .replace(/::(jsonb|json|text|int|integer|bigint|boolean|bool|date|timestamp(?:tz)?|uuid|float|double\s+precision|numeric|real|varchar|character\s+varying)\b/gi, '')
+    // 7. gen_random_uuid() → portable UUID via randomblob
+    .replace(/\bgen_random_uuid\(\)/gi,
+      "lower(hex(randomblob(4)))||'-'||lower(hex(randomblob(2)))||'-4'||substr(lower(hex(randomblob(2))),2)||'-'||substr('89ab',abs(random())%4+1,1)||substr(lower(hex(randomblob(2))),2)||'-'||lower(hex(randomblob(6)))")
+    // 8. $N positional → ? (libsql uses ? for positional)
+    .replace(/\$\d+/g, '?');
 }
 
 function adaptParam(v) {
